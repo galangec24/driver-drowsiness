@@ -3,6 +3,7 @@ import { RouterProvider } from 'react-router-dom';
 import { AuthProvider } from './store/auth';
 import { ToastProvider } from './components/ui/Toast';
 import { router } from './router';
+import { ServerWake } from './components/ui/ServerWake';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,6 +24,7 @@ export function App() {
       <AuthProvider>
         <ToastProvider>
           <RouterProvider router={router} />
+          <ServerWake />
         </ToastProvider>
       </AuthProvider>
     </QueryClientProvider>

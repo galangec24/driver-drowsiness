@@ -17,7 +17,24 @@
     <title>Guardian Drive</title>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Startup loader: visible instantly while the app's JavaScript downloads; React replaces it. -->
+    <div id="root">
+      <style>
+        .gd-boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#05060f;color:#c7d2fe;font-family:Inter,system-ui,sans-serif}
+        .gd-boot__ring{position:relative;width:84px;height:84px}
+        .gd-boot__ring::before,.gd-boot__ring::after{content:"";position:absolute;inset:0;border-radius:50%;border:3px solid transparent}
+        .gd-boot__ring::before{border-top-color:#818cf8;box-shadow:0 0 18px rgba(129,140,248,.5);animation:gd-spin 1.1s linear infinite}
+        .gd-boot__ring::after{inset:12px;border-left-color:#10b981;animation:gd-spin 1.6s linear infinite reverse}
+        .gd-boot__ring img{position:absolute;inset:27px;width:30px;height:30px}
+        .gd-boot p{margin:0;font-size:14px;font-weight:600;letter-spacing:.02em;opacity:.85}
+        @keyframes gd-spin{to{transform:rotate(360deg)}}
+        @media (prefers-reduced-motion:reduce){.gd-boot__ring::before,.gd-boot__ring::after{animation-duration:4s}}
+      </style>
+      <div class="gd-boot" role="status" aria-label="Loading Guardian Drive">
+        <div class="gd-boot__ring"><img src="/icons/icon.svg" alt="" /></div>
+        <p>Loading Guardian Drive…</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
