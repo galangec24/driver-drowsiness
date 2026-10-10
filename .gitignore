@@ -53,3 +53,4 @@ driver_monitor/models/eye_state.version
 # test output
 web/test-results/
 web/playwright-report/
+*.tsbuildinfo

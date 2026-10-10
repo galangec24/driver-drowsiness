@@ -379,3 +379,12 @@ Full guide: `docs/ADMIN.md`.
   model, parity fixture or reports; new `calibrate_yawn.py` (refuses datasets without detectable faces;
   never recommends below `--floor` 0.3) and `process_videos.py` (UTA-RLDD / folder presets);
   `import_recordings.py` accepts folders. Public dataset catalog: `backend/src/config/datasetCatalog.js`.
+
+## 17. E-mail verification (added 2026-10-10)
+
+Guide: `docs/EMAIL.md`. New accounts get a 6-digit e-mailed code (`services/emailOtp.js`, hashed, 10 min,
+5 attempts, 60 s resend cooldown, 5/hour) and receive no JWT until `POST /api/auth/verify-email`. Login of an
+unverified account → 403 `details.code = EMAIL_NOT_VERIFIED`. Mail goes through `services/mailer.js`
+(`EMAIL_PROVIDER=brevo` HTTPS API, because Render free blocks SMTP; `console` for local). On automatically when a
+provider is set; `EMAIL_VERIFICATION=off` disables. Users without `emailVerified` (pre-feature) count as verified.
+Web: `components/auth/OtpForm.tsx`; APK: `widgets/otp_view.dart` + `VerificationRequired` exception.

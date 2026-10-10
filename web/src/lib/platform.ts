@@ -1,22 +1,19 @@
-export type Platform = "android" | "ios" | "desktop";
+export type Platform = 'android' | 'ios' | 'desktop';
 
 /** Which install path to recommend first. */
-export function detectPlatform(
-  ua: string = navigator.userAgent,
-  maxTouchPoints = navigator.maxTouchPoints,
-): Platform {
-  if (/android/i.test(ua)) return "android";
-  if (/iphone|ipad|ipod/i.test(ua)) return "ios";
+export function detectPlatform(ua: string = navigator.userAgent, maxTouchPoints = navigator.maxTouchPoints): Platform {
+  if (/android/i.test(ua)) return 'android';
+  if (/iphone|ipad|ipod/i.test(ua)) return 'ios';
   // iPadOS 13+ reports itself as a Mac; touch support gives it away.
-  if (/macintosh/i.test(ua) && maxTouchPoints > 1) return "ios";
-  return "desktop";
+  if (/macintosh/i.test(ua) && maxTouchPoints > 1) return 'ios';
+  return 'desktop';
 }
 
 /** Running as an installed app (home-screen / desktop window) rather than in a browser tab. */
 export function isStandalone(): boolean {
   try {
     return (
-      window.matchMedia("(display-mode: standalone)").matches ||
+      window.matchMedia('(display-mode: standalone)').matches ||
       (navigator as Navigator & { standalone?: boolean }).standalone === true
     );
   } catch {
@@ -29,18 +26,12 @@ export function isStandalone(): boolean {
  * this PC's network address; deployed sites already have a public origin.
  */
 export function shareableOrigin(
-  loc: Pick<
-    Location,
-    "protocol" | "hostname" | "port" | "origin"
-  > = window.location,
+  loc: Pick<Location, 'protocol' | 'hostname' | 'port' | 'origin'> = window.location,
   lanHost: string = __LAN_HOST__,
 ): string {
-  const local =
-    loc.hostname === "localhost" ||
-    loc.hostname === "127.0.0.1" ||
-    loc.hostname === "[::1]";
+  const local = loc.hostname === 'localhost' || loc.hostname === '127.0.0.1' || loc.hostname === '[::1]';
   if (!local || !lanHost) return loc.origin;
-  return `${loc.protocol}//${lanHost}${loc.port ? `:${loc.port}` : ""}`;
+  return `${loc.protocol}//${lanHost}${loc.port ? `:${loc.port}` : ''}`;
 }
 
 /**
@@ -48,8 +39,7 @@ export function shareableOrigin(
  * (public, not a secret) to host it elsewhere, e.g. a GitHub Release, because Firebase's free plan
  * refuses .apk files.
  */
-export const APK_URL: string =
-  (import.meta.env.VITE_APK_URL as string | undefined)?.trim() || "/app.apk";
+export const APK_URL: string = (import.meta.env.VITE_APK_URL as string | undefined)?.trim() || '/app.apk';
 
 export function isExternalUrl(url: string, origin: string = window.location.origin): boolean {
   return /^https?:\/\//i.test(url) && !url.startsWith(origin);
@@ -70,11 +60,11 @@ export interface ApkInfo {
 export async function fetchApkInfo(url: string = APK_URL): Promise<ApkInfo> {
   if (isExternalUrl(url)) return { available: true, external: true };
   try {
-    const res = await fetch(url, { method: "HEAD", cache: "no-store" });
-    const type = res.headers.get("content-type") ?? "";
-    if (!res.ok || type.includes("text/html")) return { available: false };
-    const size = Number(res.headers.get("content-length"));
-    const modified = res.headers.get("last-modified");
+    const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+    const type = res.headers.get('content-type') ?? '';
+    if (!res.ok || type.includes('text/html')) return { available: false };
+    const size = Number(res.headers.get('content-length'));
+    const modified = res.headers.get('last-modified');
     return {
       available: true,
       ...(Number.isFinite(size) && size > 0 && { sizeBytes: size }),

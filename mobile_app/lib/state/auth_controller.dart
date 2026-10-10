@@ -45,6 +45,14 @@ class AuthController extends ChangeNotifier {
     await _setSession(r.token, r.user);
   }
 
+  /// After VerificationRequired: the e-mailed 6-digit code signs the user in.
+  Future<void> verifyEmail(String email, String code) async {
+    final r = await _api.verifyEmail(email.trim(), code);
+    await _setSession(r.token, r.user);
+  }
+
+  Future<int> resendCode(String email) => _api.resendCode(email.trim());
+
   Future<void> _setSession(String token, AppUser user) async {
     await _storage.writeToken(token);
     await _storage.setUser(user);

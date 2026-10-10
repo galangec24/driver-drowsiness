@@ -14,6 +14,13 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
+/// The account exists but its e-mail isn't verified yet: ask for the 6-digit code we e-mailed.
+class VerificationRequired implements Exception {
+  const VerificationRequired(this.email, this.retryAfterS);
+  final String email;
+  final int retryAfterS;
+}
+
 /// All data goes through our backend — no Firebase/Mongo SDKs, no secrets in the APK.
 class ApiService {
   ApiService(this._storage) : _dio = Dio() {
@@ -54,9 +61,19 @@ class ApiService {
     return url.startsWith('/') ? '${_storage.serverUrl}$url' : url;
   }
 
-  ApiException _wrap(Object e) {
+  Exception _wrap(Object e) {
+    if (e is VerificationRequired) return e;
     if (e is DioException) {
       final data = e.response?.data;
+      final details = data is Map ? data['details'] : null;
+      if (e.response?.statusCode == 403 &&
+          details is Map &&
+          details['code'] == 'EMAIL_NOT_VERIFIED') {
+        return VerificationRequired(
+          (details['email'] ?? '') as String,
+          (details['retryAfterS'] as num?)?.toInt() ?? 60,
+        );
+      }
       if (e.response == null) {
         return const ApiException(
           'Cannot reach the Guardian Drive server',
@@ -118,10 +135,39 @@ class ApiService {
       '/auth/register',
       data: {'name': name, 'email': email, 'password': password},
     );
+    if (r.data!['verificationRequired'] == true) {
+      throw VerificationRequired(
+        r.data!['email'] as String,
+        (r.data!['retryAfterS'] as num?)?.toInt() ?? 60,
+      );
+    }
     return (
       token: r.data!['token'] as String,
       user: AppUser.fromJson(r.data!['user'] as Map<String, dynamic>),
     );
+  });
+
+  Future<({String token, AppUser user})> verifyEmail(
+    String email,
+    String code,
+  ) => _call(() async {
+    final r = await _dio.post<Map<String, dynamic>>(
+      '/auth/verify-email',
+      data: {'email': email, 'code': code},
+    );
+    return (
+      token: r.data!['token'] as String,
+      user: AppUser.fromJson(r.data!['user'] as Map<String, dynamic>),
+    );
+  });
+
+  /// Returns seconds until the next resend is allowed.
+  Future<int> resendCode(String email) => _call(() async {
+    final r = await _dio.post<Map<String, dynamic>>(
+      '/auth/resend-code',
+      data: {'email': email},
+    );
+    return (r.data!['retryAfterS'] as num?)?.toInt() ?? 60;
   });
 
   Future<bool> pushEnabled() => _call(() async {

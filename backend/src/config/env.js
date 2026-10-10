@@ -37,6 +37,19 @@ const env = {
       : null,
   // Accounts with these e-mails get the admin role (training console) at register/login.
   adminEmails: list(process.env.ADMIN_EMAILS).map((e) => e.toLowerCase()),
+  // E-mail (OTP verification). EMAIL_PROVIDER=brevo (HTTPS API, free 300/day) | console (dev log).
+  email: {
+    provider: (process.env.EMAIL_PROVIDER || '').toLowerCase(),
+    brevoApiKey: process.env.BREVO_API_KEY || '',
+    from: process.env.EMAIL_FROM || '',
+    fromName: process.env.EMAIL_FROM_NAME || 'Guardian Drive',
+  },
+  // New accounts must confirm their e-mail with a code before signing in. On by default whenever
+  // an e-mail provider is configured; EMAIL_VERIFICATION=off disables it.
+  emailVerification:
+    (
+      process.env.EMAIL_VERIFICATION || (process.env.EMAIL_PROVIDER ? 'on' : 'off')
+    ).toLowerCase() !== 'off',
   // Training worker (admin console). Auto-detects the repo's venvs when not set; see docs/ADMIN.md.
   ml: {
     python: process.env.ML_PYTHON || '',

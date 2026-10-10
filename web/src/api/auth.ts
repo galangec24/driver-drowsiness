@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { api } from './client';
 import type { User } from './types';
 
@@ -6,14 +7,53 @@ export interface AuthResponse {
   user: User;
 }
 
+/** Registration when e-mail verification is on: no token until the e-mailed code is entered. */
+export interface VerificationRequired {
+  verificationRequired: true;
+  email: string;
+  retryAfterS: number;
+}
+
 export async function login(email: string, password: string): Promise<AuthResponse> {
-  const { data } = await api.post<AuthResponse>('/auth/login', { email, password });
+  const { data } = await api.post<AuthResponse>('/auth/login', {
+    email,
+    password,
+  });
   return data;
 }
 
-export async function register(name: string, email: string, password: string): Promise<AuthResponse> {
-  const { data } = await api.post<AuthResponse>('/auth/register', { name, email, password });
+export async function register(
+  name: string,
+  email: string,
+  password: string,
+): Promise<AuthResponse | VerificationRequired> {
+  const { data } = await api.post<AuthResponse | VerificationRequired>('/auth/register', { name, email, password });
   return data;
+}
+
+export async function verifyEmail(email: string, code: string): Promise<AuthResponse> {
+  const { data } = await api.post<AuthResponse>('/auth/verify-email', {
+    email,
+    code,
+  });
+  return data;
+}
+
+export async function resendCode(email: string): Promise<{ ok: boolean; retryAfterS: number }> {
+  const { data } = await api.post<{ ok: boolean; retryAfterS: number }>('/auth/resend-code', { email });
+  return data;
+}
+
+/** Login refused because the e-mail isn't verified yet → {email, retryAfterS}, else null. */
+export function unverifiedFromError(err: unknown): { email: string; retryAfterS: number } | null {
+  if (!axios.isAxiosError(err) || err.response?.status !== 403) return null;
+  const details = (
+    err.response.data as {
+      details?: { code?: string; email?: string; retryAfterS?: number };
+    }
+  )?.details;
+  if (details?.code !== 'EMAIL_NOT_VERIFIED' || !details.email) return null;
+  return { email: details.email, retryAfterS: details.retryAfterS ?? 60 };
 }
 
 export async function me(): Promise<User> {

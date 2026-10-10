@@ -10,6 +10,7 @@ import '../widgets/floating_shapes.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/mesh_background.dart';
 import '../widgets/orbit_loader.dart';
+import '../widgets/otp_view.dart';
 import '../widgets/tilt_3d.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -28,6 +29,8 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   bool _showServer = false;
   bool _obscure = true;
+  // Waiting for the e-mailed code (new account, or sign-in before verifying).
+  VerificationRequired? _pending;
   Map<String, String> _errors = {};
   String? _formError;
 
@@ -72,11 +75,27 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         await auth.login(_email.text, _password.text);
       }
+    } on VerificationRequired catch (v) {
+      setState(() => _pending = v);
     } on ApiException catch (e) {
       setState(() => _formError = e.message);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Widget _otp(VerificationRequired pending) {
+    final auth = context.read<AuthController>();
+    return OtpView(
+      email: pending.email,
+      retryAfterS: pending.retryAfterS,
+      onVerify: (code) => auth.verifyEmail(pending.email, code),
+      onResend: () => auth.resendCode(pending.email),
+      onBack: () => setState(() {
+        _pending = null;
+        _register = false;
+      }),
+    );
   }
 
   Widget _field(
@@ -160,136 +179,143 @@ class _LoginScreenState extends State<LoginScreen> {
                               GlassCard(
                                 interactive: false,
                                 padding: const EdgeInsets.all(24),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    SegmentedButton<bool>(
-                                      segments: const [
-                                        ButtonSegment(
-                                          value: false,
-                                          label: Text('Sign in'),
-                                        ),
-                                        ButtonSegment(
-                                          value: true,
-                                          label: Text('Create account'),
-                                        ),
-                                      ],
-                                      selected: {_register},
-                                      showSelectedIcon: false,
-                                      onSelectionChanged: (s) => setState(() {
-                                        _register = s.first;
-                                        _errors = {};
-                                        _formError = null;
-                                      }),
-                                    ),
-                                    const SizedBox(height: 20),
-                                    AnimatedSize(
-                                      duration: AppMotion.page,
-                                      child: _register
-                                          ? _field(
-                                              'name',
-                                              'Your name',
-                                              _name,
-                                              icon: Icons.person_rounded,
-                                              autofill: const [
-                                                AutofillHints.name,
-                                              ],
-                                            )
-                                          : const SizedBox(
-                                              width: double.infinity,
-                                            ),
-                                    ),
-                                    _field(
-                                      'email',
-                                      'Email',
-                                      _email,
-                                      icon: Icons.mail_rounded,
-                                      type: TextInputType.emailAddress,
-                                      autofill: const [AutofillHints.email],
-                                    ),
-                                    _field(
-                                      'password',
-                                      'Password',
-                                      _password,
-                                      icon: Icons.lock_rounded,
-                                      obscure: _obscure,
-                                      autofill: const [AutofillHints.password],
-                                      suffix: IconButton(
-                                        key: const ValueKey('toggle-password'),
-                                        tooltip: _obscure
-                                            ? 'Show password'
-                                            : 'Hide password',
-                                        icon: Icon(
-                                          _obscure
-                                              ? Icons.visibility_rounded
-                                              : Icons.visibility_off_rounded,
-                                        ),
-                                        onPressed: () => setState(
-                                          () => _obscure = !_obscure,
-                                        ),
-                                      ),
-                                    ),
-                                    if (_showServer)
-                                      _field(
-                                        'server',
-                                        'Server URL',
-                                        _server,
-                                        icon: Icons.dns_rounded,
-                                        type: TextInputType.url,
-                                      ),
-                                    if (_formError != null)
-                                      Container(
-                                        margin: const EdgeInsets.only(
-                                          bottom: 14,
-                                        ),
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.danger.withValues(
-                                            alpha: 0.12,
+                                child: _pending != null
+                                    ? _otp(_pending!)
+                                    : Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          SegmentedButton<bool>(
+                                            segments: const [
+                                              ButtonSegment(
+                                                value: false,
+                                                label: Text('Sign in'),
+                                              ),
+                                              ButtonSegment(
+                                                value: true,
+                                                label: Text('Create account'),
+                                              ),
+                                            ],
+                                            selected: {_register},
+                                            showSelectedIcon: false,
+                                            onSelectionChanged: (s) =>
+                                                setState(() {
+                                                  _register = s.first;
+                                                  _errors = {};
+                                                  _formError = null;
+                                                }),
                                           ),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
+                                          const SizedBox(height: 20),
+                                          AnimatedSize(
+                                            duration: AppMotion.page,
+                                            child: _register
+                                                ? _field(
+                                                    'name',
+                                                    'Your name',
+                                                    _name,
+                                                    icon: Icons.person_rounded,
+                                                    autofill: const [
+                                                      AutofillHints.name,
+                                                    ],
+                                                  )
+                                                : const SizedBox(
+                                                    width: double.infinity,
+                                                  ),
                                           ),
-                                          border: Border.all(
-                                            color: AppColors.danger.withValues(
-                                              alpha: 0.4,
+                                          _field(
+                                            'email',
+                                            'Email',
+                                            _email,
+                                            icon: Icons.mail_rounded,
+                                            type: TextInputType.emailAddress,
+                                            autofill: const [
+                                              AutofillHints.email,
+                                            ],
+                                          ),
+                                          _field(
+                                            'password',
+                                            'Password',
+                                            _password,
+                                            icon: Icons.lock_rounded,
+                                            obscure: _obscure,
+                                            autofill: const [
+                                              AutofillHints.password,
+                                            ],
+                                            suffix: IconButton(
+                                              key: const ValueKey(
+                                                'toggle-password',
+                                              ),
+                                              tooltip: _obscure
+                                                  ? 'Show password'
+                                                  : 'Hide password',
+                                              icon: Icon(
+                                                _obscure
+                                                    ? Icons.visibility_rounded
+                                                    : Icons
+                                                          .visibility_off_rounded,
+                                              ),
+                                              onPressed: () => setState(
+                                                () => _obscure = !_obscure,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                        child: Text(
-                                          _formError!,
-                                          style: const TextStyle(
-                                            color: Color(0xFFFECACA),
+                                          if (_showServer)
+                                            _field(
+                                              'server',
+                                              'Server URL',
+                                              _server,
+                                              icon: Icons.dns_rounded,
+                                              type: TextInputType.url,
+                                            ),
+                                          if (_formError != null)
+                                            Container(
+                                              margin: const EdgeInsets.only(
+                                                bottom: 14,
+                                              ),
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.danger
+                                                    .withValues(alpha: 0.12),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                border: Border.all(
+                                                  color: AppColors.danger
+                                                      .withValues(alpha: 0.4),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                _formError!,
+                                                style: const TextStyle(
+                                                  color: Color(0xFFFECACA),
+                                                ),
+                                              ),
+                                            ),
+                                          DepthButton(
+                                            key: const ValueKey('submit'),
+                                            label: _register
+                                                ? 'Create account'
+                                                : 'Sign in',
+                                            loading: _loading,
+                                            expand: true,
+                                            onPressed: _submit,
                                           ),
-                                        ),
+                                          const SizedBox(height: 8),
+                                          TextButton(
+                                            onPressed: () => setState(
+                                              () => _showServer = !_showServer,
+                                            ),
+                                            child: Text(
+                                              _showServer
+                                                  ? 'Hide server settings'
+                                                  : 'Server: ${context.watch<AuthController>().serverUrl}',
+                                              style: const TextStyle(
+                                                color: AppColors.muted,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    DepthButton(
-                                      key: const ValueKey('submit'),
-                                      label: _register
-                                          ? 'Create account'
-                                          : 'Sign in',
-                                      loading: _loading,
-                                      expand: true,
-                                      onPressed: _submit,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    TextButton(
-                                      onPressed: () => setState(
-                                        () => _showServer = !_showServer,
-                                      ),
-                                      child: Text(
-                                        _showServer
-                                            ? 'Hide server settings'
-                                            : 'Server: ${context.watch<AuthController>().serverUrl}',
-                                        style: const TextStyle(
-                                          color: AppColors.muted,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
                               ),
                               if (_loading)
                                 Positioned.fill(

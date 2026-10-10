@@ -106,7 +106,10 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Offline'), findsOneWidget);
-      expect(find.text('—'), findsNWidgets(5)); // score + EAR, PERCLOS, HR, Yawns
+      expect(
+        find.text('—'),
+        findsNWidgets(5),
+      ); // score + EAR, PERCLOS, HR, Yawns
     });
   });
 

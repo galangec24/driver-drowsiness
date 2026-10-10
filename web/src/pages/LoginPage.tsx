@@ -2,7 +2,8 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { login, register } from '../api/auth';
+import { login, register, unverifiedFromError, type AuthResponse } from '../api/auth';
+import { OtpForm } from '../components/auth/OtpForm';
 import { errorMessage } from '../api/client';
 import { useAuth } from '../store/auth';
 import { FloatingInput } from '../components/ui/FloatingInput';
@@ -43,6 +44,8 @@ export function LoginPage() {
   const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  // Waiting for the e-mailed 6-digit code (new account, or sign-in before verifying).
+  const [pending, setPending] = useState<{ email: string; retryAfterS: number } | null>(null);
 
   if (token) {
     const to = (location.state as { from?: string } | null)?.from ?? '/';
@@ -51,6 +54,11 @@ export function LoginPage() {
 
   const set = (k: keyof typeof values) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setValues((v) => ({ ...v, [k]: e.target.value }));
+
+  function finish(res: AuthResponse) {
+    setSession(res.token, res.user);
+    navigate((location.state as { from?: string } | null)?.from ?? '/', { replace: true });
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -64,10 +72,15 @@ export function LoginPage() {
         mode === 'login'
           ? await login(values.email.trim(), values.password)
           : await register(values.name.trim(), values.email.trim(), values.password);
-      setSession(res.token, res.user);
-      navigate((location.state as { from?: string } | null)?.from ?? '/', { replace: true });
+      if ('verificationRequired' in res) {
+        setPending({ email: res.email, retryAfterS: res.retryAfterS });
+        return;
+      }
+      finish(res);
     } catch (err) {
-      setFormError(errorMessage(err, 'Sign in failed'));
+      const unverified = unverifiedFromError(err);
+      if (unverified) setPending(unverified);
+      else setFormError(errorMessage(err, 'Sign in failed'));
     } finally {
       setLoading(false);
     }
@@ -119,6 +132,20 @@ export function LoginPage() {
 
         <TiltCard className="mx-auto w-full max-w-md">
           <div className="glass relative bg-ink-900/40 p-8 shadow-depth-3" style={{ transformStyle: 'preserve-3d' }}>
+            {pending ? (
+              <TiltLayer depth={30}>
+                <OtpForm
+                  email={pending.email}
+                  retryAfterS={pending.retryAfterS}
+                  onVerified={finish}
+                  onBack={() => {
+                    setPending(null);
+                    setMode('login');
+                  }}
+                />
+              </TiltLayer>
+            ) : (
+              <>
             <TiltLayer depth={40}>
               <div className="mb-6 flex items-center gap-3 lg:hidden">
                 <img src="/icons/icon.svg" alt="" className="h-11 w-11 animate-float" />
@@ -224,6 +251,8 @@ export function LoginPage() {
                 </DepthButton>
               </TiltLayer>
             </form>
+              </>
+            )}
 
             <p className="mt-5 text-center text-sm text-ink-muted">
               <Link to="/download" className="inline-flex items-center gap-1.5 font-semibold text-accent-glow hover:underline">

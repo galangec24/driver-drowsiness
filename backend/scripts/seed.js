@@ -27,6 +27,15 @@ async function call(method, url, body, token) {
   return { status: res.status, body: json };
 }
 
+async function markVerified(email) {
+  const mongoose = require('mongoose');
+  await mongoose.connect(env.mongoUri);
+  await mongoose.connection
+    .collection('users')
+    .updateOne({ email }, { $set: { emailVerified: true } });
+  await mongoose.disconnect();
+}
+
 function photo(name) {
   const file = path.resolve(__dirname, '../tests/fixtures', name);
   return `data:image/jpeg;base64,${fs.readFileSync(file).toString('base64')}`;
@@ -35,8 +44,17 @@ function photo(name) {
 async function main() {
   let auth = await call('POST', '/auth/login', { email: DEMO.email, password: DEMO.password });
   if (auth.status !== 200) {
-    auth = await call('POST', '/auth/register', DEMO);
-    if (auth.status !== 201) throw new Error(`register failed: ${JSON.stringify(auth.body)}`);
+    const reg = await call('POST', '/auth/register', DEMO);
+    if (reg.status !== 201 && reg.status !== 409) {
+      throw new Error(`register failed: ${JSON.stringify(reg.body)}`);
+    }
+    auth = reg.status === 201 && reg.body.token ? reg : null;
+  }
+  if (!auth || (auth.status !== 200 && !auth.body.token)) {
+    // E-mail verification is on and the demo address has no inbox: mark it verified directly.
+    await markVerified(DEMO.email);
+    auth = await call('POST', '/auth/login', { email: DEMO.email, password: DEMO.password });
+    if (auth.status !== 200) throw new Error(`login failed: ${JSON.stringify(auth.body)}`);
   }
   const { token } = auth.body;
 

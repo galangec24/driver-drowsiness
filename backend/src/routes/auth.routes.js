@@ -8,6 +8,8 @@ const router = Router();
 
 router.post('/register', validate(ctrl.registerSchema), asyncHandler(ctrl.register));
 router.post('/login', validate(ctrl.loginSchema), asyncHandler(ctrl.login));
+router.post('/verify-email', validate(ctrl.verifySchema), asyncHandler(ctrl.verifyEmail));
+router.post('/resend-code', validate(ctrl.resendSchema), asyncHandler(ctrl.resendCode));
 router.get('/me', requireAuth, asyncHandler(ctrl.me));
 router.put(
   '/fcm-token',
