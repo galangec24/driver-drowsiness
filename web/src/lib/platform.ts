@@ -43,17 +43,32 @@ export function shareableOrigin(
   return `${loc.protocol}//${lanHost}${loc.port ? `:${loc.port}` : ""}`;
 }
 
+/**
+ * Where the Android APK is downloaded from. Defaults to /app.apk on this site; set VITE_APK_URL
+ * (public, not a secret) to host it elsewhere, e.g. a GitHub Release, because Firebase's free plan
+ * refuses .apk files.
+ */
+export const APK_URL: string =
+  (import.meta.env.VITE_APK_URL as string | undefined)?.trim() || "/app.apk";
+
+export function isExternalUrl(url: string, origin: string = window.location.origin): boolean {
+  return /^https?:\/\//i.test(url) && !url.startsWith(origin);
+}
+
 export interface ApkInfo {
   available: boolean;
   sizeBytes?: number;
   updatedAt?: string;
+  /** Hosted on another site: size/date can't be read (cross-origin), the link is still valid. */
+  external?: boolean;
 }
 
 /**
  * Size and date of the hosted APK (HEAD /app.apk). A missing file is reported as unavailable,
  * including dev servers that answer unknown paths with the HTML app shell.
  */
-export async function fetchApkInfo(url = "/app.apk"): Promise<ApkInfo> {
+export async function fetchApkInfo(url: string = APK_URL): Promise<ApkInfo> {
+  if (isExternalUrl(url)) return { available: true, external: true };
   try {
     const res = await fetch(url, { method: "HEAD", cache: "no-store" });
     const type = res.headers.get("content-type") ?? "";

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { APK_URL } from '../lib/platform';
 import { pushConfig } from '../api/auth';
 import { API_URL } from '../api/client';
 import { useAuth } from '../store/auth';
@@ -106,7 +107,7 @@ export function SettingsPage() {
             <Link to="/download">
               <DepthButton icon={<Icon name="download" size={18} />}>Download page</DepthButton>
             </Link>
-            <a href="/app.apk" download="GuardianDrive.apk">
+            <a href={APK_URL} download="GuardianDrive.apk">
               <DepthButton variant="secondary">Download APK directly</DepthButton>
             </a>
           </div>

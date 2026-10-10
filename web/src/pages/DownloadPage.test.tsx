@@ -2,7 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { DownloadPage } from './DownloadPage';
 import { renderWithProviders } from '../test/utils';
-import { detectPlatform, fetchApkInfo, formatBytes, shareableOrigin } from '../lib/platform';
+import { detectPlatform, fetchApkInfo, formatBytes, isExternalUrl, shareableOrigin } from '../lib/platform';
 
 const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/126 Mobile Safari/537.36';
 const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Version/17.5 Mobile/15E148 Safari/604.1';
@@ -43,6 +43,15 @@ describe('platform helpers', () => {
     expect(shareableOrigin(local, '')).toBe('http://localhost:5173'); // no network: nothing better to offer
     const deployed = { protocol: 'https:', hostname: 'guardian.web.app', port: '', origin: 'https://guardian.web.app' };
     expect(shareableOrigin(deployed, '192.168.254.101')).toBe('https://guardian.web.app');
+  });
+
+  test('an APK hosted on another site (GitHub Release) is linked without a cross-origin HEAD', async () => {
+    const url = 'https://github.com/galangec24/guardian-drive-download/releases/latest/download/GuardianDrive.apk';
+    expect(isExternalUrl(url, 'https://guardian-drive-ph.web.app')).toBe(true);
+    expect(isExternalUrl('/app.apk', 'https://guardian-drive-ph.web.app')).toBe(false);
+    const fetchSpy = track(vi.spyOn(globalThis, 'fetch'));
+    expect(await fetchApkInfo(url)).toEqual({ available: true, external: true });
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   test('APK info from HEAD; the HTML app shell or an error means not published', async () => {

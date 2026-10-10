@@ -1,8 +1,8 @@
 {
   "hosting": {
-    "site": "guardian-drive-app",
+    "site": "guardian-drive-ph",
     "public": "web/dist",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "**/*.apk"],
     "rewrites": [{ "source": "**", "destination": "/index.html" }],
     "headers": [
       {

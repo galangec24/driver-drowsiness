@@ -7,6 +7,7 @@ import { useAuth } from '../store/auth';
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
 import {
   detectPlatform,
+  APK_URL,
   fetchApkInfo,
   formatBytes,
   isStandalone,
@@ -149,7 +150,7 @@ export function DownloadPage() {
           </div>
         ) : apk.available ? (
           <>
-            <a href="/app.apk" download="GuardianDrive.apk" className="block">
+            <a href={APK_URL} download="GuardianDrive.apk" className="block">
               <DepthButton size="lg" block icon={<Icon name="download" size={20} />}>
                 Download APK
               </DepthButton>
