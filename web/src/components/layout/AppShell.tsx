@@ -23,7 +23,7 @@ export function AppShell() {
   const unacknowledged = data?.unacknowledged ?? 0;
 
   return (
-    <div data-testid="app-shell" className="relative min-h-screen">
+    <div data-testid="app-shell" className="relative min-h-screen min-h-dvh">
       <div className="mesh-bg animate-mesh" aria-hidden="true" />
       <SideRail unacknowledged={unacknowledged} />
       <main className="pb-28 pt-5 sm:pb-10 sm:pl-28 lg:pl-[17rem]">

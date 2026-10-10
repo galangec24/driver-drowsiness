@@ -11,6 +11,13 @@
   #root {
     min-height: 100%;
   }
+  /* The decorative background is a little larger than the screen; never let it widen the page
+     (mobile browsers would otherwise allow sideways scrolling and the content looks off-centre). */
+  html,
+  body {
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
   body {
     @apply bg-ink-950 font-sans text-slate-100 antialiased;
     -webkit-tap-highlight-color: transparent;

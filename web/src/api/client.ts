@@ -10,7 +10,8 @@ export const API_URL =
 
 export const api = axios.create({
   baseURL: `${API_URL}/api`,
-  timeout: 20000,
+  // Render free instances sleep when idle; waking up can take up to ~50 s.
+  timeout: 60000,
 });
 
 // JWT interceptor
@@ -32,7 +33,9 @@ api.interceptors.response.use(
 /** Human-readable message from an API error. */
 export function errorMessage(err: unknown, fallback = 'Something went wrong'): string {
   if (axios.isAxiosError(err)) {
-    if (!err.response) return 'Cannot reach the Guardian Drive server';
+    if (!err.response) {
+      return 'Cannot reach the Guardian Drive server. If it was idle it may be waking up: try again in a minute.';
+    }
     const data = err.response.data as { error?: string } | undefined;
     return data?.error || fallback;
   }

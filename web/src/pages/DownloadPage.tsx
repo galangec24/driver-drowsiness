@@ -208,7 +208,7 @@ export function DownloadPage() {
   );
 
   return (
-    <div className="relative min-h-screen overflow-hidden px-4 py-10 sm:py-14">
+    <div className="relative min-h-screen min-h-dvh overflow-hidden px-4 py-10 sm:py-14">
       <div className="mesh-bg animate-mesh" aria-hidden="true" />
       <ParallaxScene />
 

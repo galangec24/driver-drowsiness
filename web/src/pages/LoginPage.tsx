@@ -87,7 +87,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+    <div className="relative flex min-h-screen min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
       <div className="mesh-bg animate-mesh" aria-hidden="true" />
       <ParallaxScene />
       <div className="relative grid w-full max-w-5xl items-center gap-10 lg:grid-cols-2">
