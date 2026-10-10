@@ -88,3 +88,14 @@ describe('JWT-protected routes', () => {
     socket.close();
   });
 });
+
+describe('root address', () => {
+  test('GET / explains this is the API instead of a 404', async () => {
+    const res = await request(stack.app).get('/').expect(200);
+    expect(res.body).toMatchObject({
+      name: 'Guardian Drive API',
+      status: 'running',
+      health: '/api/health',
+    });
+  });
+});

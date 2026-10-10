@@ -41,6 +41,15 @@ function createApp() {
   }
 
   app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+  // The bare address is the API itself (no web page here): say so instead of a 404.
+  app.get('/', (_req, res) =>
+    res.json({
+      name: 'Guardian Drive API',
+      status: 'running',
+      health: '/api/health',
+      note: 'This is the backend. Open the Guardian Drive web app or Android app to use it.',
+    }),
+  );
   // Reference photos when Cloudinary is not configured (local dev fallback).
   app.use('/uploads', express.static(path.resolve(__dirname, '../uploads'), { maxAge: '7d' }));
 
