@@ -28,8 +28,11 @@ function errorHandler(err, req, res, _next) {
 
   if (status >= 500) {
     logger.error({ err, path: req.path }, 'unhandled error');
-    message = 'Internal server error';
-    details = undefined;
+    // Unexpected failures stay generic; a deliberate HttpError (e.g. 503 "couldn't send the e-mail") keeps its message.
+    if (!(err instanceof HttpError)) {
+      message = 'Internal server error';
+      details = undefined;
+    }
   }
 
   // Never return stack traces.

@@ -43,21 +43,38 @@ async function applyAdminRole(user) {
 
 async function register(req, res) {
   const { name, email, password } = req.body;
-  if (await User.exists({ email })) {
+  const verify = env.emailVerification;
+  const existing = await User.findOne({ email }).select('+emailOtp');
+  // An account whose e-mail was never verified was never usable (nobody could sign in to it), so
+  // registering again simply takes it over: new name/password and a fresh code. Otherwise a failed
+  // or lost code e-mail would lock that address out for good.
+  if (existing && !(verify && existing.emailVerified === false)) {
     throw new HttpError(409, 'An account with this email already exists');
   }
   const passwordHash = await bcrypt.hash(password, 10);
-  const verify = env.emailVerification;
-  const user = await applyAdminRole(
-    await User.create({ name, email, passwordHash, ...(verify && { emailVerified: false }) }),
-  );
+  let user;
+  if (existing) {
+    existing.name = name;
+    existing.passwordHash = passwordHash;
+    await existing.save();
+    user = existing;
+  } else {
+    user = await applyAdminRole(
+      await User.create({ name, email, passwordHash, ...(verify && { emailVerified: false }) }),
+    );
+  }
   if (!verify) {
     res.status(201).json({ token: signToken(user), user: user.toPublic() });
     return;
   }
   const sent = await sendCodeSafely(user);
   // No token yet: the account is usable only after the e-mailed code is entered.
-  res.status(201).json({ verificationRequired: true, email, retryAfterS: sent.retryAfterS });
+  res.status(201).json({
+    verificationRequired: true,
+    email,
+    retryAfterS: sent.retryAfterS,
+    emailSent: !sent.failed,
+  });
 }
 
 async function login(req, res) {
@@ -73,6 +90,7 @@ async function login(req, res) {
       code: 'EMAIL_NOT_VERIFIED',
       email,
       retryAfterS: sent.retryAfterS,
+      emailSent: !sent.failed,
     });
   }
   await applyAdminRole(user);
@@ -85,7 +103,7 @@ async function sendCodeSafely(user) {
     return await emailOtp.issueCode(user);
   } catch (err) {
     logger.error({ err: err.message, email: user.email }, 'verification e-mail failed');
-    return { sent: false, retryAfterS: 0 };
+    return { sent: false, failed: true, retryAfterS: 0 };
   }
 }
 
@@ -118,7 +136,11 @@ async function resendCode(req, res) {
   const user = await User.findOne({ email: req.body.email }).select('+emailOtp');
   let retryAfterS = 60;
   if (user && user.emailVerified === false) {
-    retryAfterS = (await sendCodeSafely(user)).retryAfterS || retryAfterS;
+    const sent = await sendCodeSafely(user);
+    if (sent.failed) {
+      throw new HttpError(503, "We couldn't send the e-mail right now. Please try again in a few minutes.");
+    }
+    retryAfterS = sent.retryAfterS || retryAfterS;
   }
   res.json({ ok: true, retryAfterS });
 }

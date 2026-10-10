@@ -12,14 +12,18 @@ export interface OtpFormProps {
   email: string;
   /** Seconds before "Resend code" is allowed (from the server). */
   retryAfterS?: number;
+  /** false: the server could not send the e-mail, so say so instead of "we sent a code". */
+  emailSent?: boolean;
   onVerified: (res: AuthResponse) => void;
   onBack: () => void;
 }
 
 /** "We e-mailed you a 6-digit code": one box per digit, paste-friendly, with resend countdown. */
-export function OtpForm({ email, retryAfterS = 60, onVerified, onBack }: OtpFormProps) {
+export function OtpForm({ email, retryAfterS = 60, emailSent = true, onVerified, onBack }: OtpFormProps) {
   const [digits, setDigits] = useState<string[]>(Array(LENGTH).fill(''));
-  const [error, setError] = useState('');
+  const [error, setError] = useState(
+    emailSent ? '' : 'We couldn\'t send the code e-mail just now. Tap "Resend code" to try again.',
+  );
   const [info, setInfo] = useState('');
   const [busy, setBusy] = useState(false);
   const [wait, setWait] = useState(retryAfterS);

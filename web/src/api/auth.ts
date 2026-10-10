@@ -12,6 +12,8 @@ export interface VerificationRequired {
   verificationRequired: true;
   email: string;
   retryAfterS: number;
+  /** false when the code e-mail could not be sent (provider outage / misconfiguration). */
+  emailSent?: boolean;
 }
 
 export async function login(email: string, password: string): Promise<AuthResponse> {
@@ -45,15 +47,15 @@ export async function resendCode(email: string): Promise<{ ok: boolean; retryAft
 }
 
 /** Login refused because the e-mail isn't verified yet → {email, retryAfterS}, else null. */
-export function unverifiedFromError(err: unknown): { email: string; retryAfterS: number } | null {
+export function unverifiedFromError(err: unknown): { email: string; retryAfterS: number; emailSent?: boolean } | null {
   if (!axios.isAxiosError(err) || err.response?.status !== 403) return null;
   const details = (
     err.response.data as {
-      details?: { code?: string; email?: string; retryAfterS?: number };
+      details?: { code?: string; email?: string; retryAfterS?: number; emailSent?: boolean };
     }
   )?.details;
   if (details?.code !== 'EMAIL_NOT_VERIFIED' || !details.email) return null;
-  return { email: details.email, retryAfterS: details.retryAfterS ?? 60 };
+  return { email: details.email, retryAfterS: details.retryAfterS ?? 60, emailSent: details.emailSent };
 }
 
 export async function me(): Promise<User> {

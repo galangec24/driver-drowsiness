@@ -34,7 +34,7 @@ const post = (path, body) => request(stack.app).post(`/api/auth${path}`).send(bo
 describe('e-mail verification with a 6-digit code', () => {
   test('register sends a code and returns no token; the right code signs in', async () => {
     const reg = await post('/register', NEW).expect(201);
-    expect(reg.body).toEqual({ verificationRequired: true, email: NEW.email, retryAfterS: 60 });
+    expect(reg.body).toEqual({ verificationRequired: true, email: NEW.email, retryAfterS: 60, emailSent: true });
     expect(reg.body.token).toBeUndefined();
     expect(sent).toHaveLength(1);
     expect(sent[0].to).toBe(NEW.email);
@@ -118,7 +118,30 @@ describe('e-mail verification with a 6-digit code', () => {
       throw new Error('Brevo 401');
     });
     const reg = await post('/register', NEW).expect(201);
-    expect(reg.body.verificationRequired).toBe(true);
+    expect(reg.body).toMatchObject({ verificationRequired: true, emailSent: false, retryAfterS: 0 });
     expect(await User.countDocuments({ email: NEW.email })).toBe(1);
+    // "Resend code" reports the failure instead of pretending the e-mail went out
+    const r = await post('/resend-code', { email: NEW.email }).expect(503);
+    expect(r.body.error).toMatch(/couldn't send/);
+  });
+
+  test('registering again with a never-verified e-mail sends a new code instead of "already exists"', async () => {
+    mailer._setSendImpl(async () => {
+      throw new Error('Brevo 401');
+    });
+    await post('/register', NEW).expect(201); // code e-mail lost
+    mailer._setSendImpl(async (msg) => {
+      sent.push(msg);
+    });
+    const again = await post('/register', { ...NEW, name: 'Pat R', password: 'another-secret2' }).expect(201);
+    expect(again.body).toMatchObject({ verificationRequired: true, emailSent: true });
+    expect(await User.countDocuments({ email: NEW.email })).toBe(1);
+    await post('/verify-email', { email: NEW.email, code: lastCode() }).expect(200);
+    // The second registration's password and name are the ones that count
+    await post('/login', { email: NEW.email, password: NEW.password }).expect(401);
+    const ok = await post('/login', { email: NEW.email, password: 'another-secret2' }).expect(200);
+    expect(ok.body.user.name).toBe('Pat R');
+    // Once verified, the address is taken
+    await post('/register', NEW).expect(409);
   });
 });

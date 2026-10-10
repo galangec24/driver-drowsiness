@@ -45,7 +45,7 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   // Waiting for the e-mailed 6-digit code (new account, or sign-in before verifying).
-  const [pending, setPending] = useState<{ email: string; retryAfterS: number } | null>(null);
+  const [pending, setPending] = useState<{ email: string; retryAfterS: number; emailSent?: boolean } | null>(null);
 
   if (token) {
     const to = (location.state as { from?: string } | null)?.from ?? '/';
@@ -73,7 +73,7 @@ export function LoginPage() {
           ? await login(values.email.trim(), values.password)
           : await register(values.name.trim(), values.email.trim(), values.password);
       if ('verificationRequired' in res) {
-        setPending({ email: res.email, retryAfterS: res.retryAfterS });
+        setPending({ email: res.email, retryAfterS: res.retryAfterS, emailSent: res.emailSent });
         return;
       }
       finish(res);
@@ -106,11 +106,13 @@ export function LoginPage() {
             style={{ transformPerspective: 600 }}
           />
           <h1 className="text-5xl font-extrabold leading-tight tracking-tight text-white">
-            Know they're <span className="bg-gradient-to-r from-accent-glow to-accent-ok bg-clip-text text-transparent">awake</span> at the wheel.
+            Know they're{' '}
+            <span className="bg-gradient-to-r from-accent-glow to-accent-ok bg-clip-text text-transparent">awake</span>{' '}
+            at the wheel.
           </h1>
           <p className="mt-4 max-w-md text-lg text-ink-muted">
-            Guardian Drive fuses eye closure, PERCLOS and heart rate against each driver's personal baseline — and alerts you
-            the instant fatigue sets in.
+            Guardian Drive fuses eye closure, PERCLOS and heart rate against each driver's personal baseline — and
+            alerts you the instant fatigue sets in.
           </p>
           <ul className="mt-8 flex flex-col gap-3">
             {FEATURES.map((f, i) => (
@@ -137,6 +139,7 @@ export function LoginPage() {
                 <OtpForm
                   email={pending.email}
                   retryAfterS={pending.retryAfterS}
+                  emailSent={pending.emailSent}
                   onVerified={finish}
                   onBack={() => {
                     setPending(null);
@@ -146,116 +149,119 @@ export function LoginPage() {
               </TiltLayer>
             ) : (
               <>
-            <TiltLayer depth={40}>
-              <div className="mb-6 flex items-center gap-3 lg:hidden">
-                <img src="/icons/icon.svg" alt="" className="h-11 w-11 animate-float" />
-                <p className="text-xl font-extrabold text-white">Guardian Drive</p>
-              </div>
+                <TiltLayer depth={40}>
+                  <div className="mb-6 flex items-center gap-3 lg:hidden">
+                    <img src="/icons/icon.svg" alt="" className="h-11 w-11 animate-float" />
+                    <p className="text-xl font-extrabold text-white">Guardian Drive</p>
+                  </div>
 
-              <div className="glass-inset mb-6 grid grid-cols-2 p-1" role="tablist">
-                {(['login', 'register'] as const).map((m) => (
-                  <button
-                    key={m}
-                    role="tab"
-                    type="button"
-                    aria-selected={mode === m}
-                    onClick={() => {
-                      setMode(m);
-                      setErrors({});
-                      setFormError('');
-                    }}
-                    className={`relative h-10 rounded-lg text-sm font-semibold transition-colors ${mode === m ? 'text-white' : 'text-ink-muted'}`}
-                  >
-                    {mode === m && (
-                      <motion.span
-                        layoutId="auth-tab"
-                        className="absolute inset-0 rounded-lg bg-accent-primary/40 shadow-glow"
+                  <div className="glass-inset mb-6 grid grid-cols-2 p-1" role="tablist">
+                    {(['login', 'register'] as const).map((m) => (
+                      <button
+                        key={m}
+                        role="tab"
+                        type="button"
+                        aria-selected={mode === m}
+                        onClick={() => {
+                          setMode(m);
+                          setErrors({});
+                          setFormError('');
+                        }}
+                        className={`relative h-10 rounded-lg text-sm font-semibold transition-colors ${mode === m ? 'text-white' : 'text-ink-muted'}`}
+                      >
+                        {mode === m && (
+                          <motion.span
+                            layoutId="auth-tab"
+                            className="absolute inset-0 rounded-lg bg-accent-primary/40 shadow-glow"
+                            transition={{ duration: 0.2 }}
+                          />
+                        )}
+                        <span className="relative">{m === 'login' ? 'Sign in' : 'Create account'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </TiltLayer>
+
+                <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4" aria-busy={loading}>
+                  <AnimatePresence initial={false}>
+                    {mode === 'register' && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.2 }}
-                      />
+                      >
+                        <TiltLayer depth={24}>
+                          <FloatingInput
+                            label="Your name"
+                            autoComplete="name"
+                            icon={<Icon name="user" size={18} />}
+                            value={values.name}
+                            onChange={set('name')}
+                            error={errors.name}
+                          />
+                        </TiltLayer>
+                      </motion.div>
                     )}
-                    <span className="relative">{m === 'login' ? 'Sign in' : 'Create account'}</span>
-                  </button>
-                ))}
-              </div>
-            </TiltLayer>
-
-            <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4" aria-busy={loading}>
-              <AnimatePresence initial={false}>
-                {mode === 'register' && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <TiltLayer depth={24}>
-                      <FloatingInput
-                        label="Your name"
-                        autoComplete="name"
-                        icon={<Icon name="user" size={18} />}
-                        value={values.name}
-                        onChange={set('name')}
-                        error={errors.name}
-                      />
-                    </TiltLayer>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <TiltLayer depth={24}>
-                <FloatingInput
-                  label="Email"
-                  type="email"
-                  autoComplete="email"
-                  icon={<Icon name="mail" size={18} />}
-                  value={values.email}
-                  onChange={set('email')}
-                  error={errors.email}
-                />
-              </TiltLayer>
-              <TiltLayer depth={24}>
-                <FloatingInput
-                  label="Password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                  icon={<Icon name="lock" size={18} />}
-                  value={values.password}
-                  onChange={set('password')}
-                  error={errors.password}
-                  trailing={
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((s) => !s)}
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      aria-pressed={showPassword}
-                      className="rounded-lg p-2 text-ink-muted transition-colors hover:bg-white/10 hover:text-white"
+                  </AnimatePresence>
+                  <TiltLayer depth={24}>
+                    <FloatingInput
+                      label="Email"
+                      type="email"
+                      autoComplete="email"
+                      icon={<Icon name="mail" size={18} />}
+                      value={values.email}
+                      onChange={set('email')}
+                      error={errors.email}
+                    />
+                  </TiltLayer>
+                  <TiltLayer depth={24}>
+                    <FloatingInput
+                      label="Password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                      icon={<Icon name="lock" size={18} />}
+                      value={values.password}
+                      onChange={set('password')}
+                      error={errors.password}
+                      trailing={
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((s) => !s)}
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                          aria-pressed={showPassword}
+                          className="rounded-lg p-2 text-ink-muted transition-colors hover:bg-white/10 hover:text-white"
+                        >
+                          <Icon name={showPassword ? 'eyeOff' : 'eye'} size={18} />
+                        </button>
+                      }
+                    />
+                  </TiltLayer>
+                  {formError && (
+                    <motion.p
+                      role="alert"
+                      initial={{ x: 0 }}
+                      animate={{ x: [0, -8, 8, -5, 5, 0] }}
+                      transition={{ duration: 0.4 }}
+                      className="rounded-xl border border-accent-danger/40 bg-accent-danger/10 px-3 py-2 text-sm text-red-200"
                     >
-                      <Icon name={showPassword ? 'eyeOff' : 'eye'} size={18} />
-                    </button>
-                  }
-                />
-              </TiltLayer>
-              {formError && (
-                <motion.p
-                  role="alert"
-                  initial={{ x: 0 }}
-                  animate={{ x: [0, -8, 8, -5, 5, 0] }}
-                  transition={{ duration: 0.4 }}
-                  className="rounded-xl border border-accent-danger/40 bg-accent-danger/10 px-3 py-2 text-sm text-red-200"
-                >
-                  {formError}
-                </motion.p>
-              )}
-              <TiltLayer depth={36}>
-                <DepthButton type="submit" size="lg" block loading={loading}>
-                  {mode === 'login' ? 'Sign in' : 'Create account'}
-                </DepthButton>
-              </TiltLayer>
-            </form>
+                      {formError}
+                    </motion.p>
+                  )}
+                  <TiltLayer depth={36}>
+                    <DepthButton type="submit" size="lg" block loading={loading}>
+                      {mode === 'login' ? 'Sign in' : 'Create account'}
+                    </DepthButton>
+                  </TiltLayer>
+                </form>
               </>
             )}
 
             <p className="mt-5 text-center text-sm text-ink-muted">
-              <Link to="/download" className="inline-flex items-center gap-1.5 font-semibold text-accent-glow hover:underline">
+              <Link
+                to="/download"
+                className="inline-flex items-center gap-1.5 font-semibold text-accent-glow hover:underline"
+              >
                 <Icon name="download" size={16} /> Get the app for Android, iPhone or computer
               </Link>
             </p>
