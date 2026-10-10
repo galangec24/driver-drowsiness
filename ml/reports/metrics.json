@@ -1,0 +1,925 @@
+{
+  "dataset": "data/synthetic_v1",
+  "sessions": {
+    "train": 224,
+    "val": 48,
+    "test": 48
+  },
+  "drivers": {
+    "train": 112,
+    "val": 24,
+    "test": 24
+  },
+  "tick_level_test": {
+    "gbt": {
+      "roc_auc": 0.9968,
+      "pr_auc": 0.999
+    },
+    "logreg": {
+      "roc_auc": 0.9964,
+      "pr_auc": 0.9987
+    }
+  },
+  "threshold": 0.96,
+  "val_sweep": [
+    {
+      "threshold": 0.02,
+      "false_alerts": 22,
+      "false_alerts_per_hour": 1.29,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "alert": 6,
+        "laughing": 6,
+        "drowsy": 4,
+        "eye_rub_sneeze": 3,
+        "phone_glance": 2,
+        "sun_squint": 1
+      }
+    },
+    {
+      "threshold": 0.04,
+      "false_alerts": 19,
+      "false_alerts_per_hour": 1.114,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 5,
+        "drowsy": 3,
+        "phone_glance": 2,
+        "eye_rub_sneeze": 2,
+        "sun_squint": 1
+      }
+    },
+    {
+      "threshold": 0.06,
+      "false_alerts": 17,
+      "false_alerts_per_hour": 0.997,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 5,
+        "phone_glance": 2,
+        "drowsy": 2,
+        "eye_rub_sneeze": 2
+      }
+    },
+    {
+      "threshold": 0.08,
+      "false_alerts": 16,
+      "false_alerts_per_hour": 0.938,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 5,
+        "drowsy": 2,
+        "eye_rub_sneeze": 2,
+        "phone_glance": 1
+      }
+    },
+    {
+      "threshold": 0.1,
+      "false_alerts": 15,
+      "false_alerts_per_hour": 0.88,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 5,
+        "drowsy": 2,
+        "eye_rub_sneeze": 2
+      }
+    },
+    {
+      "threshold": 0.12,
+      "false_alerts": 14,
+      "false_alerts_per_hour": 0.821,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 5,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.14,
+      "false_alerts": 14,
+      "false_alerts_per_hour": 0.821,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 5,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.16,
+      "false_alerts": 14,
+      "false_alerts_per_hour": 0.821,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 5,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.18,
+      "false_alerts": 14,
+      "false_alerts_per_hour": 0.821,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 5,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.2,
+      "false_alerts": 14,
+      "false_alerts_per_hour": 0.821,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 5,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.22,
+      "false_alerts": 14,
+      "false_alerts_per_hour": 0.821,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 5,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.24,
+      "false_alerts": 14,
+      "false_alerts_per_hour": 0.821,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 5,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.26,
+      "false_alerts": 14,
+      "false_alerts_per_hour": 0.821,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 5,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.28,
+      "false_alerts": 14,
+      "false_alerts_per_hour": 0.821,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 5,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.3,
+      "false_alerts": 13,
+      "false_alerts_per_hour": 0.762,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.32,
+      "false_alerts": 13,
+      "false_alerts_per_hour": 0.762,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.34,
+      "false_alerts": 13,
+      "false_alerts_per_hour": 0.762,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.36,
+      "false_alerts": 13,
+      "false_alerts_per_hour": 0.762,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.38,
+      "false_alerts": 13,
+      "false_alerts_per_hour": 0.762,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.4,
+      "false_alerts": 13,
+      "false_alerts_per_hour": 0.762,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.42,
+      "false_alerts": 13,
+      "false_alerts_per_hour": 0.762,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.44,
+      "false_alerts": 13,
+      "false_alerts_per_hour": 0.762,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.46,
+      "false_alerts": 13,
+      "false_alerts_per_hour": 0.762,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 6,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.48,
+      "false_alerts": 12,
+      "false_alerts_per_hour": 0.704,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 5,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.5,
+      "false_alerts": 12,
+      "false_alerts_per_hour": 0.704,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 5,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.52,
+      "false_alerts": 12,
+      "false_alerts_per_hour": 0.704,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 5,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.54,
+      "false_alerts": 12,
+      "false_alerts_per_hour": 0.704,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 5,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.56,
+      "false_alerts": 12,
+      "false_alerts_per_hour": 0.704,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 5,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.58,
+      "false_alerts": 12,
+      "false_alerts_per_hour": 0.704,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 5,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.6,
+      "false_alerts": 12,
+      "false_alerts_per_hour": 0.704,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 5,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.62,
+      "false_alerts": 12,
+      "false_alerts_per_hour": 0.704,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 5,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.64,
+      "false_alerts": 12,
+      "false_alerts_per_hour": 0.704,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 5,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.66,
+      "false_alerts": 12,
+      "false_alerts_per_hour": 0.704,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 5,
+        "alert": 4,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.68,
+      "false_alerts": 11,
+      "false_alerts_per_hour": 0.645,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 5,
+        "alert": 3,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.7,
+      "false_alerts": 11,
+      "false_alerts_per_hour": 0.645,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 5,
+        "alert": 3,
+        "drowsy": 2,
+        "eye_rub_sneeze": 1
+      }
+    },
+    {
+      "threshold": 0.72,
+      "false_alerts": 10,
+      "false_alerts_per_hour": 0.586,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 5,
+        "alert": 3,
+        "drowsy": 2
+      }
+    },
+    {
+      "threshold": 0.74,
+      "false_alerts": 10,
+      "false_alerts_per_hour": 0.586,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 5,
+        "alert": 3,
+        "drowsy": 2
+      }
+    },
+    {
+      "threshold": 0.76,
+      "false_alerts": 10,
+      "false_alerts_per_hour": 0.586,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 5,
+        "alert": 3,
+        "drowsy": 2
+      }
+    },
+    {
+      "threshold": 0.78,
+      "false_alerts": 10,
+      "false_alerts_per_hour": 0.586,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 5,
+        "alert": 3,
+        "drowsy": 2
+      }
+    },
+    {
+      "threshold": 0.8,
+      "false_alerts": 9,
+      "false_alerts_per_hour": 0.528,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 4,
+        "alert": 3,
+        "drowsy": 2
+      }
+    },
+    {
+      "threshold": 0.82,
+      "false_alerts": 9,
+      "false_alerts_per_hour": 0.528,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 4,
+        "alert": 3,
+        "drowsy": 2
+      }
+    },
+    {
+      "threshold": 0.84,
+      "false_alerts": 9,
+      "false_alerts_per_hour": 0.528,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 4,
+        "alert": 3,
+        "drowsy": 2
+      }
+    },
+    {
+      "threshold": 0.86,
+      "false_alerts": 8,
+      "false_alerts_per_hour": 0.469,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 4,
+        "alert": 2,
+        "drowsy": 2
+      }
+    },
+    {
+      "threshold": 0.88,
+      "false_alerts": 6,
+      "false_alerts_per_hour": 0.352,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 4,
+        "drowsy": 1,
+        "alert": 1
+      }
+    },
+    {
+      "threshold": 0.9,
+      "false_alerts": 5,
+      "false_alerts_per_hour": 0.293,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 3,
+        "drowsy": 1,
+        "alert": 1
+      }
+    },
+    {
+      "threshold": 0.92,
+      "false_alerts": 4,
+      "false_alerts_per_hour": 0.235,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 2,
+        "drowsy": 1,
+        "alert": 1
+      }
+    },
+    {
+      "threshold": 0.94,
+      "false_alerts": 4,
+      "false_alerts_per_hour": 0.235,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 2,
+        "drowsy": 1,
+        "alert": 1
+      }
+    },
+    {
+      "threshold": 0.96,
+      "false_alerts": 3,
+      "false_alerts_per_hour": 0.176,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 1,
+        "drowsy": 1,
+        "alert": 1
+      }
+    },
+    {
+      "threshold": 0.98,
+      "false_alerts": 3,
+      "false_alerts_per_hour": 0.176,
+      "negative_hours": 17.05,
+      "episodes": 33,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 86.0,
+      "false_alerts_by_state": {
+        "laughing": 1,
+        "drowsy": 1,
+        "alert": 1
+      }
+    }
+  ],
+  "test_policies": {
+    "baseline (current backend)": {
+      "false_alerts": 63,
+      "false_alerts_per_hour": 3.477,
+      "negative_hours": 18.12,
+      "episodes": 26,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 114.0,
+      "false_alerts_by_state": {
+        "phone_glance": 40,
+        "sun_squint": 17,
+        "laughing": 2,
+        "eye_rub_sneeze": 1,
+        "mirror_check": 1,
+        "drowsy": 1,
+        "alert": 1
+      }
+    },
+    "persistence gate (drowsyDurationMs, 1-tick tolerance)": {
+      "false_alerts": 39,
+      "false_alerts_per_hour": 2.152,
+      "negative_hours": 18.12,
+      "episodes": 26,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 157.0,
+      "false_alerts_by_state": {
+        "phone_glance": 23,
+        "sun_squint": 16
+      }
+    },
+    "learned verifier": {
+      "false_alerts": 2,
+      "false_alerts_per_hour": 0.11,
+      "negative_hours": 18.12,
+      "episodes": 26,
+      "episode_recall": 1.0,
+      "median_detection_latency_s": 114.0,
+      "false_alerts_by_state": {
+        "laughing": 1,
+        "alert": 1
+      }
+    }
+  },
+  "shift_test": "data/synthetic_shift",
+  "shift_policies": {
+    "baseline (current backend)": {
+      "false_alerts": 660,
+      "false_alerts_per_hour": 14.544,
+      "negative_hours": 45.38,
+      "episodes": 64,
+      "episode_recall": 0.9219,
+      "median_detection_latency_s": 126.0,
+      "false_alerts_by_state": {
+        "phone_glance": 250,
+        "alert": 90,
+        "sun_squint": 81,
+        "glare": 44,
+        "eye_rub_sneeze": 38,
+        "mirror_check": 38,
+        "heavy_blinker": 34,
+        "laughing": 30,
+        "talking": 28,
+        "occlusion": 15,
+        "drowsy": 12
+      }
+    },
+    "learned verifier": {
+      "false_alerts": 10,
+      "false_alerts_per_hour": 0.22,
+      "negative_hours": 45.38,
+      "episodes": 64,
+      "episode_recall": 0.9062,
+      "median_detection_latency_s": 154.0,
+      "false_alerts_by_state": {
+        "laughing": 8,
+        "phone_glance": 1,
+        "alert": 1
+      }
+    }
+  },
+  "feature_importance": [
+    [
+      "ear_rel_mad",
+      0.8545
+    ],
+    [
+      "face_conf_min",
+      0.0598
+    ],
+    [
+      "ear_rel_mean",
+      0.0446
+    ],
+    [
+      "ear_rel_last",
+      0.0127
+    ],
+    [
+      "ear_rel_min",
+      0.0078
+    ],
+    [
+      "ear_rel_slope",
+      0.0052
+    ],
+    [
+      "ear_rel_std",
+      0.0031
+    ],
+    [
+      "fusion_mean",
+      0.0024
+    ],
+    [
+      "perclos_rel_last",
+      0.002
+    ],
+    [
+      "face_conf_mean",
+      0.0019
+    ],
+    [
+      "hr_mean",
+      0.0019
+    ],
+    [
+      "perclos_rel_slope",
+      0.0014
+    ],
+    [
+      "frac_below",
+      0.0008
+    ],
+    [
+      "frac_drowsy",
+      0.0008
+    ],
+    [
+      "hr_slope",
+      0.0006
+    ],
+    [
+      "longest_run_below",
+      0.0002
+    ],
+    [
+      "fusion_last",
+      0.0001
+    ],
+    [
+      "hr_present_frac",
+      0.0001
+    ],
+    [
+      "run_below_now",
+      0.0
+    ],
+    [
+      "frac_nonalert",
+      0.0
+    ],
+    [
+      "n_ticks",
+      0.0
+    ],
+    [
+      "missing_ear_frac",
+      0.0
+    ]
+  ],
+  "portable_parity_max_abs_diff": 0.0,
+  "seconds": 43.4
+}

@@ -1,0 +1,910 @@
+{
+ "description": "Not drowsy: glare, phone_glance. Fusion alone alerts; the verifier suppresses it.",
+ "replay": [
+  {
+   "ear": 0.214,
+   "perclos": 0.019,
+   "heartRate": 0,
+   "faceConfidence": 0.433
+  },
+  {
+   "ear": 0.21,
+   "perclos": 0.023,
+   "heartRate": 0,
+   "faceConfidence": 0.494
+  },
+  {
+   "ear": 0.225,
+   "perclos": 0.027,
+   "heartRate": 0,
+   "faceConfidence": 0.527
+  },
+  {
+   "ear": 0.241,
+   "perclos": 0.027,
+   "heartRate": 0,
+   "faceConfidence": 0.552
+  },
+  {
+   "ear": 0.227,
+   "perclos": 0.027,
+   "heartRate": 0,
+   "faceConfidence": 0.37
+  },
+  {
+   "ear": 0.216,
+   "perclos": 0.027,
+   "heartRate": 0,
+   "faceConfidence": 0.498
+  },
+  {
+   "ear": 0.23,
+   "perclos": 0.027,
+   "heartRate": 0,
+   "faceConfidence": 0.506
+  },
+  {
+   "ear": 0.238,
+   "perclos": 0.027,
+   "heartRate": 0,
+   "faceConfidence": 0.595
+  },
+  {
+   "ear": 0.231,
+   "perclos": 0.023,
+   "heartRate": 0,
+   "faceConfidence": 0.555
+  },
+  {
+   "ear": 0.227,
+   "perclos": 0.019,
+   "heartRate": 0,
+   "faceConfidence": 0.584
+  },
+  {
+   "ear": 0.221,
+   "perclos": 0.015,
+   "heartRate": 0,
+   "faceConfidence": 0.477
+  },
+  {
+   "ear": 0.241,
+   "perclos": 0.015,
+   "heartRate": 0,
+   "faceConfidence": 0.463
+  },
+  {
+   "ear": 0.221,
+   "perclos": 0.015,
+   "heartRate": 0,
+   "faceConfidence": 0.393
+  },
+  {
+   "ear": 0.204,
+   "perclos": 0.015,
+   "heartRate": 0,
+   "faceConfidence": 0.492
+  },
+  {
+   "ear": 0.242,
+   "perclos": 0.015,
+   "heartRate": 0,
+   "faceConfidence": 0.532
+  },
+  {
+   "ear": 0.228,
+   "perclos": 0.015,
+   "heartRate": 0,
+   "faceConfidence": 0.438
+  },
+  {
+   "ear": 0.222,
+   "perclos": 0.015,
+   "heartRate": 0,
+   "faceConfidence": 0.567
+  },
+  {
+   "ear": 0.236,
+   "perclos": 0.015,
+   "heartRate": 0,
+   "faceConfidence": 0.503
+  },
+  {
+   "ear": 0.226,
+   "perclos": 0.015,
+   "heartRate": 0,
+   "faceConfidence": 0.494
+  },
+  {
+   "ear": 0.224,
+   "perclos": 0.015,
+   "heartRate": 0,
+   "faceConfidence": 0.533
+  },
+  {
+   "ear": 0.23,
+   "perclos": 0.015,
+   "heartRate": 0,
+   "faceConfidence": 0.548
+  },
+  {
+   "ear": 0.222,
+   "perclos": 0.015,
+   "heartRate": 0,
+   "faceConfidence": 0.459
+  },
+  {
+   "ear": 0.225,
+   "perclos": 0.015,
+   "heartRate": 0,
+   "faceConfidence": 0.403
+  },
+  {
+   "ear": 0.225,
+   "perclos": 0.015,
+   "heartRate": 0,
+   "faceConfidence": 0.418
+  },
+  {
+   "ear": 0.238,
+   "perclos": 0.011,
+   "heartRate": 0,
+   "faceConfidence": 0.501
+  },
+  {
+   "ear": 0.226,
+   "perclos": 0.011,
+   "heartRate": 0,
+   "faceConfidence": 0.597
+  },
+  {
+   "ear": 0.216,
+   "perclos": 0.011,
+   "heartRate": 0,
+   "faceConfidence": 0.497
+  },
+  {
+   "ear": 0.2,
+   "perclos": 0.015,
+   "heartRate": 0,
+   "faceConfidence": 0.448
+  },
+  {
+   "ear": 0.214,
+   "perclos": 0.019,
+   "heartRate": 0,
+   "faceConfidence": 0.458
+  },
+  {
+   "ear": 0.238,
+   "perclos": 0.019,
+   "heartRate": 0,
+   "faceConfidence": 0.548
+  },
+  {
+   "ear": 0.235,
+   "perclos": 0.015,
+   "heartRate": 0,
+   "faceConfidence": 0.487
+  },
+  {
+   "ear": 0.235,
+   "perclos": 0.011,
+   "heartRate": 0,
+   "faceConfidence": 0.555
+  },
+  {
+   "ear": 0.231,
+   "perclos": 0.007,
+   "heartRate": 0,
+   "faceConfidence": 0.411
+  },
+  {
+   "ear": 0.236,
+   "perclos": 0.007,
+   "heartRate": 0,
+   "faceConfidence": 0.551
+  },
+  {
+   "ear": 0.231,
+   "perclos": 0.007,
+   "heartRate": 0,
+   "faceConfidence": 0.941
+  },
+  {
+   "ear": 0.229,
+   "perclos": 0.007,
+   "heartRate": 0,
+   "faceConfidence": 0.959
+  },
+  {
+   "ear": 0.227,
+   "perclos": 0.007,
+   "heartRate": 0,
+   "faceConfidence": 0.946
+  },
+  {
+   "ear": 0.229,
+   "perclos": 0.007,
+   "heartRate": 0,
+   "faceConfidence": 0.958
+  },
+  {
+   "ear": 0.225,
+   "perclos": 0.007,
+   "heartRate": 0,
+   "faceConfidence": 0.94
+  },
+  {
+   "ear": 0.232,
+   "perclos": 0.007,
+   "heartRate": 0,
+   "faceConfidence": 0.951
+  },
+  {
+   "ear": 0.229,
+   "perclos": 0.007,
+   "heartRate": 0,
+   "faceConfidence": 0.95
+  },
+  {
+   "ear": 0.233,
+   "perclos": 0.007,
+   "heartRate": 0,
+   "faceConfidence": 0.946
+  },
+  {
+   "ear": 0.227,
+   "perclos": 0.007,
+   "heartRate": 0,
+   "faceConfidence": 0.958
+  },
+  {
+   "ear": 0.231,
+   "perclos": 0.007,
+   "heartRate": 0,
+   "faceConfidence": 0.952
+  },
+  {
+   "ear": 0.232,
+   "perclos": 0.007,
+   "heartRate": 0,
+   "faceConfidence": 0.956
+  },
+  {
+   "ear": 0.234,
+   "perclos": 0.007,
+   "heartRate": 0,
+   "faceConfidence": 0.949
+  },
+  {
+   "ear": 0.215,
+   "perclos": 0.011,
+   "heartRate": 0,
+   "faceConfidence": 0.955
+  },
+  {
+   "ear": 0.23,
+   "perclos": 0.011,
+   "heartRate": 0,
+   "faceConfidence": 0.957
+  },
+  {
+   "ear": 0.203,
+   "perclos": 0.018,
+   "heartRate": 0,
+   "faceConfidence": 0.896
+  },
+  {
+   "ear": 0.101,
+   "perclos": 0.046,
+   "heartRate": 0,
+   "faceConfidence": 0.514
+  },
+  {
+   "ear": 0.103,
+   "perclos": 0.074,
+   "heartRate": 0,
+   "faceConfidence": 0.514
+  },
+  {
+   "ear": 0.099,
+   "perclos": 0.106,
+   "heartRate": 0,
+   "faceConfidence": 0.578
+  },
+  {
+   "ear": 0.101,
+   "perclos": 0.128,
+   "heartRate": 0,
+   "faceConfidence": 0.385
+  },
+  {
+   "ear": 0.107,
+   "perclos": 0.154,
+   "heartRate": 0,
+   "faceConfidence": 0.449
+  },
+  {
+   "ear": 0.098,
+   "perclos": 0.183,
+   "heartRate": 0,
+   "faceConfidence": 0.514
+  },
+  {
+   "ear": 0.102,
+   "perclos": 0.216,
+   "heartRate": 0,
+   "faceConfidence": 0.578
+  },
+  {
+   "ear": 0.215,
+   "perclos": 0.219,
+   "heartRate": 0,
+   "faceConfidence": 0.915
+  },
+  {
+   "ear": 0.23,
+   "perclos": 0.214,
+   "heartRate": 0,
+   "faceConfidence": 0.956
+  },
+  {
+   "ear": 0.232,
+   "perclos": 0.209,
+   "heartRate": 0,
+   "faceConfidence": 0.944
+  },
+  {
+   "ear": 0.233,
+   "perclos": 0.209,
+   "heartRate": 0,
+   "faceConfidence": 0.959
+  },
+  {
+   "ear": 0.229,
+   "perclos": 0.208,
+   "heartRate": 0,
+   "faceConfidence": 0.956
+  },
+  {
+   "ear": 0.228,
+   "perclos": 0.208,
+   "heartRate": 0,
+   "faceConfidence": 0.95
+  },
+  {
+   "ear": 0.233,
+   "perclos": 0.207,
+   "heartRate": 0,
+   "faceConfidence": 0.954
+  },
+  {
+   "ear": 0.231,
+   "perclos": 0.207,
+   "heartRate": 0,
+   "faceConfidence": 0.952
+  },
+  {
+   "ear": 0.213,
+   "perclos": 0.211,
+   "heartRate": 0,
+   "faceConfidence": 0.933
+  },
+  {
+   "ear": 0.079,
+   "perclos": 0.243,
+   "heartRate": 0,
+   "faceConfidence": 0.564
+  },
+  {
+   "ear": 0.076,
+   "perclos": 0.27,
+   "heartRate": 0,
+   "faceConfidence": 0.439
+  },
+  {
+   "ear": 0.075,
+   "perclos": 0.299,
+   "heartRate": 0,
+   "faceConfidence": 0.439
+  },
+  {
+   "ear": 0.076,
+   "perclos": 0.33,
+   "heartRate": 0,
+   "faceConfidence": 0.502
+  },
+  {
+   "ear": 0.184,
+   "perclos": 0.341,
+   "heartRate": 0,
+   "faceConfidence": 0.88
+  },
+  {
+   "ear": 0.233,
+   "perclos": 0.341,
+   "heartRate": 0,
+   "faceConfidence": 0.957
+  },
+  {
+   "ear": 0.226,
+   "perclos": 0.341,
+   "heartRate": 0,
+   "faceConfidence": 0.957
+  },
+  {
+   "ear": 0.228,
+   "perclos": 0.341,
+   "heartRate": 0,
+   "faceConfidence": 0.96
+  },
+  {
+   "ear": 0.232,
+   "perclos": 0.341,
+   "heartRate": 0,
+   "faceConfidence": 0.944
+  },
+  {
+   "ear": 0.227,
+   "perclos": 0.341,
+   "heartRate": 0,
+   "faceConfidence": 0.951
+  },
+  {
+   "ear": 0.216,
+   "perclos": 0.344,
+   "heartRate": 0,
+   "faceConfidence": 0.94
+  },
+  {
+   "ear": 0.232,
+   "perclos": 0.341,
+   "heartRate": 0,
+   "faceConfidence": 0.951
+  },
+  {
+   "ear": 0.231,
+   "perclos": 0.341,
+   "heartRate": 0,
+   "faceConfidence": 0.945
+  },
+  {
+   "ear": 0.229,
+   "perclos": 0.333,
+   "heartRate": 0,
+   "faceConfidence": 0.95
+  },
+  {
+   "ear": 0.226,
+   "perclos": 0.302,
+   "heartRate": 0,
+   "faceConfidence": 0.95
+  },
+  {
+   "ear": 0.228,
+   "perclos": 0.271,
+   "heartRate": 0,
+   "faceConfidence": 0.945
+  },
+  {
+   "ear": 0.21,
+   "perclos": 0.242,
+   "heartRate": 0,
+   "faceConfidence": 0.937
+  },
+  {
+   "ear": 0.212,
+   "perclos": 0.221,
+   "heartRate": 0,
+   "faceConfidence": 0.948
+  },
+  {
+   "ear": 0.228,
+   "perclos": 0.194,
+   "heartRate": 0,
+   "faceConfidence": 0.949
+  },
+  {
+   "ear": 0.209,
+   "perclos": 0.169,
+   "heartRate": 0,
+   "faceConfidence": 0.953
+  },
+  {
+   "ear": 0.227,
+   "perclos": 0.137,
+   "heartRate": 0,
+   "faceConfidence": 0.942
+  },
+  {
+   "ear": 0.227,
+   "perclos": 0.134,
+   "heartRate": 0,
+   "faceConfidence": 0.946
+  },
+  {
+   "ear": 0.231,
+   "perclos": 0.134,
+   "heartRate": 0,
+   "faceConfidence": 0.951
+  },
+  {
+   "ear": 0.192,
+   "perclos": 0.144,
+   "heartRate": 0,
+   "faceConfidence": 0.828
+  },
+  {
+   "ear": 0.1,
+   "perclos": 0.179,
+   "heartRate": 0,
+   "faceConfidence": 0.551
+  },
+  {
+   "ear": 0.104,
+   "perclos": 0.202,
+   "heartRate": 0,
+   "faceConfidence": 0.331
+  },
+  {
+   "ear": 0.103,
+   "perclos": 0.232,
+   "heartRate": 0,
+   "faceConfidence": 0.441
+  },
+  {
+   "ear": 0.1,
+   "perclos": 0.261,
+   "heartRate": 0,
+   "faceConfidence": 0.441
+  },
+  {
+   "ear": 0.096,
+   "perclos": 0.294,
+   "heartRate": 0,
+   "faceConfidence": 0.496
+  },
+  {
+   "ear": 0.106,
+   "perclos": 0.319,
+   "heartRate": 0,
+   "faceConfidence": 0.386
+  },
+  {
+   "ear": 0.105,
+   "perclos": 0.317,
+   "heartRate": 0,
+   "faceConfidence": 0.441
+  },
+  {
+   "ear": 0.102,
+   "perclos": 0.319,
+   "heartRate": 0,
+   "faceConfidence": 0.441
+  },
+  {
+   "ear": 0.098,
+   "perclos": 0.319,
+   "heartRate": 0,
+   "faceConfidence": 0.386
+  },
+  {
+   "ear": 0.173,
+   "perclos": 0.304,
+   "heartRate": 0,
+   "faceConfidence": 0.688
+  },
+  {
+   "ear": 0.228,
+   "perclos": 0.293,
+   "heartRate": 0,
+   "faceConfidence": 0.95
+  },
+  {
+   "ear": 0.231,
+   "perclos": 0.293,
+   "heartRate": 0,
+   "faceConfidence": 0.95
+  },
+  {
+   "ear": 0.23,
+   "perclos": 0.293,
+   "heartRate": 0,
+   "faceConfidence": 0.948
+  },
+  {
+   "ear": 0.226,
+   "perclos": 0.293,
+   "heartRate": 0,
+   "faceConfidence": 0.945
+  },
+  {
+   "ear": 0.212,
+   "perclos": 0.296,
+   "heartRate": 0,
+   "faceConfidence": 0.96
+  },
+  {
+   "ear": 0.231,
+   "perclos": 0.296,
+   "heartRate": 0,
+   "faceConfidence": 0.952
+  },
+  {
+   "ear": 0.232,
+   "perclos": 0.293,
+   "heartRate": 0,
+   "faceConfidence": 0.952
+  },
+  {
+   "ear": 0.23,
+   "perclos": 0.293,
+   "heartRate": 0,
+   "faceConfidence": 0.946
+  },
+  {
+   "ear": 0.153,
+   "perclos": 0.318,
+   "heartRate": 0,
+   "faceConfidence": 0.65
+  },
+  {
+   "ear": 0.115,
+   "perclos": 0.344,
+   "heartRate": 0,
+   "faceConfidence": 0.311
+  },
+  {
+   "ear": 0.119,
+   "perclos": 0.378,
+   "heartRate": 0,
+   "faceConfidence": 0.466
+  },
+  {
+   "ear": 0.231,
+   "perclos": 0.38,
+   "heartRate": 0,
+   "faceConfidence": 0.853
+  },
+  {
+   "ear": 0.212,
+   "perclos": 0.38,
+   "heartRate": 0,
+   "faceConfidence": 0.946
+  },
+  {
+   "ear": 0.232,
+   "perclos": 0.376,
+   "heartRate": 0,
+   "faceConfidence": 0.956
+  },
+  {
+   "ear": 0.231,
+   "perclos": 0.376,
+   "heartRate": 0,
+   "faceConfidence": 0.95
+  },
+  {
+   "ear": 0.21,
+   "perclos": 0.376,
+   "heartRate": 0,
+   "faceConfidence": 0.944
+  },
+  {
+   "ear": 0.23,
+   "perclos": 0.376,
+   "heartRate": 0,
+   "faceConfidence": 0.953
+  },
+  {
+   "ear": 0.233,
+   "perclos": 0.376,
+   "heartRate": 0,
+   "faceConfidence": 0.951
+  },
+  {
+   "ear": 0.229,
+   "perclos": 0.376,
+   "heartRate": 0,
+   "faceConfidence": 0.945
+  },
+  {
+   "ear": 0.233,
+   "perclos": 0.365,
+   "heartRate": 0,
+   "faceConfidence": 0.955
+  },
+  {
+   "ear": 0.209,
+   "perclos": 0.332,
+   "heartRate": 0,
+   "faceConfidence": 0.946
+  },
+  {
+   "ear": 0.231,
+   "perclos": 0.306,
+   "heartRate": 0,
+   "faceConfidence": 0.948
+  },
+  {
+   "ear": 0.229,
+   "perclos": 0.275,
+   "heartRate": 0,
+   "faceConfidence": 0.951
+  },
+  {
+   "ear": 0.228,
+   "perclos": 0.245,
+   "heartRate": 0,
+   "faceConfidence": 0.95
+  },
+  {
+   "ear": 0.208,
+   "perclos": 0.216,
+   "heartRate": 0,
+   "faceConfidence": 0.959
+  },
+  {
+   "ear": 0.232,
+   "perclos": 0.189,
+   "heartRate": 0,
+   "faceConfidence": 0.952
+  },
+  {
+   "ear": 0.228,
+   "perclos": 0.16,
+   "heartRate": 0,
+   "faceConfidence": 0.951
+  },
+  {
+   "ear": 0.231,
+   "perclos": 0.131,
+   "heartRate": 0,
+   "faceConfidence": 0.953
+  },
+  {
+   "ear": 0.229,
+   "perclos": 0.106,
+   "heartRate": 0,
+   "faceConfidence": 0.953
+  },
+  {
+   "ear": 0.11,
+   "perclos": 0.119,
+   "heartRate": 0,
+   "faceConfidence": 0.563
+  },
+  {
+   "ear": 0.094,
+   "perclos": 0.139,
+   "heartRate": 0,
+   "faceConfidence": 0.292
+  },
+  {
+   "ear": 0.092,
+   "perclos": 0.174,
+   "heartRate": 0,
+   "faceConfidence": 0.584
+  },
+  {
+   "ear": 0.092,
+   "perclos": 0.206,
+   "heartRate": 0,
+   "faceConfidence": 0.526
+  },
+  {
+   "ear": 0.093,
+   "perclos": 0.235,
+   "heartRate": 0,
+   "faceConfidence": 0.467
+  },
+  {
+   "ear": 0.088,
+   "perclos": 0.267,
+   "heartRate": 0,
+   "faceConfidence": 0.584
+  },
+  {
+   "ear": 0.094,
+   "perclos": 0.297,
+   "heartRate": 0,
+   "faceConfidence": 0.467
+  },
+  {
+   "ear": 0.091,
+   "perclos": 0.327,
+   "heartRate": 0,
+   "faceConfidence": 0.467
+  },
+  {
+   "ear": 0.229,
+   "perclos": 0.327,
+   "heartRate": 0,
+   "faceConfidence": 0.95
+  },
+  {
+   "ear": 0.229,
+   "perclos": 0.302,
+   "heartRate": 0,
+   "faceConfidence": 0.959
+  },
+  {
+   "ear": 0.23,
+   "perclos": 0.277,
+   "heartRate": 0,
+   "faceConfidence": 0.943
+  },
+  {
+   "ear": 0.232,
+   "perclos": 0.245,
+   "heartRate": 0,
+   "faceConfidence": 0.942
+  },
+  {
+   "ear": 0.224,
+   "perclos": 0.244,
+   "heartRate": 0,
+   "faceConfidence": 0.963
+  },
+  {
+   "ear": 0.229,
+   "perclos": 0.24,
+   "heartRate": 0,
+   "faceConfidence": 0.956
+  },
+  {
+   "ear": 0.229,
+   "perclos": 0.24,
+   "heartRate": 0,
+   "faceConfidence": 0.953
+  },
+  {
+   "ear": 0.233,
+   "perclos": 0.24,
+   "heartRate": 0,
+   "faceConfidence": 0.944
+  },
+  {
+   "ear": 0.227,
+   "perclos": 0.237,
+   "heartRate": 0,
+   "faceConfidence": 0.945
+  },
+  {
+   "ear": 0.233,
+   "perclos": 0.237,
+   "heartRate": 0,
+   "faceConfidence": 0.952
+  },
+  {
+   "ear": 0.214,
+   "perclos": 0.24,
+   "heartRate": 0,
+   "faceConfidence": 0.966
+  },
+  {
+   "ear": 0.234,
+   "perclos": 0.24,
+   "heartRate": 0,
+   "faceConfidence": 0.952
+  },
+  {
+   "ear": 0.209,
+   "perclos": 0.244,
+   "heartRate": 0,
+   "faceConfidence": 0.951
+  },
+  {
+   "ear": 0.231,
+   "perclos": 0.24,
+   "heartRate": 0,
+   "faceConfidence": 0.949
+  }
+ ],
+ "expected": {
+  "fusion_only_alerts": 2,
+  "with_verifier_alerts": 0,
+  "first_alert_after_s": null
+ }
+}

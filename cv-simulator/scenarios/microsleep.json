@@ -1,0 +1,7 @@
+{
+  "description": "Driver is falling asleep: eyes nearly closed, very high PERCLOS, low heart rate",
+  "ear":            { "mean": 0.06, "std": 0.02 },
+  "perclos":        { "mean": 0.75, "std": 0.08 },
+  "heartRate":      { "mean": 50,   "std": 3 },
+  "faceConfidence": { "mean": 0.85, "std": 0.05 }
+}

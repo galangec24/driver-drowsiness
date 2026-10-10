@@ -1,0 +1,41 @@
+# Render Blueprint — backend API + Socket.io.
+# MongoDB: Render has no managed MongoDB; use MongoDB Atlas (free M0) and set MONGO_URI.
+# All secrets are `sync: false` → entered in the Render dashboard, never committed.
+services:
+  - type: web
+    name: guardian-drive-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm ci && npm run models:download
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: INGEST_API_KEY
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: https://guardian-drive-app.web.app,https://guardian-drive-app.firebaseapp.com
+      # Your e-mail → admin console (model training / promotion) at your next sign-in
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: FCM_SERVER_KEY
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false

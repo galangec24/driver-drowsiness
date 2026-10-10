@@ -1,0 +1,7 @@
+{
+  "description": "Driver is drowsy: drooping eyelids, rising PERCLOS, slowing heart rate",
+  "ear":            { "mean": 0.16, "std": 0.02 },
+  "perclos":        { "mean": 0.45, "std": 0.05 },
+  "heartRate":      { "mean": 56,   "std": 3 },
+  "faceConfidence": { "mean": 0.92, "std": 0.03 }
+}

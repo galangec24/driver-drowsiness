@@ -1,0 +1,502 @@
+{
+ "description": "Realistic drowsiness onset (45 s awake, then drowsy). The verifier confirms it.",
+ "replay": [
+  {
+   "ear": 0.152,
+   "perclos": 0.147,
+   "heartRate": 0,
+   "faceConfidence": 0.837
+  },
+  {
+   "ear": 0.251,
+   "perclos": 0.147,
+   "heartRate": 0,
+   "faceConfidence": 0.833
+  },
+  {
+   "ear": 0.24,
+   "perclos": 0.137,
+   "heartRate": 0,
+   "faceConfidence": 0.833
+  },
+  {
+   "ear": 0.238,
+   "perclos": 0.137,
+   "heartRate": 0,
+   "faceConfidence": 0.84
+  },
+  {
+   "ear": 0.244,
+   "perclos": 0.137,
+   "heartRate": 0,
+   "faceConfidence": 0.836
+  },
+  {
+   "ear": 0.246,
+   "perclos": 0.13,
+   "heartRate": 0,
+   "faceConfidence": 0.843
+  },
+  {
+   "ear": 0.248,
+   "perclos": 0.127,
+   "heartRate": 0,
+   "faceConfidence": 0.834
+  },
+  {
+   "ear": 0.148,
+   "perclos": 0.147,
+   "heartRate": 0,
+   "faceConfidence": 0.829
+  },
+  {
+   "ear": 0.244,
+   "perclos": 0.147,
+   "heartRate": 0,
+   "faceConfidence": 0.833
+  },
+  {
+   "ear": 0.244,
+   "perclos": 0.147,
+   "heartRate": 0,
+   "faceConfidence": 0.828
+  },
+  {
+   "ear": 0.245,
+   "perclos": 0.147,
+   "heartRate": 0,
+   "faceConfidence": 0.814
+  },
+  {
+   "ear": 0.191,
+   "perclos": 0.147,
+   "heartRate": 0,
+   "faceConfidence": 0.833
+  },
+  {
+   "ear": 0.107,
+   "perclos": 0.163,
+   "heartRate": 0,
+   "faceConfidence": 0.828
+  },
+  {
+   "ear": 0.244,
+   "perclos": 0.163,
+   "heartRate": 0,
+   "faceConfidence": 0.848
+  },
+  {
+   "ear": 0.244,
+   "perclos": 0.163,
+   "heartRate": 0,
+   "faceConfidence": 0.828
+  },
+  {
+   "ear": 0.24,
+   "perclos": 0.153,
+   "heartRate": 0,
+   "faceConfidence": 0.832
+  },
+  {
+   "ear": 0.241,
+   "perclos": 0.14,
+   "heartRate": 0,
+   "faceConfidence": 0.836
+  },
+  {
+   "ear": 0.243,
+   "perclos": 0.127,
+   "heartRate": 0,
+   "faceConfidence": 0.823
+  },
+  {
+   "ear": 0.248,
+   "perclos": 0.127,
+   "heartRate": 0,
+   "faceConfidence": 0.819
+  },
+  {
+   "ear": 0.25,
+   "perclos": 0.113,
+   "heartRate": 0,
+   "faceConfidence": 0.829
+  },
+  {
+   "ear": 0.239,
+   "perclos": 0.11,
+   "heartRate": 0,
+   "faceConfidence": 0.833
+  },
+  {
+   "ear": 0.23,
+   "perclos": 0.113,
+   "heartRate": 0,
+   "faceConfidence": 0.829
+  },
+  {
+   "ear": 0.179,
+   "perclos": 0.103,
+   "heartRate": 0,
+   "faceConfidence": 0.828
+  },
+  {
+   "ear": 0.248,
+   "perclos": 0.1,
+   "heartRate": 0,
+   "faceConfidence": 0.83
+  },
+  {
+   "ear": 0.256,
+   "perclos": 0.09,
+   "heartRate": 0,
+   "faceConfidence": 0.842
+  },
+  {
+   "ear": 0.24,
+   "perclos": 0.09,
+   "heartRate": 0,
+   "faceConfidence": 0.841
+  },
+  {
+   "ear": 0.166,
+   "perclos": 0.103,
+   "heartRate": 0,
+   "faceConfidence": 0.83
+  },
+  {
+   "ear": 0.166,
+   "perclos": 0.117,
+   "heartRate": 0,
+   "faceConfidence": 0.833
+  },
+  {
+   "ear": 0.254,
+   "perclos": 0.117,
+   "heartRate": 0,
+   "faceConfidence": 0.82
+  },
+  {
+   "ear": 0.104,
+   "perclos": 0.143,
+   "heartRate": 0,
+   "faceConfidence": 0.831
+  },
+  {
+   "ear": 0.228,
+   "perclos": 0.13,
+   "heartRate": 0,
+   "faceConfidence": 0.83
+  },
+  {
+   "ear": 0.219,
+   "perclos": 0.133,
+   "heartRate": 0,
+   "faceConfidence": 0.832
+  },
+  {
+   "ear": 0.139,
+   "perclos": 0.153,
+   "heartRate": 0,
+   "faceConfidence": 0.836
+  },
+  {
+   "ear": 0.082,
+   "perclos": 0.183,
+   "heartRate": 0,
+   "faceConfidence": 0.835
+  },
+  {
+   "ear": 0.107,
+   "perclos": 0.21,
+   "heartRate": 0,
+   "faceConfidence": 0.818
+  },
+  {
+   "ear": 0.248,
+   "perclos": 0.21,
+   "heartRate": 0,
+   "faceConfidence": 0.83
+  },
+  {
+   "ear": 0.149,
+   "perclos": 0.23,
+   "heartRate": 0,
+   "faceConfidence": 0.818
+  },
+  {
+   "ear": 0.242,
+   "perclos": 0.21,
+   "heartRate": 0,
+   "faceConfidence": 0.815
+  },
+  {
+   "ear": 0.226,
+   "perclos": 0.21,
+   "heartRate": 0,
+   "faceConfidence": 0.835
+  },
+  {
+   "ear": 0.149,
+   "perclos": 0.23,
+   "heartRate": 0,
+   "faceConfidence": 0.823
+  },
+  {
+   "ear": 0.225,
+   "perclos": 0.233,
+   "heartRate": 0,
+   "faceConfidence": 0.828
+  },
+  {
+   "ear": 0.244,
+   "perclos": 0.223,
+   "heartRate": 0,
+   "faceConfidence": 0.825
+  },
+  {
+   "ear": 0.243,
+   "perclos": 0.197,
+   "heartRate": 0,
+   "faceConfidence": 0.837
+  },
+  {
+   "ear": 0.159,
+   "perclos": 0.213,
+   "heartRate": 0,
+   "faceConfidence": 0.832
+  },
+  {
+   "ear": 0.118,
+   "perclos": 0.237,
+   "heartRate": 0,
+   "faceConfidence": 0.827
+  },
+  {
+   "ear": 0.241,
+   "perclos": 0.237,
+   "heartRate": 0,
+   "faceConfidence": 0.831
+  },
+  {
+   "ear": 0.119,
+   "perclos": 0.26,
+   "heartRate": 0,
+   "faceConfidence": 0.829
+  },
+  {
+   "ear": 0.17,
+   "perclos": 0.273,
+   "heartRate": 0,
+   "faceConfidence": 0.834
+  },
+  {
+   "ear": 0.238,
+   "perclos": 0.273,
+   "heartRate": 0,
+   "faceConfidence": 0.824
+  },
+  {
+   "ear": 0.249,
+   "perclos": 0.273,
+   "heartRate": 0,
+   "faceConfidence": 0.822
+  },
+  {
+   "ear": 0.24,
+   "perclos": 0.273,
+   "heartRate": 0,
+   "faceConfidence": 0.834
+  },
+  {
+   "ear": 0.098,
+   "perclos": 0.3,
+   "heartRate": 0,
+   "faceConfidence": 0.831
+  },
+  {
+   "ear": 0.087,
+   "perclos": 0.317,
+   "heartRate": 0,
+   "faceConfidence": 0.831
+  },
+  {
+   "ear": 0.243,
+   "perclos": 0.317,
+   "heartRate": 0,
+   "faceConfidence": 0.835
+  },
+  {
+   "ear": 0.246,
+   "perclos": 0.317,
+   "heartRate": 0,
+   "faceConfidence": 0.838
+  },
+  {
+   "ear": 0.205,
+   "perclos": 0.323,
+   "heartRate": 0,
+   "faceConfidence": 0.83
+  },
+  {
+   "ear": 0.156,
+   "perclos": 0.33,
+   "heartRate": 0,
+   "faceConfidence": 0.83
+  },
+  {
+   "ear": 0.125,
+   "perclos": 0.34,
+   "heartRate": 0,
+   "faceConfidence": 0.824
+  },
+  {
+   "ear": 0.138,
+   "perclos": 0.36,
+   "heartRate": 0,
+   "faceConfidence": 0.826
+  },
+  {
+   "ear": 0.174,
+   "perclos": 0.347,
+   "heartRate": 0,
+   "faceConfidence": 0.834
+  },
+  {
+   "ear": 0.167,
+   "perclos": 0.357,
+   "heartRate": 0,
+   "faceConfidence": 0.835
+  },
+  {
+   "ear": 0.118,
+   "perclos": 0.377,
+   "heartRate": 0,
+   "faceConfidence": 0.83
+  },
+  {
+   "ear": 0.204,
+   "perclos": 0.363,
+   "heartRate": 0,
+   "faceConfidence": 0.838
+  },
+  {
+   "ear": 0.248,
+   "perclos": 0.333,
+   "heartRate": 0,
+   "faceConfidence": 0.824
+  },
+  {
+   "ear": 0.248,
+   "perclos": 0.307,
+   "heartRate": 0,
+   "faceConfidence": 0.828
+  },
+  {
+   "ear": 0.235,
+   "perclos": 0.307,
+   "heartRate": 0,
+   "faceConfidence": 0.829
+  },
+  {
+   "ear": 0.193,
+   "perclos": 0.297,
+   "heartRate": 0,
+   "faceConfidence": 0.84
+  },
+  {
+   "ear": 0.074,
+   "perclos": 0.33,
+   "heartRate": 0,
+   "faceConfidence": 0.836
+  },
+  {
+   "ear": 0.075,
+   "perclos": 0.363,
+   "heartRate": 0,
+   "faceConfidence": 0.822
+  },
+  {
+   "ear": 0.236,
+   "perclos": 0.343,
+   "heartRate": 0,
+   "faceConfidence": 0.839
+  },
+  {
+   "ear": 0.238,
+   "perclos": 0.34,
+   "heartRate": 0,
+   "faceConfidence": 0.83
+  },
+  {
+   "ear": 0.242,
+   "perclos": 0.34,
+   "heartRate": 0,
+   "faceConfidence": 0.823
+  },
+  {
+   "ear": 0.237,
+   "perclos": 0.34,
+   "heartRate": 0,
+   "faceConfidence": 0.825
+  },
+  {
+   "ear": 0.244,
+   "perclos": 0.323,
+   "heartRate": 0,
+   "faceConfidence": 0.832
+  },
+  {
+   "ear": 0.21,
+   "perclos": 0.307,
+   "heartRate": 0,
+   "faceConfidence": 0.846
+  },
+  {
+   "ear": 0.15,
+   "perclos": 0.323,
+   "heartRate": 0,
+   "faceConfidence": 0.827
+  },
+  {
+   "ear": 0.128,
+   "perclos": 0.32,
+   "heartRate": 0,
+   "faceConfidence": 0.813
+  },
+  {
+   "ear": 0.129,
+   "perclos": 0.33,
+   "heartRate": 0,
+   "faceConfidence": 0.835
+  },
+  {
+   "ear": 0.241,
+   "perclos": 0.33,
+   "heartRate": 0,
+   "faceConfidence": 0.822
+  },
+  {
+   "ear": 0.248,
+   "perclos": 0.33,
+   "heartRate": 0,
+   "faceConfidence": 0.827
+  },
+  {
+   "ear": 0.247,
+   "perclos": 0.33,
+   "heartRate": 0,
+   "faceConfidence": 0.837
+  },
+  {
+   "ear": 0.229,
+   "perclos": 0.3,
+   "heartRate": 0,
+   "faceConfidence": 0.829
+  }
+ ],
+ "expected": {
+  "fusion_only_alerts": 2,
+  "with_verifier_alerts": 2,
+  "first_alert_after_s": 52.0
+ }
+}

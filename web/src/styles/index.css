@@ -1,0 +1,163 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+  body {
+    @apply bg-ink-950 font-sans text-slate-100 antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  ::selection {
+    @apply bg-accent-primary/40;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent-glow ring-offset-2 ring-offset-ink-950;
+  }
+}
+
+@layer components {
+  /* Glass surface: every card (web/CLAUDE.md § 3.2) */
+  .glass {
+    @apply rounded-2xl border border-glass-border bg-glass-light shadow-depth-2 backdrop-blur-glass;
+  }
+  .glass-hover {
+    @apply transition-shadow duration-200 hover:bg-glass-hover hover:shadow-depth-3;
+  }
+  .glass-inset {
+    @apply rounded-xl border border-white/10 bg-black/20 shadow-inner;
+  }
+  .label {
+    @apply text-xs font-semibold uppercase tracking-wider text-ink-muted;
+  }
+  .page-title {
+    @apply text-2xl font-bold tracking-tight text-white sm:text-3xl;
+  }
+  /* Leading-edge red gradient on drowsy alert cards */
+  .edge-danger {
+    background-image: linear-gradient(90deg, rgba(239, 68, 68, 0.35), rgba(239, 68, 68, 0) 30%);
+  }
+  .edge-warn {
+    background-image: linear-gradient(90deg, rgba(245, 158, 11, 0.25), rgba(245, 158, 11, 0) 30%);
+  }
+}
+
+/* Animated mesh background */
+.mesh-bg {
+  position: fixed;
+  inset: -10%;
+  z-index: -1;
+  background:
+    radial-gradient(40% 35% at 20% 20%, rgba(99, 102, 241, 0.35), transparent 70%),
+    radial-gradient(35% 30% at 85% 15%, rgba(129, 140, 248, 0.22), transparent 70%),
+    radial-gradient(45% 40% at 70% 85%, rgba(16, 185, 129, 0.14), transparent 70%),
+    radial-gradient(40% 40% at 10% 90%, rgba(239, 68, 68, 0.1), transparent 70%),
+    #05060f;
+  filter: saturate(120%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Range input styling for threshold sliders */
+input[type='range'].gd-range {
+  @apply h-2 w-full cursor-pointer appearance-none rounded-full bg-white/10;
+}
+input[type='range'].gd-range::-webkit-slider-thumb {
+  @apply h-5 w-5 appearance-none rounded-full border-2 border-white bg-accent-primary shadow-glow;
+}
+input[type='range'].gd-range::-moz-range-thumb {
+  @apply h-5 w-5 rounded-full border-2 border-white bg-accent-primary shadow-glow;
+}
+
+/* ---- 3D orbit loader (components/ui/OrbitLoader.tsx) ---- */
+.orbit-stage {
+  position: relative;
+  transform-style: preserve-3d;
+  perspective: 600px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.orbit-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  transform-style: preserve-3d;
+}
+.orbit-ring-1 {
+  border-top-color: #818cf8;
+  border-bottom-color: rgba(129, 140, 248, 0.25);
+  box-shadow: 0 0 18px rgba(129, 140, 248, 0.55);
+  animation: orbit-x 1.6s linear infinite;
+}
+.orbit-ring-2 {
+  inset: 10%;
+  border-left-color: #10b981;
+  border-right-color: rgba(16, 185, 129, 0.25);
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.45);
+  animation: orbit-y 2.1s linear infinite;
+}
+.orbit-ring-3 {
+  inset: 20%;
+  border-top-color: #f472b6;
+  border-left-color: rgba(244, 114, 182, 0.3);
+  animation: orbit-z 1.2s linear infinite;
+}
+.orbit-core {
+  filter: drop-shadow(0 0 14px rgba(99, 102, 241, 0.9));
+  animation: orbit-pulse 1.6s ease-in-out infinite;
+}
+@keyframes orbit-x {
+  from { transform: rotateX(65deg) rotateZ(0deg); }
+  to { transform: rotateX(65deg) rotateZ(360deg); }
+}
+@keyframes orbit-y {
+  from { transform: rotateY(65deg) rotateZ(0deg); }
+  to { transform: rotateY(65deg) rotateZ(-360deg); }
+}
+@keyframes orbit-z {
+  from { transform: rotateX(-30deg) rotateY(30deg) rotateZ(0deg); }
+  to { transform: rotateX(-30deg) rotateY(30deg) rotateZ(360deg); }
+}
+@keyframes orbit-pulse {
+  0%, 100% { transform: scale(1) translateZ(0); }
+  50% { transform: scale(1.12) translateZ(20px); }
+}
+
+/* ---- Parallax background shapes (components/ui/ParallaxScene.tsx) ---- */
+.shape-orb {
+  border-radius: 9999px;
+  background-image: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.55), transparent 35%),
+    linear-gradient(135deg, var(--tw-gradient-stops));
+  box-shadow: inset -10px -14px 30px rgba(0, 0, 0, 0.45), 0 20px 50px rgba(0, 0, 0, 0.35);
+  filter: blur(0.3px);
+}
+.shape-ring {
+  border-radius: 9999px;
+  border: 10px solid rgba(129, 140, 248, 0.28);
+  box-shadow: 0 0 40px rgba(129, 140, 248, 0.35), inset 0 0 20px rgba(129, 140, 248, 0.35);
+  transform: rotateX(60deg);
+}
+.shape-cube {
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(99, 102, 241, 0.15));
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 8px 8px 0 rgba(99, 102, 241, 0.25), 0 18px 40px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
+  transform: rotateX(25deg) rotateY(-25deg);
+}

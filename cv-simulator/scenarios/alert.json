@@ -1,0 +1,7 @@
+{
+  "description": "Driver is fine: eyes open, low PERCLOS, normal heart rate",
+  "ear":            { "mean": 0.30, "std": 0.02 },
+  "perclos":        { "mean": 0.08, "std": 0.03 },
+  "heartRate":      { "mean": 74,   "std": 4 },
+  "faceConfidence": { "mean": 0.96, "std": 0.02 }
+}

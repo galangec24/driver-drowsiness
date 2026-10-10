@@ -1,0 +1,55 @@
+node_modules/
+dist/
+build/
+coverage/
+.env
+*.log
+.DS_Store
+
+# backend
+backend/models/
+backend/.mongo-data/
+backend/uploads/
+
+# python
+__pycache__/
+venv/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# flutter
+mobile_app/.dart_tool/
+mobile_app/.flutter-plugins*
+mobile_app/build/
+mobile_app/android/key.properties
+mobile_app/android/local.properties
+*.jks
+*.keystore
+
+# firebase
+.firebase/
+firebase-hosting/app.apk
+
+# ml — personal data never committed (synthetic datasets are reproducible from a seed)
+ml/data/raw/
+ml/data/feedback/
+ml/data/recordings*/
+ml/data/synthetic*/
+ml/data/kaggle/
+ml/data/eyes*/
+driver_monitor/models/*.task
+driver_monitor/models/*.tflite
+driver_monitor/data/
+
+# built artifacts
+dist/
+web/public/app.apk
+ml/data/candidates/
+ml/data/videos/
+driver_monitor/models/eye_state.promoted.json
+driver_monitor/models/eye_state.version
+
+# test output
+web/test-results/
+web/playwright-report/

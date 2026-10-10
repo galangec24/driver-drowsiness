@@ -1,0 +1,8 @@
+{
+  "description": "Cycles 20s alert -> 10s warning -> 5s drowsy, then repeats",
+  "cycle": [
+    { "profile": "alert",      "seconds": 20, "label": "alert" },
+    { "profile": "drowsy",     "seconds": 10, "label": "warning" },
+    { "profile": "microsleep", "seconds": 5,  "label": "drowsy" }
+  ]
+}
