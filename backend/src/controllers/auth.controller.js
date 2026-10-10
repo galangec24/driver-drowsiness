@@ -103,7 +103,7 @@ async function sendCodeSafely(user) {
     return await emailOtp.issueCode(user);
   } catch (err) {
     logger.error({ err: err.message, email: user.email }, 'verification e-mail failed');
-    return { sent: false, failed: true, retryAfterS: 0 };
+    return { sent: false, failed: true, retryAfterS: 0, reason: err.message };
   }
 }
 
@@ -138,7 +138,9 @@ async function resendCode(req, res) {
   if (user && user.emailVerified === false) {
     const sent = await sendCodeSafely(user);
     if (sent.failed) {
-      throw new HttpError(503, "We couldn't send the e-mail right now. Please try again in a few minutes.");
+      const err = new HttpError(503, "We couldn't send the e-mail right now. Please try again in a few minutes.");
+      err.reason = sent.reason; // logged by the error handler, never sent to the client
+      throw err;
     }
     retryAfterS = sent.retryAfterS || retryAfterS;
   }
