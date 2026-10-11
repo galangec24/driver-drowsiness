@@ -20,6 +20,9 @@ const trainingJobSchema = new mongoose.Schema(
     error: String,
     releaseId: { type: mongoose.Schema.Types.ObjectId, ref: 'ModelRelease' },
     startedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    // Which worker claimed it, and a cancel request for a job running on another machine.
+    worker: String,
+    cancelRequested: { type: Boolean, default: false },
     startedAt: Date,
     finishedAt: Date,
   },
@@ -39,6 +42,7 @@ trainingJobSchema.methods.toPublic = function toPublic({ withLog = false } = {})
     createdAt: this.createdAt,
     startedAt: this.startedAt || null,
     finishedAt: this.finishedAt || null,
+    worker: this.worker || null,
     ...(withLog && { log: this.log }),
   };
 };

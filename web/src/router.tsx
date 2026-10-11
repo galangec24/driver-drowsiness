@@ -12,6 +12,13 @@ import { SettingsPage } from './pages/SettingsPage';
 import { DownloadPage } from './pages/DownloadPage';
 import { AdminPage } from './pages/admin/AdminPage';
 
+/** "/" is the parent dashboard; admins have their own console. */
+function HomePage() {
+  const { user } = useAuth();
+  if (user?.role === 'admin') return <Navigate to="/admin" replace />;
+  return <DashboardPage />;
+}
+
 function RequireAuth() {
   const { token } = useAuth();
   const location = useLocation();
@@ -34,13 +41,14 @@ export const router = createBrowserRouter([
       {
         element: <AppShell />,
         children: [
-          { index: true, element: <DashboardPage /> },
+          { index: true, element: <HomePage /> },
           { path: 'drivers', element: <DriversPage /> },
           { path: 'drivers/new', element: <RegisterDriverPage /> },
           { path: 'drivers/:id', element: <DriverDetailPage /> },
           { path: 'alerts', element: <AlertsPage /> },
           { path: 'settings', element: <SettingsPage /> },
           { path: 'admin', element: <AdminPage /> },
+          { path: 'admin/:tab', element: <AdminPage /> },
         ],
       },
     ],

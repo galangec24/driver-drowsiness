@@ -26,10 +26,10 @@ export function OfflineBanner() {
         >
           <Icon name="wifiOff" className="shrink-0 text-accent-warn" />
           <span className="text-amber-100">
-            {online ? 'Live connection lost — reconnecting. Refreshing every 10 s.' : 'You are offline. Showing cached data.'}
-            {snapshot && (
-              <span className="text-ink-muted"> Last updated {formatTime(snapshot.savedAt)}.</span>
-            )}
+            {online
+              ? 'Live connection lost — reconnecting. Refreshing every 10 s.'
+              : 'You are offline. Showing cached data.'}
+            {snapshot && <span className="text-ink-muted"> Last updated {formatTime(snapshot.savedAt)}.</span>}
           </span>
         </motion.div>
       )}

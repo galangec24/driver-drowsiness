@@ -2,17 +2,20 @@
  * Admin training worker: runs ml/ (and driver_monitor) Python scripts as background jobs, one at a
  * time, streams their output to admins over Socket.io and turns results into ModelRelease candidates.
  *
- * Python is only needed where training runs (a PC/laptop with the repo's venvs, or a worker VM).
- * A backend without Python (e.g. Render) still serves the admin console and promotions; it just
- * reports the worker as unavailable.
+ * Python is only needed where training runs. Two set-ups share the same MongoDB queue:
+ *   - local:  the API server itself has the venvs (development on a laptop);
+ *   - remote: the API runs without Python (Render) and `npm run worker` on a laptop claims queued
+ *             jobs, writes logs/results to MongoDB and reports a heartbeat (WorkerStatus).
  */
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
 const { env } = require('../config/env');
 const logger = require('../config/logger');
 const TrainingJob = require('../models/TrainingJob');
 const ModelRelease = require('../models/ModelRelease');
+const WorkerStatus = require('../models/WorkerStatus');
 const { findDataset } = require('../config/datasetCatalog');
 const { exportFeedback } = require('./feedbackExport');
 const alertDispatcher = require('./alertDispatcher');
@@ -48,6 +51,46 @@ function workerInfo() {
     videosDir: env.ml.videosDir,
     problems,
   };
+}
+
+/** A remote worker counts as online while its heartbeat is this fresh. */
+const HEARTBEAT_FRESH_MS = 45_000;
+const START_WORKER_HINT =
+  'No training worker online. On your laptop run "npm run worker" in guardian-drive/backend (docs/ADMIN.md).';
+
+function workerId() {
+  return process.env.TRAINING_WORKER_ID || os.hostname();
+}
+
+/** The latest fresh heartbeat of a remote worker, or null. */
+async function remoteWorker(now = Date.now()) {
+  const w = await WorkerStatus.findOne({
+    lastSeen: { $gte: new Date(now - HEARTBEAT_FRESH_MS) },
+  }).sort({
+    lastSeen: -1,
+  });
+  return w || null;
+}
+
+/**
+ * Who will run jobs: this process (local venvs), a remote worker with a fresh heartbeat, or nobody.
+ * Same shape as workerInfo() plus `mode` and `host`.
+ */
+async function effectiveWorker() {
+  const local = workerInfo();
+  if (local.enabled) return { ...local, mode: 'local', host: workerId() };
+  const remote = await remoteWorker();
+  if (remote && remote.info && remote.info.enabled) {
+    return {
+      ...remote.info,
+      enabled: true,
+      mode: 'remote',
+      host: remote.host || remote._id,
+      lastSeen: remote.lastSeen,
+      problems: [],
+    };
+  }
+  return { ...local, mode: 'none', host: null, problems: [...local.problems, START_WORKER_HINT] };
 }
 
 const dataPath = (...p) => path.join(env.ml.mlDir, 'data', ...p);
@@ -329,14 +372,23 @@ async function runStep(step, ctx, log, info) {
   });
 }
 
+/** `job` was already claimed (status 'running', worker = this one) by kick(). */
 async function execute(job) {
   const info = workerInfo();
   running = { jobId: job._id.toString(), child: null, cancelled: false };
-  job.status = 'running';
-  job.startedAt = new Date();
-  job.log = '';
-  await job.save();
   emit('training:job', job.toPublic());
+
+  // A cancel pressed on another server (e.g. Render) arrives as a flag on the job document.
+  const cancelPoll = setInterval(() => {
+    TrainingJob.exists({ _id: job._id, cancelRequested: true })
+      .then((hit) => {
+        if (hit && running && running.jobId === job._id.toString() && !running.cancelled) {
+          running.cancelled = true;
+          if (running.child) running.child.kill();
+        }
+      })
+      .catch(() => {});
+  }, 3000);
 
   let buffer = job.log;
   let lastSave = Date.now();
@@ -370,6 +422,7 @@ async function execute(job) {
     job.error = running.cancelled ? 'Cancelled by admin' : err.message;
     log(`\n✖ ${job.error}\n`);
   } finally {
+    clearInterval(cancelPoll);
     job.log = buffer;
     job.finishedAt = new Date();
     await job.save();
@@ -378,10 +431,17 @@ async function execute(job) {
   }
 }
 
-/** Start the next queued job if nothing is running. Safe to call any time. */
+/**
+ * Start the next queued job if this process can train and is idle. Safe to call any time, from
+ * several machines: the claim is atomic, so a job runs exactly once.
+ */
 async function kick() {
-  if (running) return;
-  const next = await TrainingJob.findOne({ status: 'queued' }).sort({ createdAt: 1 });
+  if (running || !workerInfo().enabled) return;
+  const next = await TrainingJob.findOneAndUpdate(
+    { status: 'queued' },
+    { $set: { status: 'running', startedAt: new Date(), log: '', worker: workerId() } },
+    { sort: { createdAt: 1 }, new: true },
+  );
   if (!next) return;
   execute(next)
     .catch((err) => logger.error({ err: err.message }, 'training job crashed'))
@@ -399,14 +459,21 @@ async function cancel(jobId) {
   } else if (job.status === 'running' && running && running.jobId === jobId) {
     running.cancelled = true;
     if (running.child) running.child.kill();
+  } else if (job.status === 'running') {
+    // Running on another machine: its worker sees the flag within a few seconds.
+    job.cancelRequested = true;
+    await job.save();
   }
   return job;
 }
 
-/** Jobs left "running" by a crash/restart can't resume: mark them failed, then continue the queue. */
+/**
+ * Jobs this worker left "running" (crash/restart) can't resume: mark them failed, then continue the
+ * queue. Jobs claimed by another machine are left alone.
+ */
 async function recover() {
   await TrainingJob.updateMany(
-    { status: 'running' },
+    { status: 'running', $or: [{ worker: workerId() }, { worker: { $exists: false } }] },
     { status: 'failed', error: 'Interrupted by a server restart', finishedAt: new Date() },
   );
   await kick();
@@ -426,6 +493,10 @@ function _setReleaseCollector(fn) {
 
 module.exports = {
   workerInfo,
+  workerId,
+  effectiveWorker,
+  remoteWorker,
+  HEARTBEAT_FRESH_MS,
   buildSteps,
   collectRelease,
   kick,

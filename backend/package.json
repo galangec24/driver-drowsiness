@@ -6,6 +6,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "worker": "node src/worker.js",
     "dev": "node scripts/dev.js",
     "test": "jest --runInBand",
     "test:coverage": "jest --runInBand --coverage",

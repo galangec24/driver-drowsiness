@@ -9,6 +9,7 @@ const router = Router();
 router.use(requireAuth, asyncHandler(requireAdmin));
 
 router.get('/overview', asyncHandler(ctrl.overview));
+router.get('/parents', asyncHandler(ctrl.parents));
 router.get('/datasets', asyncHandler(ctrl.datasets));
 router.post('/recordings', validate(ctrl.uploadSchema), asyncHandler(ctrl.uploadRecording));
 router.get('/jobs', asyncHandler(ctrl.listJobs));

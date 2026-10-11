@@ -1,12 +1,7 @@
 import { api } from './client';
 
 export type JobType =
-  | 'fetch_dataset'
-  | 'train_verifier'
-  | 'train_eye_state'
-  | 'calibrate_yawn'
-  | 'process_videos'
-  | 'import_uploads';
+  'fetch_dataset' | 'train_verifier' | 'train_eye_state' | 'calibrate_yawn' | 'process_videos' | 'import_uploads';
 export type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
 export type ModelKind = 'fp_verifier' | 'eye_state' | 'yawn_threshold';
 
@@ -20,6 +15,8 @@ export interface TrainingJob {
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
+  /** Machine that ran it (e.g. the laptop running `npm run worker`). */
+  worker?: string | null;
   log?: string;
 }
 
@@ -42,6 +39,44 @@ export interface WorkerInfo {
   mlDir: string;
   videosDir: string;
   problems: string[];
+  /** local: this server trains; remote: a laptop worker is online; none: nobody can train. */
+  mode?: 'local' | 'remote' | 'none';
+  host?: string | null;
+  lastSeen?: string;
+}
+
+export interface ParentDriver {
+  id: string;
+  name: string;
+  relationship: string;
+  faceEnrolled: boolean;
+  online: boolean;
+  createdAt: string;
+}
+
+export interface ParentRow {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  emailVerified: boolean;
+  signIn: 'password' | 'google' | 'google+password';
+  createdAt: string;
+  drivers: ParentDriver[];
+  driverCount: number;
+  onlineDrivers: number;
+  alertsTotal: number;
+  alerts7d: number;
+  lastAlertAt: string | null;
+}
+
+export interface ParentsResponse {
+  parents: ParentRow[];
+  totals: { accounts: number; parents: number; unverified: number; drivers: number; onlineDrivers: number };
+}
+
+export async function getParents(): Promise<ParentsResponse> {
+  return (await api.get<ParentsResponse>('/admin/parents')).data;
 }
 
 export interface CatalogDataset {

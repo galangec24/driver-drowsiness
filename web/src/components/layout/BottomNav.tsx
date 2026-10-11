@@ -15,7 +15,7 @@ export function BottomNav({ unacknowledged = 0 }: { unacknowledged?: number }) {
         <NavLink
           key={item.to}
           to={item.to}
-          end={item.to === '/'}
+          end={item.end}
           className={({ isActive }) =>
             [
               'relative flex h-12 w-16 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-semibold transition-all active:translate-y-px',

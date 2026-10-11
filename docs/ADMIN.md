@@ -34,8 +34,11 @@ Pick one:
   admin at its next sign-in.
 - **`npm run make-admin -- you@example.com`** in `backend/` (the account must exist; `--remove` to revoke).
 
-Sign out and in again. **Admin** appears in the menu. The role is checked in the database on every
-request, so revoking it takes effect immediately.
+Sign out and in again. Admins get their own console instead of the parent dashboard:
+**Overview · Parents · Training · Models · Settings** (Datasets is a tab inside it). **Parents** lists
+every account with how it signs in, whether the e-mail is verified, how many drivers it registered
+(and how many are online now) and its alert activity; click a row to see the drivers. The role is
+checked in the database on every request, so revoking it takes effect immediately.
 
 ## 2. Where training runs
 
@@ -46,7 +49,25 @@ set `ML_PYTHON` / `MONITOR_PYTHON` in `backend/.env`.
 | Setup | How |
 |---|---|
 | **Everything on your PC** (testing) | Just works: `npm run dev`, open Admin. |
-| **Public app on Render + Atlas** | Render has no Python, so its Admin page reviews and promotes but can't train. Run a second backend on your PC with the **same `MONGO_URI` (Atlas)**, train there, then promote from either one. Models live in MongoDB, so the Render backend switches to a newly promoted verifier within a minute, and Pis pull new device settings within 5 minutes. |
+| **Public app on Render + Atlas** | Render has no Python. On your PC run the **training worker** (below) with the same `MONGO_URI` (Atlas). Then use the website's Admin page as usual: jobs you start there run on your PC, their log appears on the page, and the trained model shows up under Models to promote. Models live in MongoDB, so the Render backend switches to a newly promoted verifier within a minute, and Pis pull new device settings within 5 minutes. |
+
+### The training worker (Render + your laptop)
+
+```bash
+cd guardian-drive/backend
+npm run worker        # leave this window open while you train; Ctrl+C stops it
+```
+
+- It needs `backend/.env` with the Atlas `MONGO_URI` (and the usual `JWT_SECRET` / `INGEST_API_KEY`),
+  plus `ml/venv` (and `driver_monitor/venv` for yawn calibration / videos).
+- Every 10 s it reports a heartbeat; the Overview tab shows **"Training worker online on <PC name>"**.
+  If the laptop sleeps or the window closes, the page says **No training worker online** and new jobs
+  are refused until it is back. A job cut off by Ctrl+C is marked failed: start it again.
+- Jobs are claimed atomically, so two workers never run the same job. **Cancel** on the website
+  reaches the worker within ~3 s.
+- The **Datasets** tab shows what is downloaded on the worker's disk. Recording uploads go straight
+  to that disk: copy `.jsonl` files into `ml/data/raw/uploads` on the worker, then run
+  *Import uploaded recordings*.
 
 Downloaded datasets stay on the training machine (`ml/data/`, gitignored). Only trained models (small
 JSON) go into the database.

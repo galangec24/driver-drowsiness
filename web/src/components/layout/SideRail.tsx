@@ -15,16 +15,20 @@ export function SideRail({ unacknowledged = 0 }: { unacknowledged?: number }) {
       className="glass fixed inset-y-4 left-4 z-30 hidden w-20 flex-col items-center gap-2 px-2 py-5 sm:flex lg:w-60 lg:items-stretch lg:px-4"
     >
       <div className="mb-6 flex items-center gap-3 lg:px-2">
-        <img src="/icons/icon.svg" alt="" className="h-10 w-10 animate-float drop-shadow-[0_0_12px_rgba(99,102,241,0.6)]" />
+        <img
+          src="/icons/icon.svg"
+          alt=""
+          className="h-10 w-10 animate-float drop-shadow-[0_0_12px_rgba(99,102,241,0.6)]"
+        />
         <div className="hidden lg:block">
           <p className="text-sm font-extrabold leading-tight text-white">Guardian Drive</p>
-          <p className="text-xs text-ink-muted">Parent console</p>
+          <p className="text-xs text-ink-muted">{user?.role === 'admin' ? 'Admin console' : 'Parent console'}</p>
         </div>
       </div>
 
       <nav className="flex flex-1 flex-col gap-1.5">
         {navItemsFor(user?.role).map((item) => (
-          <NavLink key={item.to} to={item.to} end={item.to === '/'} title={item.label}>
+          <NavLink key={item.to} to={item.to} end={item.end} title={item.label}>
             {({ isActive }) => (
               <motion.span
                 whileHover={{ x: 4 }}
@@ -52,7 +56,9 @@ export function SideRail({ unacknowledged = 0 }: { unacknowledged?: number }) {
         className="flex items-center justify-center gap-2 rounded-xl bg-black/20 px-3 py-2 text-xs text-ink-muted lg:justify-start"
         title={connected ? 'Live connection' : 'Reconnecting…'}
       >
-        <span className={`h-2 w-2 rounded-full ${connected ? 'bg-accent-ok shadow-[0_0_8px_#10b981]' : 'bg-accent-warn animate-pulse'}`} />
+        <span
+          className={`h-2 w-2 rounded-full ${connected ? 'bg-accent-ok shadow-[0_0_8px_#10b981]' : 'bg-accent-warn animate-pulse'}`}
+        />
         <span className="hidden lg:inline">{connected ? 'Live' : 'Reconnecting…'}</span>
       </div>
     </aside>

@@ -40,14 +40,28 @@ export function DatasetsTab() {
       return results;
     },
     onSuccess: (r) => {
-      toast.show({ title: `${r.length} recording(s) uploaded`, body: 'Import them to use them for training.', tone: 'success' });
+      toast.show({
+        title: `${r.length} recording(s) uploaded`,
+        body: 'Import them to use them for training.',
+        tone: 'success',
+      });
       void qc.invalidateQueries({ queryKey: ['admin', 'datasets'] });
     },
     onError: (err) => toast.show({ title: 'Upload rejected', body: errorMessage(err), tone: 'danger' }),
   });
 
-  if (q.isLoading) return <div className="flex justify-center py-16"><OrbitLoader size={72} /></div>;
-  if (q.isError || !q.data) return <GlassCard interactive={false} className="text-red-200">{errorMessage(q.error)}</GlassCard>;
+  if (q.isLoading)
+    return (
+      <div className="flex justify-center py-16">
+        <OrbitLoader size={72} />
+      </div>
+    );
+  if (q.isError || !q.data)
+    return (
+      <GlassCard interactive={false} className="text-red-200">
+        {errorMessage(q.error)}
+      </GlassCard>
+    );
   const d = q.data;
 
   return (
@@ -78,13 +92,25 @@ export function DatasetsTab() {
               <p className="text-sm text-ink-muted">None yet.</p>
             )}
             <p className="text-xs text-ink-muted">
-              {d.uploads} uploaded file(s) waiting. Record with <code>python main.py --offline --record drive.jsonl</code>.
+              {d.uploads} uploaded file(s) waiting. Record with{' '}
+              <code>python main.py --offline --record drive.jsonl</code>.
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
-              <DepthButton size="sm" variant="secondary" icon={<Icon name="upload" size={16} />} loading={upload.isPending} onClick={() => fileRef.current?.click()}>
+              <DepthButton
+                size="sm"
+                variant="secondary"
+                icon={<Icon name="upload" size={16} />}
+                loading={upload.isPending}
+                onClick={() => fileRef.current?.click()}
+              >
                 Upload .jsonl
               </DepthButton>
-              <DepthButton size="sm" variant="secondary" disabled={!d.uploads} onClick={() => job.mutate({ type: 'import_uploads', params: {} })}>
+              <DepthButton
+                size="sm"
+                variant="secondary"
+                disabled={!d.uploads}
+                onClick={() => job.mutate({ type: 'import_uploads', params: {} })}
+              >
                 Import uploads
               </DepthButton>
               <input
@@ -104,45 +130,73 @@ export function DatasetsTab() {
           <GlassCard interactive={false} className="flex flex-col gap-1.5">
             <p className="font-semibold text-white">Synthetic signals</p>
             <p className="text-sm text-ink-muted">
-              {d.synthetic.main ? 'Generated: simulated drivers, drowsiness and look-alikes (phone glances, squinting…).' : 'Generated automatically on the first verifier run.'}
+              {d.synthetic.main
+                ? 'Generated: simulated drivers, drowsiness and look-alikes (phone glances, squinting…).'
+                : 'Generated automatically on the first verifier run.'}
             </p>
             <p className="text-xs text-ink-muted">Always part of verifier training; real data is added on top.</p>
           </GlassCard>
         </div>
       </Section>
 
-      <Section title="Public datasets" subtitle="Kaggle sets download with one click. Video datasets need access requested on their site.">
+      <Section
+        title="Public datasets"
+        subtitle="Kaggle sets download with one click. Video datasets need access requested on their site."
+      >
         <div className="grid gap-4 lg:grid-cols-2">
           {d.catalog.map((ds) => (
             <GlassCard key={ds.id} interactive={false} className="flex flex-col gap-2" data-testid={`dataset-${ds.id}`}>
               <div className="flex flex-wrap items-center gap-2">
                 <p className="mr-auto font-semibold text-white">{ds.title}</p>
                 <Badge tone="info">{TASK_LABEL[ds.task]}</Badge>
-                <Badge>{ds.source === 'kaggle' ? `Kaggle${ds.sizeMb ? ` · ${ds.sizeMb >= 1000 ? `${(ds.sizeMb / 1000).toFixed(1)} GB` : `${ds.sizeMb} MB`}` : ''}` : 'Request access'}</Badge>
+                <Badge>
+                  {ds.source === 'kaggle'
+                    ? `Kaggle${ds.sizeMb ? ` · ${ds.sizeMb >= 1000 ? `${(ds.sizeMb / 1000).toFixed(1)} GB` : `${ds.sizeMb} MB`}` : ''}`
+                    : 'Request access'}
+                </Badge>
               </div>
               <p className="text-sm text-ink-muted">{ds.description}</p>
               {ds.slug && (
-                <a className="text-xs text-accent-glow hover:underline" href={`https://www.kaggle.com/datasets/${ds.slug}`} target="_blank" rel="noopener noreferrer">
+                <a
+                  className="text-xs text-accent-glow hover:underline"
+                  href={`https://www.kaggle.com/datasets/${ds.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   kaggle.com/datasets/{ds.slug}
                 </a>
               )}
               {ds.url && (
-                <a className="text-xs text-accent-glow hover:underline" href={ds.url} target="_blank" rel="noopener noreferrer">
+                <a
+                  className="text-xs text-accent-glow hover:underline"
+                  href={ds.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   {ds.url}
                 </a>
               )}
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 {ds.task === 'eye_state' &&
                   (ds.local.ready ? (
-                    <Badge tone="ok">Downloaded · {ds.local.open} open / {ds.local.closed} closed</Badge>
+                    <Badge tone="ok">
+                      Downloaded · {ds.local.open} open / {ds.local.closed} closed
+                    </Badge>
                   ) : (
-                    <DepthButton size="sm" icon={<Icon name="download" size={16} />} onClick={() => job.mutate({ type: 'fetch_dataset', params: { datasetId: ds.id } })}>
+                    <DepthButton
+                      size="sm"
+                      icon={<Icon name="download" size={16} />}
+                      onClick={() => job.mutate({ type: 'fetch_dataset', params: { datasetId: ds.id } })}
+                    >
                       Download
                     </DepthButton>
                   ))}
                 {ds.task === 'yawn_calibration' && (
                   <>
-                    <DepthButton size="sm" onClick={() => job.mutate({ type: 'calibrate_yawn', params: { datasetId: ds.id } })}>
+                    <DepthButton
+                      size="sm"
+                      onClick={() => job.mutate({ type: 'calibrate_yawn', params: { datasetId: ds.id } })}
+                    >
                       Calibrate yawn detector
                     </DepthButton>
                     {ds.local.lastCalibrated && <Badge tone="ok">last run {formatTime(ds.local.lastCalibrated)}</Badge>}
@@ -153,7 +207,9 @@ export function DatasetsTab() {
                     <DepthButton
                       size="sm"
                       disabled={!ds.local.videos}
-                      onClick={() => job.mutate({ type: 'process_videos', params: { folder: ds.id, preset: ds.preset } })}
+                      onClick={() =>
+                        job.mutate({ type: 'process_videos', params: { folder: ds.id, preset: ds.preset } })
+                      }
                     >
                       Process {ds.local.videos ? `${ds.local.videos} videos` : 'videos'}
                     </DepthButton>

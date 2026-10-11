@@ -2,7 +2,17 @@ import type { ReactNode } from 'react';
 import type { JobStatus } from '../../api/admin';
 import { Spinner } from '../../components/ui/Spinner';
 
-export function Section({ title, subtitle, action, children }: { title: string; subtitle?: string; action?: ReactNode; children: ReactNode }) {
+export function Section({
+  title,
+  subtitle,
+  action,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -27,7 +37,9 @@ const STATUS_STYLE: Record<JobStatus, string> = {
 
 export function JobStatusPill({ status }: { status: JobStatus }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${STATUS_STYLE[status]}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${STATUS_STYLE[status]}`}
+    >
       {status === 'running' && <Spinner size={11} />}
       {status}
     </span>
@@ -41,7 +53,9 @@ export function Badge({ children, tone = 'muted' }: { children: ReactNode; tone?
     warn: 'bg-amber-500/20 text-amber-200',
     info: 'bg-accent-primary/25 text-indigo-100',
   }[tone];
-  return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${cls}`}>{children}</span>;
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${cls}`}>{children}</span>
+  );
 }
 
 export function pctOrDash(v: unknown, digits = 0): string {

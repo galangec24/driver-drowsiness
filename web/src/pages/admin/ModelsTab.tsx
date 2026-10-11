@@ -1,7 +1,15 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getModel, listModels, MODEL_LABEL, promoteModel, resetModel, type ModelKind, type ModelRelease } from '../../api/admin';
+import {
+  getModel,
+  listModels,
+  MODEL_LABEL,
+  promoteModel,
+  resetModel,
+  type ModelKind,
+  type ModelRelease,
+} from '../../api/admin';
 import { errorMessage } from '../../api/client';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { DepthButton } from '../../components/ui/DepthButton';
@@ -22,22 +30,40 @@ const KIND_HELP: Record<ModelKind, string> = {
 function columns(kind: ModelKind): { label: string; value: (s: Record<string, unknown>) => string }[] {
   if (kind === 'fp_verifier') {
     return [
-      { label: 'False alerts / h', value: (s) => `${numOrDash(s.falseAlertsPerHour)} (fusion only ${numOrDash(s.baselineFalseAlertsPerHour)})` },
+      {
+        label: 'False alerts / h',
+        value: (s) => `${numOrDash(s.falseAlertsPerHour)} (fusion only ${numOrDash(s.baselineFalseAlertsPerHour)})`,
+      },
       { label: 'Drowsy episodes caught', value: (s) => pctOrDash(s.episodeRecall) },
-      { label: 'Harder population', value: (s) => (s.shiftFalseAlertsPerHour == null ? '—' : `${numOrDash(s.shiftFalseAlertsPerHour)}/h · ${pctOrDash(s.shiftRecall)}`) },
-      { label: 'Trained on', value: (s) => `${((s.data as string[]) ?? []).join(' + ')}${s.feedback ? ' + feedback' : ''}` },
+      {
+        label: 'Harder population',
+        value: (s) =>
+          s.shiftFalseAlertsPerHour == null
+            ? '—'
+            : `${numOrDash(s.shiftFalseAlertsPerHour)}/h · ${pctOrDash(s.shiftRecall)}`,
+      },
+      {
+        label: 'Trained on',
+        value: (s) => `${((s.data as string[]) ?? []).join(' + ')}${s.feedback ? ' + feedback' : ''}`,
+      },
     ];
   }
   if (kind === 'eye_state') {
     return [
       { label: 'Accuracy', value: (s) => pctOrDash(s.accuracy, 1) },
       { label: 'Webcam quality', value: (s) => pctOrDash(s.webcamAccuracy, 1) },
-      { label: 'Datasets', value: (s) => ((s.datasets as string[]) ?? []).map((d) => d.replace('data/', '')).join(', ') },
+      {
+        label: 'Datasets',
+        value: (s) => ((s.datasets as string[]) ?? []).map((d) => d.replace('data/', '')).join(', '),
+      },
     ];
   }
   return [
     { label: 'Yawn threshold (MAR)', value: (s) => numOrDash(s.yawnMar) },
-    { label: 'Balanced accuracy', value: (s) => `${pctOrDash(s.balancedAccuracy)} (current ${pctOrDash(s.currentBalancedAccuracy)})` },
+    {
+      label: 'Balanced accuracy',
+      value: (s) => `${pctOrDash(s.balancedAccuracy)} (current ${pctOrDash(s.currentBalancedAccuracy)})`,
+    },
     { label: 'Yawns caught / false', value: (s) => `${pctOrDash(s.yawnsCaught)} / ${pctOrDash(s.falseYawns)}` },
   ];
 }
@@ -45,18 +71,37 @@ function columns(kind: ModelKind): { label: string; value: (s: Record<string, un
 function ReportModal({ id, onClose }: { id: string; onClose: () => void }) {
   const q = useQuery({ queryKey: ['admin', 'model', id], queryFn: () => getModel(id) });
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-label="Evaluation report" onClick={(e) => e.stopPropagation()} className="glass max-h-[88vh] w-full max-w-3xl overflow-y-auto bg-ink-900/95 p-5">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Evaluation report"
+        onClick={(e) => e.stopPropagation()}
+        className="glass max-h-[88vh] w-full max-w-3xl overflow-y-auto bg-ink-900/95 p-5"
+      >
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-bold text-white">Evaluation report</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="rounded-lg p-2 text-ink-muted hover:bg-white/10 hover:text-white">
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={onClose}
+            className="rounded-lg p-2 text-ink-muted hover:bg-white/10 hover:text-white"
+          >
             <Icon name="close" size={20} />
           </button>
         </div>
         {q.isLoading ? (
-          <div className="flex justify-center py-10 text-accent-glow"><Spinner size={28} /></div>
+          <div className="flex justify-center py-10 text-accent-glow">
+            <Spinner size={28} />
+          </div>
         ) : (
-          <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-slate-200" data-testid="model-report">
+          <pre
+            className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-slate-200"
+            data-testid="model-report"
+          >
             {q.data?.report || 'No report saved for this model.'}
           </pre>
         )}
@@ -80,7 +125,11 @@ export function ModelsTab() {
     mutationFn: promoteModel,
     onSuccess: (r) => {
       refresh();
-      toast.show({ title: `${MODEL_LABEL[r.kind]} promoted`, body: 'Live now for all drivers; in-car devices pick it up within 5 minutes.', tone: 'success' });
+      toast.show({
+        title: `${MODEL_LABEL[r.kind]} promoted`,
+        body: 'Live now for all drivers; in-car devices pick it up within 5 minutes.',
+        tone: 'success',
+      });
     },
     onError: (err) => toast.show({ title: 'Promotion refused', body: errorMessage(err), tone: 'danger' }),
   });
@@ -92,8 +141,18 @@ export function ModelsTab() {
     },
   });
 
-  if (q.isLoading) return <div className="flex justify-center py-16"><OrbitLoader size={72} /></div>;
-  if (q.isError) return <GlassCard interactive={false} className="text-red-200">{errorMessage(q.error)}</GlassCard>;
+  if (q.isLoading)
+    return (
+      <div className="flex justify-center py-16">
+        <OrbitLoader size={72} />
+      </div>
+    );
+  if (q.isError)
+    return (
+      <GlassCard interactive={false} className="text-red-200">
+        {errorMessage(q.error)}
+      </GlassCard>
+    );
   const releases = q.data ?? [];
 
   return (
@@ -121,7 +180,9 @@ export function ModelsTab() {
                   <tr>
                     <th className="p-3">Model</th>
                     {cols.map((c) => (
-                      <th key={c.label} className="p-3">{c.label}</th>
+                      <th key={c.label} className="p-3">
+                        {c.label}
+                      </th>
                     ))}
                     <th className="p-3" />
                   </tr>
@@ -138,18 +199,32 @@ export function ModelsTab() {
                     <tr key={r.id} className="border-t border-white/5" data-testid={`release-${r.id}`}>
                       <td className="p-3">
                         <div className="flex items-center gap-2">
-                          {r.status === 'active' ? <Badge tone="ok">live</Badge> : r.status === 'candidate' ? <Badge tone="info">candidate</Badge> : <Badge>retired</Badge>}
+                          {r.status === 'active' ? (
+                            <Badge tone="ok">live</Badge>
+                          ) : r.status === 'candidate' ? (
+                            <Badge tone="info">candidate</Badge>
+                          ) : (
+                            <Badge>retired</Badge>
+                          )}
                           <span className="text-xs text-ink-muted">{formatTime(r.createdAt)}</span>
                         </div>
                       </td>
                       {cols.map((c) => (
-                        <td key={c.label} className="p-3 text-white">{c.value(r.summary)}</td>
+                        <td key={c.label} className="p-3 text-white">
+                          {c.value(r.summary)}
+                        </td>
                       ))}
                       <td className="p-3">
                         <div className="flex justify-end gap-2">
-                          <DepthButton size="sm" variant="ghost" onClick={() => setReport(r.id)}>Report</DepthButton>
+                          <DepthButton size="sm" variant="ghost" onClick={() => setReport(r.id)}>
+                            Report
+                          </DepthButton>
                           {r.status !== 'active' && (
-                            <DepthButton size="sm" loading={promote.isPending && promote.variables === r.id} onClick={() => promote.mutate(r.id)}>
+                            <DepthButton
+                              size="sm"
+                              loading={promote.isPending && promote.variables === r.id}
+                              onClick={() => promote.mutate(r.id)}
+                            >
                               {r.status === 'retired' ? 'Roll back to this' : 'Promote'}
                             </DepthButton>
                           )}
