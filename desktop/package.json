@@ -1,7 +1,7 @@
 {
   "name": "guardian-drive-desktop",
   "productName": "Guardian Drive",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Guardian Drive for Windows: the parent dashboard in its own window.",
   "author": "Emmanuel Christian",
   "main": "main.js",
@@ -13,7 +13,7 @@
   "build": {
     "appId": "app.guardiandrive.desktop",
     "productName": "Guardian Drive",
-    "files": ["main.js", "package.json"],
+    "files": ["main.js", "preload.js", "package.json"],
     "directories": { "buildResources": "build", "output": "release" },
     "win": { "target": "nsis", "icon": "build/icon.ico" },
     "nsis": {

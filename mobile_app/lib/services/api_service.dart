@@ -199,6 +199,24 @@ class ApiService {
     return (r.data!['retryAfterS'] as num?)?.toInt() ?? 60;
   });
 
+  /// Google sign-in is available when the server has a client id (GET /auth/config).
+  Future<bool> googleSignInEnabled() => _call(() async {
+    final r = await _dio.get<Map<String, dynamic>>('/auth/config');
+    return r.data?['googleClientId'] is String;
+  });
+
+  /// The browser hand-off: null until the user finished "Continue with Google" in the browser.
+  Future<({String token, AppUser user})?> pollHandoff(String id) =>
+      _call(() async {
+        final r = await _dio.get<Map<String, dynamic>>('/auth/handoff/$id');
+        final d = r.data!;
+        if (d['token'] is! String) return null;
+        return (
+          token: d['token'] as String,
+          user: AppUser.fromJson(d['user'] as Map<String, dynamic>),
+        );
+      });
+
   /// E-mails a password reset code; returns seconds until another may be requested.
   Future<int> forgotPassword(String email) => _call(() async {
     final r = await _dio.post<Map<String, dynamic>>(

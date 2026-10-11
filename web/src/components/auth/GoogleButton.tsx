@@ -41,13 +41,15 @@ export interface GoogleButtonProps {
   /** Called with Google's ID token; the caller sends it to the server. */
   onCredential: (credential: string) => void;
   text?: 'signin_with' | 'signup_with' | 'continue_with';
+  /** Just the button, without the "or" divider above it. */
+  bare?: boolean;
 }
 
 /**
  * Google's own "Continue with Google" button. Renders nothing when the server has no Google client
  * id configured (GOOGLE_CLIENT_ID on Render), when offline, or when Google's script is blocked.
  */
-export function GoogleButton({ onCredential, text = 'continue_with' }: GoogleButtonProps) {
+export function GoogleButton({ onCredential, text = 'continue_with', bare = false }: GoogleButtonProps) {
   const host = useRef<HTMLDivElement>(null);
   const cb = useRef(onCredential);
   cb.current = onCredential;
@@ -92,11 +94,13 @@ export function GoogleButton({ onCredential, text = 'continue_with' }: GoogleBut
 
   return (
     <div className={visible ? 'flex flex-col gap-4' : 'hidden'} data-testid="google-signin">
-      <div className="flex items-center gap-3 text-xs uppercase tracking-wider text-ink-muted">
-        <span className="h-px flex-1 bg-white/10" />
-        or
-        <span className="h-px flex-1 bg-white/10" />
-      </div>
+      {!bare && (
+        <div className="flex items-center gap-3 text-xs uppercase tracking-wider text-ink-muted">
+          <span className="h-px flex-1 bg-white/10" />
+          or
+          <span className="h-px flex-1 bg-white/10" />
+        </div>
+      )}
       {/* The page is color-scheme: dark but Google's iframe is light; when they differ the browser
           paints an opaque box behind the iframe. Matching the scheme keeps the pill's corners clear. */}
       <div ref={host} className="flex min-h-[44px] w-full justify-center" style={{ colorScheme: 'light' }} />

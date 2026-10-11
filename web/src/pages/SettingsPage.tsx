@@ -11,12 +11,8 @@ import { DepthButton } from '../components/ui/DepthButton';
 import { Icon } from '../components/ui/Icon';
 import { useToast } from '../components/ui/Toast';
 import { clearSnapshots } from '../lib/offlineCache';
-import {
-  disableNotifications,
-  enableNotifications,
-  notificationsEnabled,
-  notificationsSupported,
-} from '../lib/notify';
+import { disableNotifications, enableNotifications, notificationsEnabled, notificationsSupported } from '../lib/notify';
+import { markFarewell } from '../lib/farewell';
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -45,12 +41,21 @@ export function SettingsPage() {
     setNotify(ok);
     toast.show(
       ok
-        ? { title: 'Notifications on', body: 'You will be notified of alerts while this tab is in the background.', tone: 'success' }
-        : { title: 'Notifications blocked', body: 'Allow notifications for this site in your browser settings.', tone: 'warn' },
+        ? {
+            title: 'Notifications on',
+            body: 'You will be notified of alerts while this tab is in the background.',
+            tone: 'success',
+          }
+        : {
+            title: 'Notifications blocked',
+            body: 'Allow notifications for this site in your browser settings.',
+            tone: 'warn',
+          },
     );
   }
 
   function signOut() {
+    markFarewell(user?.name);
     clearSnapshots();
     qc.clear();
     logout();
@@ -65,7 +70,9 @@ export function SettingsPage() {
           <h2 className="mb-2 text-lg font-bold text-white">Account</h2>
           <Row label="Name">{user?.name}</Row>
           <Row label="Email">{user?.email}</Row>
-          <Row label="Role"><span className="capitalize">{user?.role}</span></Row>
+          <Row label="Role">
+            <span className="capitalize">{user?.role}</span>
+          </Row>
           <div className="mt-4">
             <DepthButton variant="secondary" icon={<Icon name="logout" size={18} />} onClick={signOut}>
               Sign out
@@ -76,7 +83,9 @@ export function SettingsPage() {
         <GlassCard interactive={false}>
           <h2 className="mb-2 text-lg font-bold text-white">Notifications</h2>
           <Row label="Live connection">
-            <span className={connected ? 'text-emerald-300' : 'text-amber-300'}>{connected ? 'Connected' : 'Reconnecting…'}</span>
+            <span className={connected ? 'text-emerald-300' : 'text-amber-300'}>
+              {connected ? 'Connected' : 'Reconnecting…'}
+            </span>
           </Row>
           <Row label="Browser notifications">
             {notificationsSupported() ? (
@@ -86,7 +95,9 @@ export function SettingsPage() {
                 onClick={() => void toggleNotifications()}
                 className={`relative h-7 w-12 rounded-full border border-white/15 shadow-inner transition-colors ${notify ? 'bg-accent-primary shadow-glow' : 'bg-black/30'}`}
               >
-                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-depth-1 transition-all ${notify ? 'left-6' : 'left-0.5'}`} />
+                <span
+                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-depth-1 transition-all ${notify ? 'left-6' : 'left-0.5'}`}
+                />
               </button>
             ) : (
               'Not supported'
@@ -116,9 +127,17 @@ export function SettingsPage() {
         <GlassCard interactive={false}>
           <h2 className="mb-2 text-lg font-bold text-white">About</h2>
           <Row label="Version">{__APP_VERSION__}</Row>
-          <Row label="Server"><span className="break-all font-mono text-xs">{API_URL}</span></Row>
+          <Row label="Server">
+            <span className="break-all font-mono text-xs">{API_URL}</span>
+          </Row>
           <Row label="Offline cache">
-            <button className="text-accent-glow hover:underline" onClick={() => { clearSnapshots(); toast.show({ title: 'Offline cache cleared', tone: 'info' }); }}>
+            <button
+              className="text-accent-glow hover:underline"
+              onClick={() => {
+                clearSnapshots();
+                toast.show({ title: 'Offline cache cleared', tone: 'info' });
+              }}
+            >
               Clear
             </button>
           </Row>

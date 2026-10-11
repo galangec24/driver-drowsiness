@@ -64,10 +64,28 @@ export async function authConfig(): Promise<{ googleClientId: string | null }> {
   return data;
 }
 
-/** Sign in / sign up with the ID token from Google's button. */
-export async function googleSignIn(credential: string): Promise<AuthResponse> {
-  const { data } = await api.post<AuthResponse>('/auth/google', { credential });
+/**
+ * Sign in / sign up with the ID token from Google's button. `handoff`: the id of the Windows/Android
+ * app that opened this page in the browser; the app then collects the session (pollHandoff).
+ */
+export async function googleSignIn(credential: string, handoff?: string): Promise<AuthResponse> {
+  const { data } = await api.post<AuthResponse>('/auth/google', { credential, handoff });
   return data;
+}
+
+/** App side of the browser hand-off: null until the user finished signing in in the browser. */
+export async function pollHandoff(id: string): Promise<AuthResponse | null> {
+  const { data } = await api.get<AuthResponse | { pending: true }>(`/auth/handoff/${encodeURIComponent(id)}`);
+  return 'token' in data ? data : null;
+}
+
+/** Random, URL-safe id for one hand-off (unguessable: 32 random bytes). */
+export function newHandoffId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }
 
 /** E-mail a password reset code (same answer whether or not the account exists). */

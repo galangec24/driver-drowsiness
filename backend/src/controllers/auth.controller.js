@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { z } = require('zod');
 const { env } = require('../config/env');
@@ -6,6 +7,7 @@ const HttpError = require('../utils/httpError');
 const { signToken } = require('../middleware/auth.middleware');
 const emailOtp = require('../services/emailOtp');
 const { verifyGoogleIdToken } = require('../services/googleAuth');
+const AuthHandoff = require('../models/AuthHandoff');
 const logger = require('../config/logger');
 
 const registerSchema = z.object({
@@ -40,7 +42,15 @@ const resetSchema = z.object({
   password: z.string().min(8).max(128),
 });
 
-const googleSchema = z.object({ credential: z.string().min(20).max(8192) });
+// `handoff`: random id from the Windows/Android app that opened this sign-in in the browser.
+const handoffId = z.string().regex(/^[A-Za-z0-9_-]{32,128}$/, 'invalid handoff id');
+const googleSchema = z.object({
+  credential: z.string().min(20).max(8192),
+  handoff: handoffId.optional(),
+});
+
+const HANDOFF_TTL_MS = 5 * 60 * 1000;
+const handoffKey = (id) => crypto.createHash('sha256').update(id).digest('hex');
 
 const fcmTokenSchema = z.object({
   fcmToken: z.string().min(1).max(4096),
@@ -258,7 +268,31 @@ async function google(req, res) {
     }
   }
   await applyAdminRole(user);
-  res.json({ token: signToken(user), user: user.toPublic() });
+  const token = signToken(user);
+  if (req.body.handoff) {
+    // Park the session for the app that is waiting for it (collected once by GET /auth/handoff/:id).
+    await AuthHandoff.findOneAndUpdate(
+      { _id: handoffKey(req.body.handoff) },
+      { token, user: user.toPublic(), expiresAt: new Date(Date.now() + HANDOFF_TTL_MS) },
+      { upsert: true },
+    );
+  }
+  res.json({ token, user: user.toPublic() });
+}
+
+/**
+ * GET /auth/handoff/:id: the app polls this while the user signs in in the browser.
+ * {pending: true} until then; the session is handed out exactly once.
+ */
+async function collectHandoff(req, res) {
+  const parsed = handoffId.safeParse(req.params.id);
+  if (!parsed.success) throw new HttpError(400, 'invalid handoff id');
+  const doc = await AuthHandoff.findOneAndDelete({ _id: handoffKey(parsed.data) });
+  if (!doc || doc.expiresAt.getTime() < Date.now()) {
+    res.json({ pending: true });
+    return;
+  }
+  res.json({ token: doc.token, user: doc.user });
 }
 
 async function me(req, res) {
@@ -283,6 +317,7 @@ module.exports = {
   resetPassword,
   config,
   google,
+  collectHandoff,
   registerSchema,
   loginSchema,
   fcmTokenSchema,

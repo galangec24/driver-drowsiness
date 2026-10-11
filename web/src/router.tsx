@@ -10,6 +10,7 @@ import { DriverDetailPage } from './pages/DriverDetailPage';
 import { AlertsPage } from './pages/AlertsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { DownloadPage } from './pages/DownloadPage';
+import { AppLoginPage } from './pages/AppLoginPage';
 import { AdminPage } from './pages/admin/AdminPage';
 
 /** "/" is the parent dashboard; admins have their own console. */
@@ -35,6 +36,8 @@ export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   // Public: anyone can get the app before having an account.
   { path: '/download', element: <DownloadPage /> },
+  // Opened in the normal browser by the Windows/Android app for Google sign-in.
+  { path: '/app-login', element: <AppLoginPage /> },
   {
     element: <RequireAuth />,
     children: [

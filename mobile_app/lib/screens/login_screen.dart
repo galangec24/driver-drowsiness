@@ -6,6 +6,8 @@ import '../config/theme.dart';
 import '../services/api_service.dart';
 import '../state/auth_controller.dart';
 import '../widgets/depth_button.dart';
+import '../widgets/farewell_view.dart';
+import '../widgets/google_handoff_button.dart';
 import '../widgets/floating_shapes.dart';
 import '../widgets/forgot_password_view.dart';
 import '../widgets/glass_card.dart';
@@ -137,6 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthController>();
     return Scaffold(
       body: MeshBackground(
         child: Stack(
@@ -181,7 +184,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               GlassCard(
                                 interactive: false,
                                 padding: const EdgeInsets.all(24),
-                                child: _pending != null
+                                child: auth.farewellName != null
+                                    ? FarewellView(
+                                        name: auth.farewellName!,
+                                        onSignInAgain: auth.clearFarewell,
+                                      )
+                                    : _pending != null
                                     ? _otp(_pending!)
                                     : _forgot
                                     ? ForgotPasswordView(
@@ -328,6 +336,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                             loading: _loading,
                                             expand: true,
                                             onPressed: _submit,
+                                          ),
+                                          GoogleHandoffButton(
+                                            isEnabled: auth.googleSignInEnabled,
+                                            collect: auth.collectHandoff,
                                           ),
                                           const SizedBox(height: 8),
                                           TextButton(

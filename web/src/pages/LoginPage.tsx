@@ -6,6 +6,9 @@ import { googleSignIn, login, register, unverifiedFromError, type AuthResponse }
 import { OtpForm } from '../components/auth/OtpForm';
 import { ForgotPasswordForm } from '../components/auth/ForgotPasswordForm';
 import { GoogleButton } from '../components/auth/GoogleButton';
+import { AppGoogleButton, inDesktopApp } from '../components/auth/AppGoogleButton';
+import { FarewellCard } from '../components/auth/FarewellCard';
+import { takeFarewell } from '../lib/farewell';
 import { errorMessage } from '../api/client';
 import { useAuth } from '../store/auth';
 import { FloatingInput } from '../components/ui/FloatingInput';
@@ -47,6 +50,8 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [forgot, setForgot] = useState(false);
+  // "Thanks for using Guardian Drive" right after signing out (first name, possibly '').
+  const [farewell, setFarewell] = useState<string | null>(() => takeFarewell());
   // Waiting for the e-mailed 6-digit code (new account, or sign-in before verifying).
   const [pending, setPending] = useState<{ email: string; retryAfterS: number; emailSent?: boolean } | null>(null);
 
@@ -151,7 +156,9 @@ export function LoginPage() {
           <div className="glass relative bg-ink-900/40 p-8 shadow-depth-3" style={{ transformStyle: 'preserve-3d' }}>
             {/* The code and reset steps sit flat on the card (no TiltLayer): a lifted 3D layer made the
                 browser deliver button presses to the form behind them, so "Send code" did nothing. */}
-            {pending ? (
+            {farewell !== null ? (
+              <FarewellCard name={farewell} onSignInAgain={() => setFarewell(null)} />
+            ) : pending ? (
               <div>
                 <OtpForm
                   email={pending.email}
@@ -294,10 +301,15 @@ export function LoginPage() {
                     </DepthButton>
                   </TiltLayer>
                   {/* Outside a TiltLayer: Google's button is an iframe and must stay flat to receive taps. */}
-                  <GoogleButton
-                    onCredential={(c) => void onGoogle(c)}
-                    text={mode === 'login' ? 'signin_with' : 'signup_with'}
-                  />
+                  {inDesktopApp() ? (
+                    // Inside the Windows app Google won't sign in: hand off to the user's browser.
+                    <AppGoogleButton onSignedIn={finish} />
+                  ) : (
+                    <GoogleButton
+                      onCredential={(c) => void onGoogle(c)}
+                      text={mode === 'login' ? 'signin_with' : 'signup_with'}
+                    />
+                  )}
                 </form>
               </>
             )}

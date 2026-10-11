@@ -180,6 +180,45 @@ describe('continue with Google', () => {
   });
 });
 
+describe('app sign-in handoff (Google in the browser, session collected by the app)', () => {
+  const HANDOFF = 'a'.repeat(20) + 'B'.repeat(12) + '-_x9';
+  const poll = (id) => request(stack.app).get(`/api/auth/handoff/${id}`);
+
+  test('the app gets the session once, after the browser finished Google sign-in', async () => {
+    expect((await poll(HANDOFF).expect(200)).body).toEqual({ pending: true });
+
+    const web = await post('/google', { credential: googleToken(), handoff: HANDOFF }).expect(200);
+    const got = await poll(HANDOFF).expect(200);
+    expect(got.body.token).toBe(web.body.token);
+    expect(got.body.user).toMatchObject({ email: PAT.email });
+
+    // one time only
+    expect((await poll(HANDOFF).expect(200)).body).toEqual({ pending: true });
+    // the token works
+    await request(stack.app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${got.body.token}`)
+      .expect(200);
+  });
+
+  test('ids are validated and stored only as a hash', async () => {
+    await poll('short').expect(400);
+    await post('/google', { credential: googleToken(), handoff: 'bad id!' }).expect(400);
+    await post('/google', { credential: googleToken(), handoff: HANDOFF }).expect(200);
+    const AuthHandoff = require('../src/models/AuthHandoff');
+    const [doc] = await AuthHandoff.find().lean();
+    expect(doc._id).toMatch(/^[a-f0-9]{64}$/);
+    expect(doc._id).not.toContain(HANDOFF);
+  });
+
+  test('an expired handoff is not handed out', async () => {
+    await post('/google', { credential: googleToken(), handoff: HANDOFF }).expect(200);
+    const AuthHandoff = require('../src/models/AuthHandoff');
+    await AuthHandoff.updateMany({}, { expiresAt: new Date(Date.now() - 1000) });
+    expect((await poll(HANDOFF).expect(200)).body).toEqual({ pending: true });
+  });
+});
+
 describe('anti-spam limits', () => {
   test('code e-mails are limited per network (IP)', async () => {
     env.rateLimit = true;

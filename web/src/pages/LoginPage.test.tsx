@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import { LoginPage, validateAuthForm } from './LoginPage';
@@ -69,7 +69,11 @@ describe('LoginPage polish', () => {
 
 describe('LoginPage e-mail verification', () => {
   test('registering asks for the e-mailed code; a pasted code signs in', async () => {
-    vi.spyOn(authApi, 'register').mockResolvedValue({ verificationRequired: true, email: 'pat@example.com', retryAfterS: 60 });
+    vi.spyOn(authApi, 'register').mockResolvedValue({
+      verificationRequired: true,
+      email: 'pat@example.com',
+      retryAfterS: 60,
+    });
     const verify = vi.spyOn(authApi, 'verifyEmail').mockResolvedValue({
       token: 'jwt-ok',
       user: { id: 'u1', name: 'Pat', email: 'pat@example.com', role: 'parent', createdAt: '' },
@@ -98,7 +102,10 @@ describe('LoginPage e-mail verification', () => {
       statusText: 'Forbidden',
       headers: {},
       config: {} as never,
-      data: { error: 'Verify your e-mail first', details: { code: 'EMAIL_NOT_VERIFIED', email: 'pat@example.com', retryAfterS: 30 } },
+      data: {
+        error: 'Verify your e-mail first',
+        details: { code: 'EMAIL_NOT_VERIFIED', email: 'pat@example.com', retryAfterS: 30 },
+      },
     });
     vi.spyOn(authApi, 'login').mockRejectedValue(err);
     renderWithProviders(<LoginPage />, { route: '/login' });
@@ -146,4 +153,45 @@ describe('Forgot password and Google', () => {
     await vi.waitFor(() => expect(cfg).toHaveBeenCalled());
     expect(screen.getByTestId('google-signin')).toHaveClass('hidden');
   });
+});
+
+describe('signing out and app sign-in', () => {
+  test('after signing out, the login page thanks the user once', async () => {
+    vi.spyOn(authApi, 'authConfig').mockResolvedValue({ googleClientId: null });
+    const { markFarewell } = await import('../lib/farewell');
+    markFarewell('Pat Cruz');
+    const first = renderWithProviders(<LoginPage />, { route: '/login' });
+    expect(screen.getByTestId('farewell')).toHaveTextContent('Thanks for using Guardian Drive, Pat!');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in again' }));
+    expect(screen.queryByTestId('farewell')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Email')).toBeInTheDocument();
+    first.unmount();
+    // shown once only (e.g. not again after a reload)
+    renderWithProviders(<LoginPage />, { route: '/login' });
+    expect(screen.queryByTestId('farewell')).not.toBeInTheDocument();
+  });
+
+  test('inside the Windows app, Google sign-in opens the browser and the app collects the session', async () => {
+    vi.spyOn(authApi, 'authConfig').mockResolvedValue({ googleClientId: 'web-client.apps.googleusercontent.com' });
+    const session = {
+      token: 'jwt-app',
+      user: { id: 'u1', name: 'Pat', email: 'pat@example.com', role: 'parent', createdAt: '' },
+    };
+    const poll = vi.spyOn(authApi, 'pollHandoff').mockResolvedValueOnce(null).mockResolvedValueOnce(session);
+    const openExternal = vi.fn(async () => {});
+    window.guardianDesktop = { openExternal };
+    try {
+      renderWithProviders(<LoginPage />, { route: '/login' });
+      const btn = await screen.findByRole('button', { name: 'Continue with Google' });
+      await userEvent.click(btn);
+      expect(openExternal).toHaveBeenCalledWith(
+        expect.stringMatching(/\/app-login\?handoff=[A-Za-z0-9_-]{43}&app=windows$/),
+      );
+      expect(screen.getByText(/Finish signing in with Google in your browser/)).toBeInTheDocument();
+      await waitFor(() => expect(localStorage.getItem('gd:token')).toBe('jwt-app'), { timeout: 8000 });
+      expect(poll).toHaveBeenCalledTimes(2);
+    } finally {
+      delete window.guardianDesktop;
+    }
+  }, 15000);
 });

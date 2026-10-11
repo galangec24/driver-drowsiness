@@ -3,7 +3,12 @@ const ctrl = require('../controllers/auth.controller');
 const validate = require('../utils/validate');
 const asyncHandler = require('../utils/asyncHandler');
 const { requireAuth } = require('../middleware/auth.middleware');
-const { codeEmailLimit, signInLimit, googleLimit } = require('../middleware/rateLimit.middleware');
+const {
+  codeEmailLimit,
+  signInLimit,
+  googleLimit,
+  handoffLimit,
+} = require('../middleware/rateLimit.middleware');
 
 const router = Router();
 
@@ -41,6 +46,8 @@ router.post(
   asyncHandler(ctrl.resetPassword),
 );
 router.post('/google', googleLimit, validate(ctrl.googleSchema), asyncHandler(ctrl.google));
+// Apps poll this every ~2 s while the user signs in with Google in the browser.
+router.get('/handoff/:id', handoffLimit, asyncHandler(ctrl.collectHandoff));
 router.get('/me', requireAuth, asyncHandler(ctrl.me));
 router.put(
   '/fcm-token',

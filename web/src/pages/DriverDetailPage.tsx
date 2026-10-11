@@ -98,9 +98,18 @@ export function DriverDetailPage() {
     onError: (err) => toast.show({ title: 'Could not remove', body: errorMessage(err), tone: 'danger' }),
   });
 
-  if (driver.isLoading) return <div className="flex justify-center py-24"><OrbitLoader size={72} /></div>;
+  if (driver.isLoading)
+    return (
+      <div className="flex justify-center py-24">
+        <OrbitLoader size={72} />
+      </div>
+    );
   if (driver.isError || !driver.data) {
-    return <GlassCard interactive={false} className="text-red-200">{errorMessage(driver.error, 'Driver not found')}</GlassCard>;
+    return (
+      <GlassCard interactive={false} className="text-red-200">
+        {errorMessage(driver.error, 'Driver not found')}
+      </GlassCard>
+    );
   }
 
   const d = driver.data;
@@ -111,16 +120,24 @@ export function DriverDetailPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <button onClick={() => navigate(-1)} className="inline-flex w-fit items-center gap-1 text-sm text-ink-muted hover:text-white">
+      <button
+        onClick={() => navigate(-1)}
+        className="inline-flex w-fit items-center gap-1 text-sm text-ink-muted hover:text-white"
+      >
         <Icon name="back" size={16} /> Back
       </button>
 
-      <GlassCard interactive={false} danger={!offline && status === 'drowsy'} className="flex flex-wrap items-center gap-5">
+      <GlassCard
+        interactive={false}
+        danger={!offline && status === 'drowsy'}
+        className="flex flex-wrap items-center gap-5"
+      >
         <Avatar name={d.name} url={d.referencePhotoUrl} size={84} />
         <div className="min-w-0 flex-1">
           <h1 className="page-title truncate">{d.name}</h1>
           <p className="text-ink-muted">
-            <span className="capitalize">{d.relationship || 'Driver'}</span> · {d.faceEnrolled ? `face enrolled (${d.enrollment?.photoCount ?? 0} photos)` : 'no face enrolled'}
+            <span className="capitalize">{d.relationship || 'Driver'}</span> ·{' '}
+            {d.faceEnrolled ? `face enrolled (${d.enrollment?.photoCount ?? 0} photos)` : 'no face enrolled'}
           </p>
           <p className="mt-1 text-xs text-ink-muted">
             Last update {timeAgo(lastUpdate)}
@@ -185,12 +202,27 @@ export function DriverDetailPage() {
 
           <GlassCard interactive={false} className="flex flex-col gap-3">
             <h2 className="text-lg font-bold text-white">Verify face</h2>
-            <p className="text-sm text-ink-muted">Check a new photo against this driver's enrolled face (matched on our server).</p>
+            <p className="text-sm text-ink-muted">
+              Check a new photo against this driver's enrolled face (matched on our server).
+            </p>
             <div className="grid grid-cols-2 gap-2">
-              <DepthButton variant="secondary" size="sm" icon={<Icon name="camera" size={16} />} onClick={() => setCameraOpen(true)} disabled={!d.faceEnrolled} loading={verify.isPending}>
+              <DepthButton
+                variant="secondary"
+                size="sm"
+                icon={<Icon name="camera" size={16} />}
+                onClick={() => setCameraOpen(true)}
+                disabled={!d.faceEnrolled}
+                loading={verify.isPending}
+              >
                 Camera
               </DepthButton>
-              <DepthButton variant="secondary" size="sm" icon={<Icon name="upload" size={16} />} onClick={() => fileRef.current?.click()} disabled={!d.faceEnrolled || verify.isPending}>
+              <DepthButton
+                variant="secondary"
+                size="sm"
+                icon={<Icon name="upload" size={16} />}
+                onClick={() => fileRef.current?.click()}
+                disabled={!d.faceEnrolled || verify.isPending}
+              >
                 Upload
               </DepthButton>
             </div>

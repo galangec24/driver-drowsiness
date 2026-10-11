@@ -3,12 +3,15 @@
  * window, with a Start menu / desktop shortcut. Updates automatically because it loads the live
  * site; offline it shows the last data the site cached.
  */
-const { app, BrowserWindow, shell, session } = require('electron');
+const path = require('path');
+const { app, BrowserWindow, ipcMain, shell, session } = require('electron');
 
 const APP_URL = process.env.GUARDIAN_DRIVE_URL || 'https://guardian-drive-ph.web.app';
 const APP_ORIGIN = new URL(APP_URL).origin;
 // Google's sign-in popup is allowed in-app; every other outside link opens in the normal browser.
 const GOOGLE_SIGN_IN = /^https:\/\/accounts\.google\.com\//;
+// Google sign-in for the app happens on this page of the site, opened in the user's browser.
+const APP_LOGIN = `${APP_ORIGIN}/app-login?`;
 
 // One window only: opening the shortcut again focuses the running app.
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -25,7 +28,12 @@ function createWindow() {
     backgroundColor: '#05060f',
     autoHideMenuBar: true,
     show: false,
-    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
+    webPreferences: {
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+      preload: path.join(__dirname, 'preload.js'),
+    },
   });
   win.once('ready-to-show', () => win.show());
 
@@ -45,6 +53,12 @@ function createWindow() {
 
   win.loadURL(APP_URL);
 }
+
+// The site may only open its own app sign-in page in the browser; anything else is refused.
+ipcMain.handle('open-external', (_event, url) => {
+  if (typeof url !== 'string' || !url.startsWith(APP_LOGIN)) throw new Error('not allowed');
+  return shell.openExternal(url);
+});
 
 app.whenReady().then(() => {
   // Present as regular Chrome so Google sign-in and the site treat it like the browser version.

@@ -64,7 +64,11 @@ export function DashboardPage() {
       >
         <Stat label="Drivers" value={list.length} tone="text-white" />
         <Stat label="Driving now" value={online} tone="text-emerald-300" />
-        <Stat label="Unacknowledged" value={alerts.data?.unacknowledged ?? 0} tone={(alerts.data?.unacknowledged ?? 0) > 0 ? 'text-amber-300' : 'text-white'} />
+        <Stat
+          label="Unacknowledged"
+          value={alerts.data?.unacknowledged ?? 0}
+          tone={(alerts.data?.unacknowledged ?? 0) > 0 ? 'text-amber-300' : 'text-white'}
+        />
         <Stat label="Drowsy now" value={drowsyNow} tone={drowsyNow > 0 ? 'text-red-300' : 'text-white'} />
       </motion.section>
 
@@ -72,9 +76,13 @@ export function DashboardPage() {
         <section>
           <h2 className="mb-3 text-lg font-bold text-white">Your drivers</h2>
           {drivers.isLoading ? (
-            <div className="flex justify-center py-16"><OrbitLoader size={72} /></div>
+            <div className="flex justify-center py-16">
+              <OrbitLoader size={72} />
+            </div>
           ) : drivers.isError ? (
-            <GlassCard interactive={false} className="text-red-200">{errorMessage(drivers.error)}</GlassCard>
+            <GlassCard interactive={false} className="text-red-200">
+              {errorMessage(drivers.error)}
+            </GlassCard>
           ) : (
             <DriverList drivers={list} />
           )}
@@ -89,7 +97,9 @@ export function DashboardPage() {
             </span>
           </div>
           {alerts.isLoading ? (
-            <div className="flex justify-center py-16"><OrbitLoader size={72} /></div>
+            <div className="flex justify-center py-16">
+              <OrbitLoader size={72} />
+            </div>
           ) : (
             <AlertFeed alerts={alerts.data?.alerts ?? []} compact />
           )}

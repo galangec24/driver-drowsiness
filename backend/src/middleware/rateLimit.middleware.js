@@ -89,8 +89,16 @@ const googleLimit = rateLimit({
   message: 'Too many sign-in attempts. Wait 15 minutes and try again.',
 });
 
+/** App polling for a browser sign-in (one poll every ~2 s for at most 5 minutes). */
+const handoffLimit = rateLimit({
+  name: 'handoff-ip',
+  windowMs: 15 * 60 * 1000,
+  max: 600,
+  message: 'Too many sign-in checks. Wait a few minutes and try again.',
+});
+
 function _reset() {
   buckets.clear();
 }
 
-module.exports = { rateLimit, codeEmailLimit, signInLimit, googleLimit, _reset };
+module.exports = { rateLimit, codeEmailLimit, signInLimit, googleLimit, handoffLimit, _reset };

@@ -15,11 +15,31 @@ class AuthController extends ChangeNotifier {
   String? _token;
   AppUser? _user;
   bool _restored = false;
+  // First name to thank after signing out on purpose ('' if unknown); null otherwise.
+  String? _farewell;
 
   String? get token => _token;
   AppUser? get user => _user;
   bool get isLoggedIn => _token != null;
   bool get restored => _restored;
+  String? get farewellName => _farewell;
+
+  void clearFarewell() {
+    _farewell = null;
+    notifyListeners();
+  }
+
+  Future<bool> googleSignInEnabled() => _api.googleSignInEnabled();
+
+  /// Google sign-in finished in the browser? Then sign in here (true).
+  Future<bool> collectHandoff(String id) async {
+    final r = await _api.pollHandoff(id);
+    if (r == null) return false;
+    _farewell = null;
+    await _setSession(r.token, r.user);
+    return true;
+  }
+
   String get serverUrl => _storage.serverUrl;
 
   Future<void> restore() async {
@@ -70,7 +90,11 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> logout() async {
+  /// [farewell]: signed out on purpose, so the login screen says thanks (not after an expired session).
+  Future<void> logout({bool farewell = false}) async {
+    if (farewell) {
+      _farewell = (_user?.name ?? '').trim().split(RegExp(r'\s+')).first;
+    }
     await _storage.clearToken();
     await _storage.setUser(null);
     await _storage.clearSnapshots();

@@ -25,9 +25,13 @@ export function DriversPage() {
         </Link>
       </header>
       {drivers.isLoading ? (
-        <div className="flex justify-center py-16"><OrbitLoader size={72} /></div>
+        <div className="flex justify-center py-16">
+          <OrbitLoader size={72} />
+        </div>
       ) : drivers.isError ? (
-        <GlassCard interactive={false} className="text-red-200">{errorMessage(drivers.error)}</GlassCard>
+        <GlassCard interactive={false} className="text-red-200">
+          {errorMessage(drivers.error)}
+        </GlassCard>
       ) : (
         <DriverList drivers={drivers.data ?? []} />
       )}

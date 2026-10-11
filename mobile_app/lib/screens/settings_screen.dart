@@ -93,7 +93,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               variant: DepthVariant.secondary,
               onPressed: () {
                 data.stop();
-                auth.logout();
+                auth.logout(farewell: true);
               },
             ),
           ],
