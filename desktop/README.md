@@ -23,11 +23,20 @@ Needs ~1.5 GB of free disk space while building.
 If you start it from a VS Code terminal and it exits at once, clear `ELECTRON_RUN_AS_NODE`
 (VS Code sets it for child processes). Double-clicking the app is unaffected.
 
-## Publish
+## Publish (and how updates reach installed apps)
 
-Upload `GuardianDrive-Setup.exe` to the same GitHub release as the APK
-(github.com/galangec24/guardian-drive-download → Releases). The website's download page links to
-`releases/latest/download/GuardianDrive-Setup.exe` (VITE_WINDOWS_URL in web/.env.production).
+1. Raise `"version"` in `desktop/package.json` (and `version:` in `mobile_app/pubspec.yaml`).
+2. Build: the output folder then holds `GuardianDrive-Setup.exe`, `GuardianDrive-Setup.exe.blockmap`
+   and `latest.yml`.
+3. Create a GitHub release in github.com/galangec24/guardian-drive-download whose tag is **v** + that
+   version (e.g. `v1.0.6`) and attach all three files plus `GuardianDrive.apk`.
+
+Installed Windows apps check `latest.yml` 10 s after starting and every 6 hours, download the new
+installer in the background and ask "Restart now?" (or install when closed). Settings → Updates
+also has a **Check for updates** button. Android apps compare their version with the release tag
+on start and offer **Update**; the website updates itself.
+
+The tag must match the version exactly (`v1.0.6` for 1.0.6) or the updater can't find the files.
 
 The installer is not code-signed, so Windows SmartScreen shows "Windows protected your PC":
 More info → Run anyway. A code-signing certificate removes that warning.
