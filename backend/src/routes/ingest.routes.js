@@ -18,6 +18,9 @@ router.post(
 // Camera frame for an alert the device just triggered (same API key).
 router.post('/snapshot', validate(ctrl.snapshotSchema), requireApiKey, asyncHandler(ctrl.snapshot));
 
+// Which of the family's drivers is in front of the camera (same API key).
+router.post('/identify', validate(ctrl.identifySchema), requireApiKey, asyncHandler(ctrl.identify));
+
 // Personal thresholds for on-device checks (same API key).
 router.get('/drivers/:id/thresholds', requireApiKey, asyncHandler(ctrl.thresholds));
 // Admin-promoted eye open/closed model for the in-car monitor.

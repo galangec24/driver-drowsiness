@@ -10,6 +10,10 @@ const modelRegistry = require('../services/modelRegistry');
 const alertDispatcher = require('../services/alertDispatcher');
 const { base64ToBuffer, sniff } = require('../services/imageDecoder');
 const { storeAlertSnapshot } = require('../services/mediaStorage');
+const User = require('../models/User');
+const { analyzePhoto } = require('../services/faceEnrollment');
+const { pickDriver } = require('../services/driverIdentifier');
+const { loadFaceModels, isReady } = require('../config/faceApi');
 
 const objectId = z.string().regex(/^[a-f0-9]{24}$/i, 'must be a 24-char hex ObjectId');
 const finite = z.number().finite();
@@ -114,6 +118,52 @@ async function ingest(req, res) {
  * POST /api/ingest/snapshot — the in-car device uploads the camera frame for an alert it just
  * triggered (it learns the alertId from the ingest response). Parents get `alert:updated`.
  */
+/** The car is registered to a family by the parent's account e-mail (FAMILY_EMAIL on the device). */
+const identifySchema = z.object({
+  family: z.string().trim().toLowerCase().email(),
+  image: z.string().min(100, 'image must be base64 JPEG/PNG data'),
+});
+
+/**
+ * POST /api/ingest/identify {family, image}: which of this family's drivers is in front of the
+ * camera? The device calls it when someone sits down, then sends readings for that driver.
+ * Answers 200 with driverId null when nobody matches, so the device just tries again.
+ */
+async function identify(req, res) {
+  const parent = await User.findOne({ email: req.body.family }).select('_id');
+  if (!parent) throw new HttpError(404, 'No Guardian Drive account uses that FAMILY_EMAIL');
+  const drivers = await Driver.find({ parentId: parent._id }).select('+faceEmbedding name').lean();
+  const enrolled = drivers.filter((d) => d.faceEmbedding && d.faceEmbedding.length);
+  if (!enrolled.length) {
+    throw new HttpError(
+      409,
+      'This family has no drivers with face photos yet: register one in the app',
+    );
+  }
+  if (base64ToBuffer(req.body.image).length > SNAPSHOT_MAX_BYTES) {
+    throw new HttpError(413, 'Image exceeds 1.5 MB');
+  }
+  if (!isReady()) {
+    try {
+      await loadFaceModels();
+    } catch {
+      throw new HttpError(503, 'Face recognition models are not available');
+    }
+  }
+  let probe;
+  try {
+    probe = await analyzePhoto(req.body.image);
+  } catch (err) {
+    if (err.status === 422) {
+      res.json({ driverId: null, confidence: 0, reason: 'no_face', drivers: enrolled.length });
+      return;
+    }
+    throw err;
+  }
+  const result = pickDriver(enrolled, probe.descriptor);
+  res.json({ ...result, drivers: enrolled.length });
+}
+
 async function snapshot(req, res) {
   const { driverId, alertId, image } = req.body;
   const alert = await Alert.findOne({ _id: alertId, driverId });
@@ -169,6 +219,8 @@ module.exports = {
   markStart,
   snapshot,
   snapshotSchema,
+  identifySchema,
+  identify,
   thresholds,
   eyeStateModel,
 };

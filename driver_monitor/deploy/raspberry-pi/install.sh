@@ -57,12 +57,12 @@ if [[ ! -f "$ENV_FILE" ]]; then
   if [[ -t 0 ]]; then
     read -rp "Backend URL (e.g. https://guardian-drive-api.onrender.com): " api_url
     read -rp "INGEST_API_KEY (from backend/.env or the Render dashboard): " api_key
-    read -rp "DRIVER_ID (24-char id shown on the driver's page / npm run seed): " driver_id
+    read -rp "FAMILY_EMAIL (parent's Guardian Drive account e-mail; drivers are recognised by face): " family
     set_env API_URL "${api_url%/}"
     set_env INGEST_API_KEY "$api_key"
-    set_env DRIVER_ID "$driver_id"
+    set_env FAMILY_EMAIL "$family"
   else
-    warn "Edit $ENV_FILE (API_URL, INGEST_API_KEY, DRIVER_ID), then re-run this script."
+    warn "Edit $ENV_FILE (API_URL, INGEST_API_KEY, FAMILY_EMAIL), then re-run this script."
   fi
 fi
 sed -i 's/\r$//' "$ENV_FILE"   # files copied from Windows may have CRLF line endings
@@ -82,9 +82,11 @@ if [[ -z "$(get_env CAMERA_BACKEND)" ]]; then
 fi
 say "Camera backend: $(get_env CAMERA_BACKEND)"
 
-for key in API_URL INGEST_API_KEY DRIVER_ID; do
+for key in API_URL INGEST_API_KEY; do
   [[ -n "$(get_env $key)" ]] || die "$key is empty in $ENV_FILE. Fill it in and re-run."
 done
+[[ -n "$(get_env FAMILY_EMAIL)$(get_env DRIVER_ID)" ]] \
+  || die "Set FAMILY_EMAIL (automatic driver recognition) or DRIVER_ID in $ENV_FILE and re-run."
 
 case "$(get_env API_URL)" in
   *localhost*|*127.0.0.1*) die "API_URL in $ENV_FILE is $(get_env API_URL), which on the Pi means the Pi itself. Use the backend's real address (https://...onrender.com or http://<PC-IP>:3000) and re-run." ;;

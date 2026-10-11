@@ -30,6 +30,7 @@ PERCLOS_WINDOW_S = 30.0
 class Config:
     api_url: str
     api_key: str
+    # Fixed driver (one-driver car / testing). Leave empty to recognise the driver automatically.
     driver_id: str
     camera_index: int
     post_interval_ms: int
@@ -73,6 +74,9 @@ class Config:
     nod_speed: float = 25.0
     # Apply models/settings the admin promoted in the training console (yawn threshold, eye model)
     model_sync: bool = True
+    # Automatic driver recognition: the parent account (e-mail) this car belongs to. Whoever sits
+    # down is matched against that family's registered drivers (their face photos).
+    family_email: str = ""
 
 
 def load_config(require_backend: bool = True) -> Config:
@@ -107,8 +111,11 @@ def load_config(require_backend: bool = True) -> Config:
         nod_deg=env_float("NOD_DEG", 15.0),
         nod_speed=env_float("NOD_SPEED", 25.0),
         model_sync=env_str("MODEL_SYNC", "1") != "0",
+        family_email=env_str("FAMILY_EMAIL").strip().lower(),
     )
-    missing = [k for k, v in (("INGEST_API_KEY", cfg.api_key), ("DRIVER_ID", cfg.driver_id)) if not v]
+    missing = [k for k, v in (("INGEST_API_KEY", cfg.api_key),) if not v]
+    if not cfg.driver_id and not cfg.family_email:
+        missing.append("FAMILY_EMAIL (or DRIVER_ID)")
     if missing and require_backend:
         raise SystemExit(f"Missing required env vars: {', '.join(missing)} (see .env.example)")
     return cfg

@@ -51,7 +51,7 @@ If there is no `.env` yet it asks for three values:
 |---|---|
 | Backend URL | `https://<your-app>.onrender.com`, or `http://<PC-IP>:3000` while testing on home Wi-Fi |
 | INGEST_API_KEY | `backend/.env` locally, or the Render dashboard → Environment |
-| DRIVER_ID | the driver's page URL in the web app (`/drivers/<id>`), or the output of `npm run seed` |
+| FAMILY_EMAIL | the parent's Guardian Drive account e-mail. Whoever sits down is recognised from the face photos taken when each driver was registered, so one Pi serves every driver in the family. (Instead, a fixed `DRIVER_ID` from the driver's page URL `/drivers/<id>` also works.) |
 
 The script installs packages, creates `venv-pi/`, downloads the face models, detects the camera,
 and installs and starts the service. The first run takes 5–15 minutes. Re-running it is safe.

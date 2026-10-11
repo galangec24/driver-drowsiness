@@ -32,6 +32,7 @@ from detectors.perclos import PerclosTracker
 from fusion.scorer import IntervalAggregator
 from fusion.watch_alerts import WatchAlerter
 from sensors.heart_rate import BreathingState, HeartRateState, pick_heart
+from transport.driver_identity import DriverIdentity
 from transport.gps import LocationSource, NoLocation, make_location_source
 from transport.ingest_client import IngestClient, build_payload, encode_snapshot
 from transport.model_sync import eye_model_path, fetch_device_config, local_eye_version, save_eye_model
@@ -123,6 +124,20 @@ class Monitor:
         self.aggregator.add(result.ear, result.face.score if result.face else 0.0, result.mar)
         self.last = result
         return result
+
+    def switch_driver(self, driver_id: str) -> None:
+        """A different person is driving: start their personal baselines (eyes, head, yawns) fresh."""
+        self.driver_id = driver_id
+        p, n, y = self.perclos, self.nod, self.yawn
+        self.perclos = PerclosTracker(window_s=p.window_s, closure_ratio=p.closure_ratio)
+        self.nod = NodDetector(drop_deg=n.drop_deg, min_drop_speed=n.min_drop_speed)
+        self.yawn = YawnDetector(
+            open_threshold=y.open_threshold,
+            close_threshold=y.close_threshold,
+            min_duration_s=y.min_duration_s,
+        )
+        self.aggregator = IntervalAggregator()
+        self.last_response = None
 
     def eye_crops(self, bgr: np.ndarray, landmarks: Points) -> list[np.ndarray]:
         from detectors.landmarks import eye_points
@@ -333,7 +348,12 @@ def run(
     signal.signal(signal.SIGTERM, lambda *_: stop.__setitem__("flag", True))
     source = f"video {video}" if video else f"camera {cfg.camera_index}"
     target = client.url if client else "no POST (offline)"
-    log.info(f"Monitoring driver {cfg.driver_id or '-'} on {source} -> {target}")
+    identity = DriverIdentity(fixed_id=cfg.driver_id)
+    identify_job: Future[dict[str, Any]] | None = None
+    if identity.automatic:
+        log.info(f"Automatic driver recognition for {cfg.family_email or '?'} on {source} -> {target}")
+    else:
+        log.info(f"Monitoring driver {cfg.driver_id or '-'} on {source} -> {target}")
     monitor.eye_controls_perclos = monitor.eye_model is not None and cfg.eye_state == "on"
     rule = "eye-state image model" if monitor.eye_controls_perclos else "EAR ratio"
     shadow = (
@@ -376,11 +396,34 @@ def run(
             if result.nodded:
                 log.info(f"head nod detected ({monitor.nod.count(t)} in 5 min)")
 
+            # ---- Who is driving? (automatic mode: FAMILY_EMAIL, no fixed DRIVER_ID)
+            face_visible = result.face is not None
+            if identity.on_face(face_visible, now):
+                log.info("seat empty for a while: the next face will be identified again")
+                monitor.switch_driver("")
+            if client is not None and cfg.family_email and identity.should_identify(face_visible, now):
+                identity.started()
+                # `frame` is still clean here: the overlay is drawn further down.
+                identify_job = snap_pool.submit(client.identify, cfg.family_email, encode_snapshot(frame))
+            if identify_job is not None and identify_job.done():
+                try:
+                    res = identify_job.result()
+                    if identity.on_result(res, now):
+                        monitor.switch_driver(identity.driver_id)
+                        thresholds_at = -1e9  # fetch this driver's thresholds now
+                        log.info(f"driver recognised: {identity.name} ({identity.confidence * 100:.0f}%)")
+                    elif not identity.driver_id:
+                        log.info(f"no match yet ({res.get('reason')}): {identity.label()}")
+                except Exception as exc:  # noqa: BLE001 - keep trying; never kill the camera loop
+                    identity.on_error(str(exc), now)
+                    log.warning(f"identify failed: {exc}")
+                identify_job = None
+
             # Personal thresholds + admin-promoted device settings: at start, then every 5 minutes.
-            if client is not None:
+            if client is not None and monitor.driver_id:
                 if thresholds_job is None and now - thresholds_at > 300:
                     thresholds_job = snap_pool.submit(
-                        fetch_device_config, client, cfg.driver_id, local_eye_version()
+                        fetch_device_config, client, monitor.driver_id, local_eye_version()
                     )
                     thresholds_at = now
                 elif thresholds_job is not None and thresholds_job.done():
@@ -409,7 +452,7 @@ def run(
                     if r.get("alertTriggered") and r.get("alertId") and cfg.send_snapshots and client:
                         # `frame` is still clean here: the overlay is drawn further down.
                         snap_pool.submit(
-                            client.post_snapshot, cfg.driver_id, r["alertId"], encode_snapshot(frame)
+                            client.post_snapshot, monitor.driver_id, r["alertId"], encode_snapshot(frame)
                         )
                         log.info(f"alert {r['alertId']}: snapshot uploading")
                 except Exception as exc:  # noqa: BLE001 - network errors must not kill the loop
@@ -422,7 +465,8 @@ def run(
                 log.debug(f"payload ear={s.get('ear')} perclos={s.get('perclos')} face={s['faceConfidence']}")
                 if recorder:
                     recorder.write(t, payload)
-                if client is not None:
+                # Nobody recognised yet: there is no driver to report for (and no parent to alert).
+                if client is not None and monitor.driver_id:
                     if inflight is None:
                         inflight = pool.submit(client.post, payload)
                     else:
@@ -431,6 +475,7 @@ def run(
             if cfg.show_window:
                 hr = pick_heart(monitor.hearts) if monitor.hearts else None
                 extra_lines = [
+                    identity.label(),
                     (
                         f"MAR {result.mar:.2f}  yawns/5min {monitor.yawn.count(t)}"
                         + ("  YAWN" if result.yawning else "")

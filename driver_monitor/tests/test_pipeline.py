@@ -136,3 +136,18 @@ def test_build_payload_rounding_and_timestamp() -> None:
     assert p["signals"]["ear"] == 0.123
     assert p["signals"]["perclos"] == 0.457
     assert p["timestamp"] == "2026-10-07T10:23:00.000Z"
+
+
+def test_switching_driver_starts_their_baselines_fresh() -> None:
+    m, lm = make_monitor()
+    t = 0.0
+    lm.opening = 2.0  # first driver: drowsy
+    for frame in mock_camera(120):
+        m.process_frame(frame, t)
+        t += 1 / 30
+    assert m.perclos.value > 0.0 or m.perclos.baseline is not None
+    m.switch_driver("bbbbbbbbbbbbbbbbbbbbbbbb")
+    assert m.driver_id == "bbbbbbbbbbbbbbbbbbbbbbbb"
+    assert m.perclos.baseline is None and m.perclos.value == 0.0
+    assert m.nod.count(t) == 0 and m.yawn.count(t) == 0
+    assert m.make_payload(t)["signals"]["matchedDriver"] == "bbbbbbbbbbbbbbbbbbbbbbbb"

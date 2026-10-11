@@ -98,6 +98,20 @@ class IngestClient:
         res.raise_for_status()
         return res.json()
 
+    def identify(self, family_email: str, jpeg: bytes) -> dict[str, Any]:
+        """Which of the family's registered drivers is in this frame?
+        {driverId, name, confidence} or {driverId: None, reason: no_face|unknown|ambiguous}."""
+        image = "data:image/jpeg;base64," + base64.b64encode(jpeg).decode("ascii")
+        res = self.session.post(
+            f"{self.url}/identify",
+            json={"family": family_email, "image": image},
+            timeout=self.timeout_s * 4,  # face recognition on a free server can take a few seconds
+        )
+        if res.status_code in (404, 409):  # wrong FAMILY_EMAIL / nobody enrolled: say why
+            raise RuntimeError(res.json().get("error", res.text))
+        res.raise_for_status()
+        return res.json()
+
     def get_thresholds(self, driver_id: str) -> dict[str, Any]:
         """{personalThresholds, device}: the driver's thresholds for on-device checks plus
         admin-promoted device settings (transport/model_sync.py)."""
