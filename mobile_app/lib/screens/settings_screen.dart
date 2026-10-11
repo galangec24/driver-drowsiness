@@ -6,6 +6,7 @@ import '../config/theme.dart';
 import '../services/fcm_service.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
+import '../services/update_service.dart';
 import '../state/auth_controller.dart';
 import '../state/data_controller.dart';
 import '../widgets/depth_button.dart';
@@ -22,6 +23,33 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   String _version = '';
+  bool _checkingUpdate = false;
+
+  Future<void> _checkForUpdate() async {
+    setState(() => _checkingUpdate = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final update = await UpdateService().check();
+      if (!mounted) return;
+      if (update == null) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('You have the latest version.')),
+        );
+      } else {
+        await showUpdateDialog(context, update);
+      }
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not check for updates. Check your internet connection.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _checkingUpdate = false);
+    }
+  }
 
   @override
   void initState() {
@@ -139,6 +167,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: 'App',
           children: [
             _Row('Version', _version.isEmpty ? '—' : _version),
+            const SizedBox(height: 8),
+            DepthButton(
+              key: const ValueKey('check-updates'),
+              label: 'Check for updates',
+              icon: Icons.system_update_rounded,
+              variant: DepthVariant.secondary,
+              loading: _checkingUpdate,
+              onPressed: _checkForUpdate,
+            ),
+            const SizedBox(height: 8),
             InkWell(
               onTap: _editServer,
               child: _Row(

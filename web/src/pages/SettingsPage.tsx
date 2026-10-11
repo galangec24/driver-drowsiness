@@ -13,6 +13,7 @@ import { useToast } from '../components/ui/Toast';
 import { clearSnapshots } from '../lib/offlineCache';
 import { disableNotifications, enableNotifications, notificationsEnabled, notificationsSupported } from '../lib/notify';
 import { markFarewell } from '../lib/farewell';
+import { UpdatesCard } from '../components/settings/UpdatesCard';
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -107,6 +108,8 @@ export function SettingsPage() {
             {push.isLoading ? '…' : push.data?.enabled ? 'Enabled by server' : 'Not configured on server'}
           </Row>
         </GlassCard>
+
+        <UpdatesCard />
 
         <GlassCard interactive={false}>
           <h2 className="mb-2 text-lg font-bold text-white">Get the app</h2>

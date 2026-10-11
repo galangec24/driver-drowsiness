@@ -4,9 +4,18 @@ import { errorMessage } from '../../api/client';
 import { DepthButton } from '../ui/DepthButton';
 import { Spinner } from '../ui/Spinner';
 
-/** Bridge exposed by the Windows app (desktop/preload.js). */
-interface DesktopBridge {
+export interface DesktopUpdateState {
+  status: 'idle' | 'checking' | 'up-to-date' | 'downloading' | 'ready' | 'error' | 'dev';
+  version: string | null;
+  message?: string;
+}
+
+/** Bridge exposed by the Windows app (desktop/preload.js). Version/update calls need app 1.0.5+. */
+export interface DesktopBridge {
   openExternal: (url: string) => Promise<void>;
+  appInfo?: () => Promise<{ version: string; update: DesktopUpdateState }>;
+  checkForUpdates?: () => Promise<DesktopUpdateState>;
+  installUpdate?: () => Promise<DesktopUpdateState>;
 }
 declare global {
   interface Window {

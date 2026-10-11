@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../config/theme.dart';
 import '../models/alert.dart';
+import '../services/update_service.dart';
 import '../state/data_controller.dart';
 import '../widgets/mesh_background.dart';
 
@@ -29,6 +30,26 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   StreamSubscription<DriverAlert>? _sub;
+  // Once per app start: is a newer APK published?
+  static bool _updateChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_updateChecked) {
+      _updateChecked = true;
+      Future<void>.delayed(const Duration(seconds: 4), _checkForUpdate);
+    }
+  }
+
+  Future<void> _checkForUpdate() async {
+    try {
+      final update = await UpdateService().check();
+      if (update != null && mounted) await showUpdateDialog(context, update);
+    } catch (_) {
+      // Offline or GitHub unavailable: try again next time the app starts.
+    }
+  }
 
   @override
   void didChangeDependencies() {
