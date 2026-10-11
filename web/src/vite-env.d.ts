@@ -7,6 +7,7 @@ interface ImportMetaEnv {
   readonly VITE_GOOGLE_MAPS_EMBED_KEY?: string;
   /** Where the Android APK is downloaded from (default /app.apk on this site). */
   readonly VITE_APK_URL?: string;
+  readonly VITE_WINDOWS_URL?: string;
 }
 
 interface ImportMeta {

@@ -149,8 +149,10 @@ export function LoginPage() {
 
         <TiltCard className="mx-auto w-full max-w-md">
           <div className="glass relative bg-ink-900/40 p-8 shadow-depth-3" style={{ transformStyle: 'preserve-3d' }}>
+            {/* The code and reset steps sit flat on the card (no TiltLayer): a lifted 3D layer made the
+                browser deliver button presses to the form behind them, so "Send code" did nothing. */}
             {pending ? (
-              <TiltLayer depth={30}>
+              <div>
                 <OtpForm
                   email={pending.email}
                   retryAfterS={pending.retryAfterS}
@@ -161,9 +163,9 @@ export function LoginPage() {
                     setMode('login');
                   }}
                 />
-              </TiltLayer>
+              </div>
             ) : forgot ? (
-              <TiltLayer depth={30}>
+              <div>
                 <ForgotPasswordForm
                   initialEmail={values.email}
                   onDone={finish}
@@ -172,7 +174,7 @@ export function LoginPage() {
                     setMode('login');
                   }}
                 />
-              </TiltLayer>
+              </div>
             ) : (
               <>
                 <TiltLayer depth={40}>

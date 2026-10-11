@@ -9,6 +9,16 @@ export function detectPlatform(ua: string = navigator.userAgent, maxTouchPoints 
   return 'desktop';
 }
 
+export type DesktopOs = 'windows' | 'mac' | 'linux' | 'other';
+
+/** Which computer: Windows gets the installer (.exe), others install the web app from the browser. */
+export function detectDesktopOs(ua: string = navigator.userAgent): DesktopOs {
+  if (/windows/i.test(ua)) return 'windows';
+  if (/macintosh|mac os x/i.test(ua)) return 'mac';
+  if (/linux|x11|cros/i.test(ua)) return 'linux';
+  return 'other';
+}
+
 /** Running as an installed app (home-screen / desktop window) rather than in a browser tab. */
 export function isStandalone(): boolean {
   try {
@@ -40,6 +50,9 @@ export function shareableOrigin(
  * refuses .apk files.
  */
 export const APK_URL: string = (import.meta.env.VITE_APK_URL as string | undefined)?.trim() || '/app.apk';
+
+/** Windows installer (GuardianDrive-Setup.exe, built from guardian-drive/desktop). VITE_WINDOWS_URL. */
+export const WINDOWS_URL: string = (import.meta.env.VITE_WINDOWS_URL as string | undefined)?.trim() || '';
 
 export function isExternalUrl(url: string, origin: string = window.location.origin): boolean {
   return /^https?:\/\//i.test(url) && !url.startsWith(origin);

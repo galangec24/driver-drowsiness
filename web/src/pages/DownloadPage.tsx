@@ -6,8 +6,10 @@ import QRCode from 'qrcode';
 import { useAuth } from '../store/auth';
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
 import {
+  detectDesktopOs,
   detectPlatform,
   APK_URL,
+  WINDOWS_URL,
   fetchApkInfo,
   formatBytes,
   isStandalone,
@@ -42,6 +44,13 @@ const ANDROID_WEB_STEPS = [
   'Open **Guardian Drive** from your home screen and sign in.',
 ];
 
+const WINDOWS_STEPS = [
+  'Click **Download for Windows** and open **GuardianDrive-Setup.exe** when it finishes.',
+  'If Windows shows **"Windows protected your PC"**, click **More info → Run anyway** (the app is not signed with a paid certificate).',
+  'It installs in a few seconds and opens. A **Guardian Drive** shortcut is added to the Start menu and desktop.',
+  'Sign in with your parent account. Uninstall any time from **Settings → Apps**.',
+];
+
 const DESKTOP_STEPS = [
   'In Chrome or Edge, click the **install icon** in the address bar (or the button above).',
   'Or open the browser menu **⋮** → **Install Guardian Drive**.',
@@ -50,7 +59,15 @@ const DESKTOP_STEPS = [
 
 /** Renders **bold** segments; the step texts are our own constants. */
 function rich(text: string): ReactNode[] {
-  return text.split('**').map((part, i) => (i % 2 ? <strong key={i} className="text-white">{part}</strong> : part));
+  return text.split('**').map((part, i) =>
+    i % 2 ? (
+      <strong key={i} className="text-white">
+        {part}
+      </strong>
+    ) : (
+      part
+    ),
+  );
 }
 
 function Steps({ steps, testId }: { steps: string[]; testId: string }) {
@@ -89,10 +106,7 @@ function OptionCard({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className={[
-        'glass relative flex flex-col p-6',
-        recommended ? 'border-accent-glow/60 shadow-glow' : '',
-      ].join(' ')}
+      className={['glass relative flex flex-col p-6', recommended ? 'border-accent-glow/60 shadow-glow' : ''].join(' ')}
     >
       {recommended && (
         <span className="absolute -top-3 left-6 rounded-full bg-gradient-to-r from-accent-glow to-accent-primary px-3 py-1 text-xs font-bold text-white shadow-glow">
@@ -117,6 +131,9 @@ export function DownloadPage() {
   const { token } = useAuth();
   const { available: canPromptInstall, install } = useInstallPrompt();
   const [platform] = useState<Platform>(() => detectPlatform());
+  const [desktopOs] = useState(() => detectDesktopOs());
+  const onWindows = platform === 'desktop' && desktopOs === 'windows';
+  const onPhone = platform === 'android' || platform === 'ios';
   const [installed] = useState(isStandalone);
   const [apk, setApk] = useState<ApkInfo | null>(null);
   const [qr, setQr] = useState<string | null>(null);
@@ -148,6 +165,20 @@ export function DownloadPage() {
           <div className="flex h-12 items-center text-accent-glow">
             <Spinner size={22} />
           </div>
+        ) : apk.available && platform !== 'android' ? (
+          <div data-testid="apk-on-computer">
+            <p className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-ink-muted">
+              The Android app installs on a <strong className="text-white">phone</strong>, not on this{' '}
+              {onPhone ? 'device' : 'computer'}. Scan the QR code above with your Android phone and download it there.
+            </p>
+            <a
+              href={APK_URL}
+              download="GuardianDrive.apk"
+              className="mt-2 inline-block text-xs font-semibold text-accent-glow hover:underline"
+            >
+              Or download the APK file to copy to a phone
+            </a>
+          </div>
         ) : apk.available ? (
           <>
             <a href={APK_URL} download="GuardianDrive.apk" className="block">
@@ -158,30 +189,53 @@ export function DownloadPage() {
             <p className="mt-2 text-xs text-ink-muted" data-testid="apk-meta">
               Version {__APP_VERSION__}
               {apk.sizeBytes ? ` · ${formatBytes(apk.sizeBytes)}` : ''}
-              {apk.updatedAt ? ` · updated ${new Date(apk.updatedAt).toLocaleDateString()}` : ''} · Android 64-bit
-              (most phones from 2017 on)
+              {apk.updatedAt ? ` · updated ${new Date(apk.updatedAt).toLocaleDateString()}` : ''} · Android 64-bit (most
+              phones from 2017 on)
             </p>
           </>
         ) : (
-          <p className="rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100" data-testid="apk-missing">
+          <p
+            className="rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100"
+            data-testid="apk-missing"
+          >
             The Android app isn’t published on this server yet. Use the web app below meanwhile.
           </p>
         )}
       </div>
-      <Steps steps={ANDROID_STEPS} testId="steps-android" />
-      {platform !== 'android' && (
-        <p className="mt-4 text-xs text-ink-muted">On a computer? Scan the QR code with your Android phone instead.</p>
-      )}
+      {platform === 'android' && <Steps steps={ANDROID_STEPS} testId="steps-android" />}
     </OptionCard>
   );
+
+  const windowsCard = WINDOWS_URL ? (
+    <OptionCard
+      key="windows"
+      testId="option-windows"
+      recommended={onWindows}
+      icon={<Icon name="dashboard" size={24} />}
+      title="Windows app"
+      subtitle="Installs like any program: its own window, Start menu and desktop shortcut"
+    >
+      <div className="mt-5">
+        <a href={WINDOWS_URL} className="block" data-testid="windows-download">
+          <DepthButton size="lg" block icon={<Icon name="download" size={20} />}>
+            Download for Windows
+          </DepthButton>
+        </a>
+        <p className="mt-2 text-xs text-ink-muted">
+          GuardianDrive-Setup.exe · Windows 10 and 11, 64-bit · updates itself (it opens the live site)
+        </p>
+      </div>
+      <Steps steps={WINDOWS_STEPS} testId="steps-windows" />
+    </OptionCard>
+  ) : null;
 
   const webCard = (
     <OptionCard
       key="web"
       testId="option-web"
-      recommended={platform !== 'android'}
+      recommended={platform === 'ios' || (platform === 'desktop' && !onWindows)}
       icon={<Icon name="dashboard" size={24} />}
-      title={platform === 'ios' ? 'iPhone & iPad' : 'Web app'}
+      title={platform === 'ios' ? 'iPhone & iPad' : onWindows ? 'Or install from the browser' : 'Web app'}
       subtitle="Installs from the browser, with no app store, and updates itself"
     >
       <div className="mt-5">
@@ -194,9 +248,12 @@ export function DownloadPage() {
             Install web app
           </DepthButton>
         ) : !secure ? (
-          <p className="rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100" data-testid="needs-https">
-            Installing the web app needs a secure (https) address. It works once the site is deployed; on this
-            local test address use the Android app, or open the site in the browser.
+          <p
+            className="rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100"
+            data-testid="needs-https"
+          >
+            Installing the web app needs a secure (https) address. It works once the site is deployed; on this local
+            test address use the Android app, or open the site in the browser.
           </p>
         ) : null}
       </div>
@@ -227,7 +284,9 @@ export function DownloadPage() {
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
             <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl">
               Get Guardian Drive on{' '}
-              <span className="bg-gradient-to-r from-accent-glow to-accent-ok bg-clip-text text-transparent">your phone</span>
+              <span className="bg-gradient-to-r from-accent-glow to-accent-ok bg-clip-text text-transparent">
+                {onPhone ? 'your phone' : 'your computer'}
+              </span>
             </h1>
             <p className="mt-4 max-w-xl text-lg text-ink-muted">
               Live drowsiness alerts, the driver’s location with directions, and a snapshot when something happens, on
@@ -254,8 +313,14 @@ export function DownloadPage() {
           </TiltCard>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          {platform === 'android' ? [androidCard, webCard] : [webCard, androidCard]}
+        <div className={`grid gap-6 md:grid-cols-2 ${windowsCard && !onPhone ? 'xl:grid-cols-3' : ''}`}>
+          {platform === 'android'
+            ? [androidCard, webCard]
+            : platform === 'ios'
+              ? [webCard, androidCard]
+              : onWindows
+                ? [windowsCard, webCard, androidCard]
+                : [webCard, windowsCard, androidCard]}
         </div>
 
         <p className="text-center text-xs text-ink-muted">
