@@ -44,6 +44,15 @@ const env = {
     from: process.env.EMAIL_FROM || '',
     fromName: process.env.EMAIL_FROM_NAME || 'Guardian Drive',
   },
+  // Never send more than this many e-mails per day (Brevo free plan: 300/day).
+  emailDailyLimit: Number(process.env.EMAIL_DAILY_LIMIT) || 250,
+  // "Continue with Google": OAuth client id(s) from Google Cloud Console (comma-separated; the
+  // first is the Web client id the website and Android app use). Empty = Google sign-in off.
+  googleClientIds: list(process.env.GOOGLE_CLIENT_ID),
+  // Per-IP request limits on sign-in / code endpoints (off in tests unless a test turns them on).
+  rateLimit:
+    (process.env.RATE_LIMIT || (process.env.NODE_ENV === 'test' ? 'off' : 'on')).toLowerCase() !==
+    'off',
   // New accounts must confirm their e-mail with a code before signing in. On by default whenever
   // an e-mail provider is configured; EMAIL_VERIFICATION=off disables it.
   emailVerification:

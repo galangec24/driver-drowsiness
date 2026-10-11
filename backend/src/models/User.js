@@ -4,12 +4,28 @@ const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    passwordHash: { type: String, required: true, select: false },
+    // Absent for accounts created with "Continue with Google" (they can add one via Forgot password).
+    passwordHash: { type: String, select: false },
+    // Google account id ("sub") once the user has signed in with Google.
+    googleId: { type: String, index: { unique: true, sparse: true }, select: false },
     role: { type: String, default: 'parent' },
     // false = registered but the e-mail code was not entered yet. Accounts created before e-mail
     // verification existed have no value and count as verified.
     emailVerified: { type: Boolean },
     emailOtp: {
+      type: {
+        hash: String,
+        expiresAt: Date,
+        attempts: Number,
+        sentAt: Date,
+        windowStart: Date,
+        sendsInWindow: Number,
+      },
+      select: false,
+      default: undefined,
+    },
+    // Forgot-password code (same shape and limits as emailOtp).
+    resetOtp: {
       type: {
         hash: String,
         expiresAt: Date,

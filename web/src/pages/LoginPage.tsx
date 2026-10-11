@@ -2,8 +2,10 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { login, register, unverifiedFromError, type AuthResponse } from '../api/auth';
+import { googleSignIn, login, register, unverifiedFromError, type AuthResponse } from '../api/auth';
 import { OtpForm } from '../components/auth/OtpForm';
+import { ForgotPasswordForm } from '../components/auth/ForgotPasswordForm';
+import { GoogleButton } from '../components/auth/GoogleButton';
 import { errorMessage } from '../api/client';
 import { useAuth } from '../store/auth';
 import { FloatingInput } from '../components/ui/FloatingInput';
@@ -44,6 +46,7 @@ export function LoginPage() {
   const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [forgot, setForgot] = useState(false);
   // Waiting for the e-mailed 6-digit code (new account, or sign-in before verifying).
   const [pending, setPending] = useState<{ email: string; retryAfterS: number; emailSent?: boolean } | null>(null);
 
@@ -58,6 +61,18 @@ export function LoginPage() {
   function finish(res: AuthResponse) {
     setSession(res.token, res.user);
     navigate((location.state as { from?: string } | null)?.from ?? '/', { replace: true });
+  }
+
+  async function onGoogle(credential: string) {
+    setFormError('');
+    setLoading(true);
+    try {
+      finish(await googleSignIn(credential));
+    } catch (err) {
+      setFormError(errorMessage(err, 'Google sign-in failed'));
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function onSubmit(e: FormEvent) {
@@ -143,6 +158,17 @@ export function LoginPage() {
                   onVerified={finish}
                   onBack={() => {
                     setPending(null);
+                    setMode('login');
+                  }}
+                />
+              </TiltLayer>
+            ) : forgot ? (
+              <TiltLayer depth={30}>
+                <ForgotPasswordForm
+                  initialEmail={values.email}
+                  onDone={finish}
+                  onBack={() => {
+                    setForgot(false);
                     setMode('login');
                   }}
                 />
@@ -237,6 +263,18 @@ export function LoginPage() {
                       }
                     />
                   </TiltLayer>
+                  {mode === 'login' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgot(true);
+                        setFormError('');
+                      }}
+                      className="-mt-2 self-end text-sm font-semibold text-accent-glow hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
                   {formError && (
                     <motion.p
                       role="alert"
@@ -253,6 +291,11 @@ export function LoginPage() {
                       {mode === 'login' ? 'Sign in' : 'Create account'}
                     </DepthButton>
                   </TiltLayer>
+                  {/* Outside a TiltLayer: Google's button is an iframe and must stay flat to receive taps. */}
+                  <GoogleButton
+                    onCredential={(c) => void onGoogle(c)}
+                    text={mode === 'login' ? 'signin_with' : 'signup_with'}
+                  />
                 </form>
               </>
             )}

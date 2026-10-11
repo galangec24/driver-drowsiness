@@ -170,6 +170,30 @@ class ApiService {
     return (r.data!['retryAfterS'] as num?)?.toInt() ?? 60;
   });
 
+  /// E-mails a password reset code; returns seconds until another may be requested.
+  Future<int> forgotPassword(String email) => _call(() async {
+    final r = await _dio.post<Map<String, dynamic>>(
+      '/auth/forgot-password',
+      data: {'email': email},
+    );
+    return (r.data!['retryAfterS'] as num?)?.toInt() ?? 60;
+  });
+
+  Future<({String token, AppUser user})> resetPassword(
+    String email,
+    String code,
+    String password,
+  ) => _call(() async {
+    final r = await _dio.post<Map<String, dynamic>>(
+      '/auth/reset-password',
+      data: {'email': email, 'code': code, 'password': password},
+    );
+    return (
+      token: r.data!['token'] as String,
+      user: AppUser.fromJson(r.data!['user'] as Map<String, dynamic>),
+    );
+  });
+
   Future<bool> pushEnabled() => _call(() async {
     final r = await _dio.get<Map<String, dynamic>>('/push/config');
     return r.data?['enabled'] == true;

@@ -53,6 +53,14 @@ class AuthController extends ChangeNotifier {
 
   Future<int> resendCode(String email) => _api.resendCode(email.trim());
 
+  Future<int> forgotPassword(String email) => _api.forgotPassword(email.trim());
+
+  /// The e-mailed reset code + a new password signs the user in.
+  Future<void> resetPassword(String email, String code, String password) async {
+    final r = await _api.resetPassword(email.trim(), code, password);
+    await _setSession(r.token, r.user);
+  }
+
   Future<void> _setSession(String token, AppUser user) async {
     await _storage.writeToken(token);
     await _storage.setUser(user);

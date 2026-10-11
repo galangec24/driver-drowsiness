@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../state/auth_controller.dart';
 import '../widgets/depth_button.dart';
 import '../widgets/floating_shapes.dart';
+import '../widgets/forgot_password_view.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/mesh_background.dart';
 import '../widgets/orbit_loader.dart';
@@ -29,6 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   bool _showServer = false;
   bool _obscure = true;
+  bool _forgot = false;
   // Waiting for the e-mailed code (new account, or sign-in before verifying).
   VerificationRequired? _pending;
   Map<String, String> _errors = {};
@@ -181,6 +183,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                 padding: const EdgeInsets.all(24),
                                 child: _pending != null
                                     ? _otp(_pending!)
+                                    : _forgot
+                                    ? ForgotPasswordView(
+                                        initialEmail: _email.text.trim(),
+                                        onSendCode: context
+                                            .read<AuthController>()
+                                            .forgotPassword,
+                                        onReset: context
+                                            .read<AuthController>()
+                                            .resetPassword,
+                                        onBack: () =>
+                                            setState(() => _forgot = false),
+                                      )
                                     : Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.stretch,
@@ -259,6 +273,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                               ),
                                             ),
                                           ),
+                                          if (!_register)
+                                            Align(
+                                              alignment: Alignment.centerRight,
+                                              child: TextButton(
+                                                key: const ValueKey(
+                                                  'forgot-link',
+                                                ),
+                                                onPressed: () => setState(() {
+                                                  _forgot = true;
+                                                  _formError = null;
+                                                }),
+                                                child: const Text(
+                                                  'Forgot password?',
+                                                ),
+                                              ),
+                                            ),
                                           if (_showServer)
                                             _field(
                                               'server',

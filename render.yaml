@@ -25,7 +25,10 @@ services:
       - key: INGEST_API_KEY
         generateValue: true
       - key: CORS_ORIGIN
-        value: https://guardian-drive-app.web.app,https://guardian-drive-app.firebaseapp.com
+        value: https://guardian-drive-ph.web.app,https://guardian-drive-ph.firebaseapp.com
+      # "Continue with Google": Web client id from Google Cloud Console (see docs/GOOGLE_SIGNIN.md)
+      - key: GOOGLE_CLIENT_ID
+        sync: false
       # Your e-mail → admin console (model training / promotion) at your next sign-in
       - key: ADMIN_EMAILS
         sync: false

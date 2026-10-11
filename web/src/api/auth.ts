@@ -58,6 +58,29 @@ export function unverifiedFromError(err: unknown): { email: string; retryAfterS:
   return { email: details.email, retryAfterS: details.retryAfterS ?? 60, emailSent: details.emailSent };
 }
 
+/** Public sign-in options from the server (e.g. whether "Continue with Google" is set up). */
+export async function authConfig(): Promise<{ googleClientId: string | null }> {
+  const { data } = await api.get<{ googleClientId: string | null }>('/auth/config');
+  return data;
+}
+
+/** Sign in / sign up with the ID token from Google's button. */
+export async function googleSignIn(credential: string): Promise<AuthResponse> {
+  const { data } = await api.post<AuthResponse>('/auth/google', { credential });
+  return data;
+}
+
+/** E-mail a password reset code (same answer whether or not the account exists). */
+export async function forgotPassword(email: string): Promise<{ ok: boolean; retryAfterS: number }> {
+  const { data } = await api.post<{ ok: boolean; retryAfterS: number }>('/auth/forgot-password', { email });
+  return data;
+}
+
+export async function resetPassword(email: string, code: string, password: string): Promise<AuthResponse> {
+  const { data } = await api.post<AuthResponse>('/auth/reset-password', { email, code, password });
+  return data;
+}
+
 export async function me(): Promise<User> {
   const { data } = await api.get<{ user: User }>('/auth/me');
   return data.user;
