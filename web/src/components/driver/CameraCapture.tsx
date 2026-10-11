@@ -12,15 +12,22 @@ import {
 } from '../../lib/facePosition';
 import { DepthButton } from '../ui/DepthButton';
 import { Icon } from '../ui/Icon';
+import { Spinner } from '../ui/Spinner';
 
 export interface CameraCaptureProps {
   angle: string;
   onCapture: (dataUrl: string, quality: QualityReport | null) => void;
   onClose: () => void;
+  /**
+   * Check a shot before it is accepted (e.g. on the server: one face, same person as the front
+   * photo). Resolve with an error message to reject it: the camera stays open and retakes.
+   */
+  validate?: (dataUrl: string) => Promise<string | null>;
 }
 
 /** The photo is taken automatically once face position, lighting and focus stay good this long. */
 export const HOLD_MS = 5000;
+const REJECT_PAUSE_MS = 3000;
 const TICK_MS = 200;
 
 type DetectorState = 'loading' | 'ready' | 'unavailable';
@@ -46,15 +53,18 @@ const POSITION_TEXT: Record<PositionIssue, string> = {
  * this counts down and captures by itself. "Capture" still works at any time (and is the only way
  * if the detector cannot load, e.g. offline).
  */
-export function CameraCapture({ angle, onCapture, onClose }: CameraCaptureProps) {
+export function CameraCapture({ angle, onCapture, onClose, validate }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const detectorRef = useRef<FaceDetector | null>(null);
   const holdStart = useRef<number | null>(null);
   const captured = useRef(false);
-  const latest = useRef({ angle, onCapture, size: { W: 0, H: 0 } });
+  // After a rejected shot, wait a moment so the reason can be read before the next countdown.
+  const pauseUntil = useRef(0);
+  const latest = useRef({ angle, onCapture, validate, size: { W: 0, H: 0 } });
   latest.current.angle = angle;
   latest.current.onCapture = onCapture;
+  latest.current.validate = validate;
 
   const [error, setError] = useState('');
   const [quality, setQuality] = useState<QualityReport | null>(null);
@@ -62,12 +72,15 @@ export function CameraCapture({ angle, onCapture, onClose }: CameraCaptureProps)
   const [detector, setDetector] = useState<DetectorState>('loading');
   const [progress, setProgress] = useState(0);
   const [size, setSize] = useState({ W: 0, H: 0 });
+  const [checking, setChecking] = useState(false);
+  const [rejected, setRejected] = useState('');
 
   // A new angle (front → left → right) starts its own countdown.
   useEffect(() => {
     holdStart.current = null;
     captured.current = false;
     setProgress(0);
+    setRejected('');
   }, [angle]);
 
   useEffect(() => {
@@ -100,12 +113,37 @@ export function CameraCapture({ angle, onCapture, onClose }: CameraCaptureProps)
 
   function capture() {
     const video = videoRef.current;
-    if (!video || !video.videoWidth) return;
-    captured.current = true;
+    if (!video || !video.videoWidth || captured.current) return;
+    captured.current = true; // pauses auto-capture while this shot is checked
     holdStart.current = null;
     setProgress(0);
+    setRejected('');
     const q = analyzeSource(video, video.videoWidth, video.videoHeight);
-    latest.current.onCapture(toJpegDataUrl(video, video.videoWidth, video.videoHeight, { mirror: true }), q);
+    const dataUrl = toJpegDataUrl(video, video.videoWidth, video.videoHeight, { mirror: true });
+    const check = latest.current.validate;
+    if (!check) {
+      latest.current.onCapture(dataUrl, q);
+      return;
+    }
+    const forAngle = latest.current.angle;
+    setChecking(true);
+    check(dataUrl)
+      .then((problem) => {
+        if (latest.current.angle !== forAngle) return;
+        if (problem) {
+          setRejected(problem);
+          pauseUntil.current = Date.now() + REJECT_PAUSE_MS;
+          captured.current = false; // stay open: the countdown starts again
+        } else {
+          latest.current.onCapture(dataUrl, q);
+        }
+      })
+      .catch(() => {
+        setRejected('Could not check the photo. Check your connection and try again.');
+        pauseUntil.current = Date.now() + REJECT_PAUSE_MS;
+        captured.current = false;
+      })
+      .finally(() => setChecking(false));
   }
   const captureRef = useRef(capture);
   captureRef.current = capture;
@@ -156,7 +194,12 @@ export function CameraCapture({ angle, onCapture, onClose }: CameraCaptureProps)
       }
       setPosition(issues);
 
-      const good = Boolean(q?.ok) && issues !== null && issues.length === 0 && !captured.current;
+      const good =
+        Boolean(q?.ok) &&
+        issues !== null &&
+        issues.length === 0 &&
+        !captured.current &&
+        Date.now() >= pauseUntil.current;
       if (!good) {
         holdStart.current = null;
         setProgress(0);
@@ -276,7 +319,23 @@ export function CameraCapture({ angle, onCapture, onClose }: CameraCaptureProps)
                 className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 bg-gradient-to-t from-black/80 to-transparent p-4"
                 aria-live="polite"
               >
-                {ready ? (
+                {rejected && !checking && (
+                  <span
+                    role="alert"
+                    data-testid="shot-rejected"
+                    className="max-w-sm rounded-2xl bg-accent-danger/40 px-4 py-1.5 text-center text-sm font-semibold text-red-50"
+                  >
+                    Photo not accepted: {rejected}
+                  </span>
+                )}
+                {checking ? (
+                  <span
+                    data-testid="shot-checking"
+                    className="flex items-center gap-2 rounded-full bg-accent-primary/40 px-4 py-1.5 text-sm font-bold text-indigo-50"
+                  >
+                    <Spinner size={14} /> Checking the photo…
+                  </span>
+                ) : ready ? (
                   <span className="rounded-full bg-accent-ok/30 px-4 py-1.5 text-sm font-bold text-emerald-100">
                     Hold still… capturing in {secondsLeft}
                   </span>
@@ -306,7 +365,11 @@ export function CameraCapture({ angle, onCapture, onClose }: CameraCaptureProps)
             <DepthButton variant="ghost" onClick={onClose}>
               Cancel
             </DepthButton>
-            <DepthButton icon={<Icon name="camera" size={18} />} onClick={capture} disabled={Boolean(error)}>
+            <DepthButton
+              icon={<Icon name="camera" size={18} />}
+              onClick={capture}
+              disabled={Boolean(error) || checking}
+            >
               Capture
             </DepthButton>
           </div>

@@ -4,8 +4,8 @@ const SensorLog = require('../models/SensorLog');
 const HttpError = require('../utils/httpError');
 const statusStore = require('../services/statusStore');
 const { isReady, loadFaceModels } = require('../config/faceApi');
-const { enrollPhotos, analyzePhoto } = require('../services/faceEnrollment');
-const { compare } = require('../services/faceMatcher');
+const { enrollPhotos, analyzePhoto, SAME_PERSON_DISTANCE } = require('../services/faceEnrollment');
+const { compare, euclidean } = require('../services/faceMatcher');
 const {
   storeReferencePhoto,
   removeReferencePhoto,
@@ -26,8 +26,13 @@ const createDriverSchema = z
     // Either `photos` (front, left, right) or a single `photo`.
     photos: z.array(photo).min(1).max(3).optional(),
     photo: photo.optional(),
+    // The parent confirmed that a face matching an existing driver is a different person (twins).
+    confirmLookalike: z.boolean().optional().default(false),
   })
   .refine((v) => v.photos || v.photo, { message: 'At least one photo is required' });
+
+/** One photo checked while it is being taken; `front` = the already accepted front photo. */
+const checkPhotoSchema = z.object({ photo, front: photo.optional() });
 
 const thresholdsSchema = z
   .object({
@@ -118,6 +123,16 @@ async function create(req, res) {
   // Enroll first so a bad photo never leaves a half-created driver behind.
   const enrollment = await enrollPhotos(photos);
   const lookalikes = await similarFaces(req.user.parentId, enrollment.embedding);
+  // Same face as a driver already registered: most likely a duplicate of that person. Twins are
+  // the exception, so the parent can confirm and resubmit (confirmLookalike) instead of a hard block.
+  if (lookalikes.length && !req.body.confirmLookalike) {
+    const names = lookalikes.map((l) => l.name).join(', ');
+    throw new HttpError(
+      409,
+      `This face matches ${names}, who is already registered. Register the same person only once. If this is a different person (for example a twin), confirm to continue.`,
+      { code: 'FACE_MATCHES_DRIVER', matches: lookalikes },
+    );
+  }
 
   const driver = new Driver({
     parentId: req.user.parentId,
@@ -149,6 +164,56 @@ async function create(req, res) {
     // Lookalike drivers (e.g. twins): face verification may not tell them apart.
     similarFaces: lookalikes,
   });
+}
+
+const PHOTO_PROBLEM_TEXT = {
+  no_face: 'No face found. Center the face in the oval with good light.',
+  multiple_faces: 'More than one face. Only the driver should be in the photo.',
+  different_person:
+    "This doesn't look like the same person as the front photo. Retake it with the same driver.",
+};
+
+/**
+ * POST /api/drivers/check-photo {photo, front?}: validate a photo the moment it is taken, before
+ * it is accepted: exactly one face, and (side photos) the same person as the front photo. For the
+ * front photo it also reports registered drivers with the same face (possible duplicate / twin).
+ */
+async function checkPhoto(req, res) {
+  await ensureFaceModels();
+  const fail = (problem, extra = {}) =>
+    res.json({ ok: false, problem, message: PHOTO_PROBLEM_TEXT[problem], matches: [], ...extra });
+
+  let probe;
+  try {
+    probe = await analyzePhoto(req.body.photo);
+  } catch (err) {
+    if (err.status === 422) return fail('no_face');
+    throw err;
+  }
+  if (probe.faces > 1) return fail('multiple_faces', { quality: probe.quality });
+
+  if (req.body.front) {
+    let front;
+    try {
+      front = await analyzePhoto(req.body.front);
+    } catch (err) {
+      if (err.status === 422)
+        throw new HttpError(400, 'The front photo has no face: retake it first');
+      throw err;
+    }
+    const distance = euclidean(front.descriptor, probe.descriptor);
+    if (distance > SAME_PERSON_DISTANCE)
+      return fail('different_person', { quality: probe.quality });
+    return res.json({
+      ok: true,
+      problem: null,
+      message: null,
+      quality: probe.quality,
+      matches: [],
+    });
+  }
+  const matches = await similarFaces(req.user.parentId, probe.descriptor);
+  return res.json({ ok: true, problem: null, message: null, quality: probe.quality, matches });
 }
 
 async function get(req, res) {
@@ -211,6 +276,8 @@ module.exports = {
   remove,
   logs,
   verify,
+  checkPhoto,
+  checkPhotoSchema,
   createDriverSchema,
   thresholdsSchema,
   verifySchema,

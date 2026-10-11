@@ -9,6 +9,7 @@ router.use(requireAuth);
 
 router.get('/', asyncHandler(ctrl.list));
 router.post('/', validate(ctrl.createDriverSchema), asyncHandler(ctrl.create));
+router.post('/check-photo', validate(ctrl.checkPhotoSchema), asyncHandler(ctrl.checkPhoto));
 router.get('/:id', asyncHandler(ctrl.get));
 router.patch(
   '/:id/thresholds',

@@ -21,6 +21,19 @@ class VerificationRequired implements Exception {
   final int retryAfterS;
 }
 
+/// Registration refused: the face matches drivers already registered. The parent may confirm a
+/// different person with the same face (twins) and resubmit with `confirmLookalike`.
+class FaceMatchesDriver implements Exception {
+  const FaceMatchesDriver(this.message, this.matches);
+  final String message;
+  final List<({String name, double confidence})> matches;
+  @override
+  String toString() => message;
+}
+
+/// Server check of one photo while it is being taken.
+typedef PhotoCheck = ({bool ok, String? message, List<String> matches});
+
 /// All data goes through our backend — no Firebase/Mongo SDKs, no secrets in the APK.
 class ApiService {
   ApiService(this._storage) : _dio = Dio() {
@@ -63,6 +76,7 @@ class ApiService {
 
   Exception _wrap(Object e) {
     if (e is VerificationRequired) return e;
+    if (e is FaceMatchesDriver) return e;
     if (e is DioException) {
       final data = e.response?.data;
       final details = data is Map ? data['details'] : null;
@@ -72,6 +86,21 @@ class ApiService {
         return VerificationRequired(
           (details['email'] ?? '') as String,
           (details['retryAfterS'] as num?)?.toInt() ?? 60,
+        );
+      }
+      if (e.response?.statusCode == 409 &&
+          details is Map &&
+          details['code'] == 'FACE_MATCHES_DRIVER') {
+        return FaceMatchesDriver(
+          (data as Map)['error'] as String? ??
+              'This face is already registered',
+          [
+            for (final m in (details['matches'] as List? ?? const []))
+              (
+                name: (m as Map)['name'] as String,
+                confidence: (m['confidence'] as num?)?.toDouble() ?? 0,
+              ),
+          ],
         );
       }
       if (e.response == null) {
@@ -223,10 +252,16 @@ class ApiService {
     required String name,
     required String relationship,
     required List<String> photos,
+    bool confirmLookalike = false,
   }) => _call(() async {
     final r = await _dio.post<Map<String, dynamic>>(
       '/drivers',
-      data: {'name': name, 'relationship': relationship, 'photos': photos},
+      data: {
+        'name': name,
+        'relationship': relationship,
+        'photos': photos,
+        if (confirmLookalike) 'confirmLookalike': true,
+      },
     );
     return (
       driverId: r.data!['driverId'] as String,
@@ -238,6 +273,25 @@ class ApiService {
       ],
     );
   });
+
+  /// One face, and (side photos) the same person as [front]; front photos also report
+  /// registered drivers with the same face.
+  Future<PhotoCheck> checkPhoto(String photo, {String? front}) =>
+      _call(() async {
+        final r = await _dio.post<Map<String, dynamic>>(
+          '/drivers/check-photo',
+          data: {'photo': photo, 'front': ?front},
+        );
+        final d = r.data!;
+        return (
+          ok: d['ok'] == true,
+          message: d['message'] as String?,
+          matches: [
+            for (final m in (d['matches'] as List? ?? const []))
+              (m as Map)['name'] as String,
+          ],
+        );
+      });
 
   Future<Driver> updateThresholds(String id, Map<String, dynamic> patch) =>
       _call(() async {

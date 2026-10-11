@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { api } from './client';
 import { withOfflineFallback } from '../lib/offlineCache';
 import type { Driver, PhotoReport, SensorLogPoint, SimilarFace, Thresholds } from './types';
@@ -21,6 +22,30 @@ export interface CreateDriverInput {
   relationship: string;
   /** base64 JPEG data URLs: front, left, right. The backend computes embeddings. */
   photos: string[];
+  /** The parent confirmed a face matching an existing driver is a different person (twins). */
+  confirmLookalike?: boolean;
+}
+
+export interface PhotoCheck {
+  ok: boolean;
+  problem: 'no_face' | 'multiple_faces' | 'different_person' | null;
+  message: string | null;
+  quality?: number;
+  /** Front photo only: registered drivers with the same face (possible duplicate or twin). */
+  matches: SimilarFace[];
+}
+
+/** Validate one photo as it is taken: one face, and side photos the same person as `front`. */
+export async function checkPhoto(photo: string, front?: string): Promise<PhotoCheck> {
+  const { data } = await api.post<PhotoCheck>('/drivers/check-photo', { photo, front }, { timeout: 60000 });
+  return data;
+}
+
+/** Registration refused because the face matches an already registered driver → those drivers. */
+export function faceMatchesFromError(err: unknown): SimilarFace[] | null {
+  if (!axios.isAxiosError(err) || err.response?.status !== 409) return null;
+  const details = (err.response.data as { details?: { code?: string; matches?: SimilarFace[] } })?.details;
+  return details?.code === 'FACE_MATCHES_DRIVER' ? (details.matches ?? []) : null;
 }
 
 export interface CreateDriverResult {
@@ -65,10 +90,7 @@ export async function driverLogs(id: string, limit = 120): Promise<SensorLogPoin
   return data.logs;
 }
 
-export async function verifyDriver(
-  id: string,
-  photo: string,
-): Promise<{ match: boolean; confidence: number }> {
+export async function verifyDriver(id: string, photo: string): Promise<{ match: boolean; confidence: number }> {
   const { data } = await api.post<{ match: boolean; confidence: number }>(
     `/drivers/${id}/verify`,
     { photo },

@@ -108,6 +108,13 @@ async function enrollPhotos(photos) {
       }
       throw err;
     }
+    if (analyzed[i].faces > 1) {
+      // The profile must be one person: a second face would be averaged into it.
+      throw new HttpError(
+        422,
+        `Photo ${i + 1}: more than one face. Only the driver should be in the photo`,
+      );
+    }
   }
 
   for (let i = 1; i < analyzed.length; i += 1) {
@@ -129,4 +136,10 @@ async function enrollPhotos(photos) {
   };
 }
 
-module.exports = { analyzePhoto, enrollPhotos, scoreQuality, averageDescriptors };
+module.exports = {
+  analyzePhoto,
+  enrollPhotos,
+  scoreQuality,
+  averageDescriptors,
+  SAME_PERSON_DISTANCE,
+};

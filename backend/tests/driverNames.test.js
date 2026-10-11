@@ -21,11 +21,11 @@ afterAll(() => {
   for (const id of created) fs.rmSync(path.join(UPLOAD_DIR, `${id}.jpg`), { force: true });
 });
 
-async function enroll(token, name, person) {
+async function enroll(token, name, person, extra = {}) {
   const res = await request(stack.app)
     .post('/api/drivers')
     .set(auth(token))
-    .send({ name, relationship: 'son', photos: photosOf(person) });
+    .send({ name, relationship: 'son', photos: photosOf(person), ...extra });
   if (res.body.driverId) created.push(res.body.driverId);
   return res;
 }
@@ -92,18 +92,91 @@ describe('POST /api/drivers — one parent, many drivers, unique names', () => {
     }
   });
 
-  test('enrolling the same face under a new name reports the lookalike (twins notice)', async () => {
+  test('the same face under a new name is refused until the parent confirms a twin', async () => {
     const parent = await registerParent(stack.app);
     const first = await enroll(parent.token, 'Alex', 'A');
     expect(first.body.similarFaces).toEqual([]);
 
-    const twin = await enroll(parent.token, 'Alexa', 'A');
+    // Duplicate identity: blocked, nothing created, the match is named so the app can ask.
+    const dup = await enroll(parent.token, 'Alexa', 'A');
+    expect(dup.status).toBe(409);
+    expect(dup.body.error).toMatch(/matches Alex/);
+    expect(dup.body.details).toMatchObject({
+      code: 'FACE_MATCHES_DRIVER',
+      matches: [expect.objectContaining({ driverId: first.body.driverId, name: 'Alex' })],
+    });
+    expect(await Driver.countDocuments({ parentId: parent.user.id })).toBe(1);
+
+    // "Yes, they are twins": registered, still flagged as a lookalike.
+    const twin = await enroll(parent.token, 'Alexa', 'A', { confirmLookalike: true });
     expect(twin.status).toBe(201);
     expect(twin.body.similarFaces).toEqual([
       expect.objectContaining({ driverId: first.body.driverId, name: 'Alex' }),
     ]);
 
     const stranger = await enroll(parent.token, 'Sam', 'B');
+    expect(stranger.status).toBe(201);
     expect(stranger.body.similarFaces).toEqual([]);
+  });
+
+  test('another family may register the same person (e.g. separated parents)', async () => {
+    const a = await registerParent(stack.app);
+    const b = await registerParent(stack.app);
+    expect((await enroll(a.token, 'Alex', 'A')).status).toBe(201);
+    expect((await enroll(b.token, 'Alex', 'A')).status).toBe(201);
+  });
+});
+
+describe('POST /api/drivers/check-photo: each photo validated as it is taken', () => {
+  const check = (token, body) =>
+    request(stack.app).post('/api/drivers/check-photo').set(auth(token)).send(body);
+
+  test('front photo: one face is accepted; a registered face is reported', async () => {
+    const parent = await registerParent(stack.app);
+    const ok = await check(parent.token, { photo: fixtureBase64('personA_front.jpg') }).expect(200);
+    expect(ok.body).toMatchObject({ ok: true, problem: null, matches: [] });
+    expect(ok.body.quality).toBeGreaterThan(0);
+
+    const alex = await enroll(parent.token, 'Alex', 'A');
+    const again = await check(parent.token, { photo: fixtureBase64('personA_front.jpg') }).expect(
+      200,
+    );
+    expect(again.body.ok).toBe(true);
+    expect(again.body.matches).toEqual([
+      expect.objectContaining({ driverId: alex.body.driverId, name: 'Alex' }),
+    ]);
+    expect(JSON.stringify(again.body)).not.toMatch(/descriptor|faceEmbedding/);
+  });
+
+  test('side photos must be the same person as the front photo', async () => {
+    const parent = await registerParent(stack.app);
+    const front = fixtureBase64('personA_front.jpg');
+    const same = await check(parent.token, {
+      photo: fixtureBase64('personA_left.jpg'),
+      front,
+    }).expect(200);
+    expect(same.body).toMatchObject({ ok: true });
+
+    const other = await check(parent.token, {
+      photo: fixtureBase64('personB_left.jpg'),
+      front,
+    }).expect(200);
+    expect(other.body).toMatchObject({ ok: false, problem: 'different_person' });
+    expect(other.body.message).toMatch(/same person/);
+  });
+
+  test('no face is rejected; parents only', async () => {
+    const parent = await registerParent(stack.app);
+    const { PNG } = require('pngjs');
+    const blank = new PNG({ width: 200, height: 200 });
+    blank.data.fill(180);
+    const res = await check(parent.token, {
+      photo: PNG.sync.write(blank).toString('base64'),
+    }).expect(200);
+    expect(res.body).toMatchObject({ ok: false, problem: 'no_face' });
+    await request(stack.app)
+      .post('/api/drivers/check-photo')
+      .send({ photo: 'x'.repeat(200) })
+      .expect(401);
   });
 });

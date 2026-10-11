@@ -70,6 +70,10 @@ class _RegisterDriverScreenState extends State<RegisterDriverScreen> {
   String? _nameError;
   String? _error;
   bool _saving = false;
+  // Angle whose photo the server is checking right now.
+  String? _checking;
+  // Registered drivers whose face matches the front photo (duplicate person, or a twin).
+  List<String> _frontMatches = const [];
 
   @override
   void dispose() {
@@ -89,7 +93,73 @@ class _RegisterDriverScreenState extends State<RegisterDriverScreen> {
     final bytes = await file.readAsBytes();
     final quality = await PhotoQuality.analyze(bytes);
     if (!mounted) return;
-    setState(() => _shots[angle] = _Shot(bytes, quality));
+    // Validate before accepting: one face, and side photos the same person as the front photo.
+    setState(() => _checking = angle);
+    final api = context.read<DataController>().api;
+    final front = angle == 'front' ? null : _shots['front'];
+    try {
+      final r = await api.checkPhoto(
+        _dataUrl(bytes),
+        front: front == null ? null : _dataUrl(front.bytes),
+      );
+      if (!mounted) return;
+      if (!r.ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 6),
+            backgroundColor: AppColors.danger.withValues(alpha: 0.9),
+            content: Text(
+              '${angle[0].toUpperCase()}${angle.substring(1)} photo not accepted: '
+              '${r.message ?? 'this photo cannot be used'}',
+            ),
+          ),
+        );
+        return;
+      }
+      setState(() {
+        _shots[angle] = _Shot(bytes, quality);
+        if (angle == 'front') _frontMatches = r.matches;
+      });
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _checking = null);
+    }
+  }
+
+  static String _dataUrl(Uint8List bytes) =>
+      'data:image/jpeg;base64,${base64Encode(bytes)}';
+
+  /// "This face is already registered as …": register anyway only for twins.
+  Future<bool> _confirmTwins(FaceMatchesDriver e) async {
+    final names = e.matches
+        .map((m) => '${m.name} (${(m.confidence * 100).round()}% match)')
+        .join(', ');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        backgroundColor: AppColors.ink900,
+        title: const Text('This face is already registered'),
+        content: Text(
+          'The photos match $names. Each person should be registered only once, so the '
+          'in-car camera knows who is driving.\n\nRegister ${_name.text.trim()} anyway only if '
+          'they are a different person with a very similar face, such as an identical twin.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const ValueKey('confirm-twins'),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('They are twins: register'),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
   }
 
   void _chooseSource(String angle) {
@@ -124,7 +194,7 @@ class _RegisterDriverScreenState extends State<RegisterDriverScreen> {
     );
   }
 
-  Future<void> _submit() async {
+  Future<void> _submit({bool confirmLookalike = false}) async {
     final nameError = validateDriverName(
       _name.text,
       context.read<DataController>().drivers.map((d) => d.name),
@@ -149,6 +219,7 @@ class _RegisterDriverScreenState extends State<RegisterDriverScreen> {
         name: _name.text.trim(),
         relationship: _relationship,
         photos: photos,
+        confirmLookalike: confirmLookalike,
       );
       await data.refresh();
       if (!mounted) return;
@@ -173,6 +244,11 @@ class _RegisterDriverScreenState extends State<RegisterDriverScreen> {
         );
       }
       context.pushReplacement('/drivers/${r.driverId}');
+    } on FaceMatchesDriver catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      if (await _confirmTwins(e)) await _submit(confirmLookalike: true);
+      return;
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } finally {
@@ -252,13 +328,34 @@ class _RegisterDriverScreenState extends State<RegisterDriverScreen> {
                         angle: angle,
                         step: i + 1,
                         shot: _shots[angle],
-                        onTap: () => _chooseSource(angle),
+                        checking: _checking == angle,
+                        onTap: _checking == null
+                            ? () => _chooseSource(angle)
+                            : () {},
                       ),
                     ),
                   ],
                 ],
               ),
               const SizedBox(height: 16),
+              if (_frontMatches.isNotEmpty)
+                Container(
+                  key: const ValueKey('front-matches'),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.warn.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.warn.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Text(
+                    'This face looks like ${_frontMatches.join(', ')}, already registered. '
+                    'Register each person only once. If they are twins, you will be asked to confirm.',
+                    style: const TextStyle(color: Color(0xFFFDE68A)),
+                  ),
+                ),
               if (_error != null)
                 Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -297,12 +394,14 @@ class _PhotoSlot extends StatelessWidget {
     required this.step,
     required this.shot,
     required this.onTap,
+    this.checking = false,
   });
 
   final String angle;
   final int step;
   final _Shot? shot;
   final VoidCallback onTap;
+  final bool checking;
 
   @override
   Widget build(BuildContext context) {
@@ -318,7 +417,28 @@ class _PhotoSlot extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                if (shot != null)
+                if (checking)
+                  const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 26,
+                          height: 26,
+                          child: CircularProgressIndicator(strokeWidth: 3),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Checking…',
+                          style: TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (shot != null)
                   Image.memory(shot!.bytes, fit: BoxFit.cover)
                 else
                   Column(
