@@ -97,7 +97,9 @@ export function GoogleButton({ onCredential, text = 'continue_with' }: GoogleBut
         or
         <span className="h-px flex-1 bg-white/10" />
       </div>
-      <div ref={host} className="flex min-h-[44px] w-full justify-center" />
+      {/* The page is color-scheme: dark but Google's iframe is light; when they differ the browser
+          paints an opaque box behind the iframe. Matching the scheme keeps the pill's corners clear. */}
+      <div ref={host} className="flex min-h-[44px] w-full justify-center" style={{ colorScheme: 'light' }} />
     </div>
   );
 }
