@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const ctrl = require('../controllers/admin.controller');
+const feedback = require('../controllers/feedback.controller');
 const validate = require('../utils/validate');
 const asyncHandler = require('../utils/asyncHandler');
 const { requireAuth } = require('../middleware/auth.middleware');
@@ -10,6 +11,8 @@ router.use(requireAuth, asyncHandler(requireAdmin));
 
 router.get('/overview', asyncHandler(ctrl.overview));
 router.get('/parents', asyncHandler(ctrl.parents));
+router.get('/feedback', asyncHandler(feedback.adminList));
+router.patch('/feedback/:id', validate(feedback.updateSchema), asyncHandler(feedback.adminUpdate));
 router.get('/datasets', asyncHandler(ctrl.datasets));
 router.post('/recordings', validate(ctrl.uploadSchema), asyncHandler(ctrl.uploadRecording));
 router.get('/jobs', asyncHandler(ctrl.listJobs));

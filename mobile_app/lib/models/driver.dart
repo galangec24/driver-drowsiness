@@ -127,6 +127,7 @@ class Driver {
     this.lastUpdate,
     this.lastTunedAt,
     this.lastLocation,
+    this.tuning = const DriverTuning(),
   });
 
   factory Driver.fromJson(Map<String, dynamic> j) {
@@ -147,6 +148,7 @@ class Driver {
       lastUpdate: _date(j['lastUpdate']),
       lastTunedAt: _date(j['lastTunedAt']),
       lastLocation: GeoLocation.fromJson(j['lastLocation']),
+      tuning: DriverTuning.fromJson(j['tuning']),
     );
   }
 
@@ -161,6 +163,9 @@ class Driver {
   final DateTime? lastUpdate;
   final DateTime? lastTunedAt;
   final GeoLocation? lastLocation;
+
+  /// What automatic tuning learned (parents don't edit thresholds).
+  final DriverTuning tuning;
 
   Driver copyWith({
     DriverStatus? status,
@@ -179,7 +184,38 @@ class Driver {
     lastUpdate: lastUpdate ?? this.lastUpdate,
     lastTunedAt: lastTunedAt,
     lastLocation: lastLocation ?? this.lastLocation,
+    tuning: tuning,
   );
+}
+
+/// Automatic sensitivity: learned from the driver's eyes and the parent's alert feedback.
+class DriverTuning {
+  const DriverTuning({
+    this.mode = 'learning',
+    this.eyeSamples = 0,
+    this.falseAlarms = 0,
+    this.realAlarms = 0,
+    this.updatedAt,
+  });
+
+  factory DriverTuning.fromJson(Object? raw) {
+    if (raw is! Map) return const DriverTuning();
+    return DriverTuning(
+      mode: (raw['mode'] as String?) ?? 'learning',
+      eyeSamples: (raw['eyeSamples'] as num?)?.toInt() ?? 0,
+      falseAlarms: (raw['falseAlarms'] as num?)?.toInt() ?? 0,
+      realAlarms: (raw['realAlarms'] as num?)?.toInt() ?? 0,
+      updatedAt: DateTime.tryParse((raw['updatedAt'] ?? '') as String)
+          ?.toLocal(),
+    );
+  }
+
+  /// learning | standard | reduced
+  final String mode;
+  final int eyeSamples;
+  final int falseAlarms;
+  final int realAlarms;
+  final DateTime? updatedAt;
 }
 
 /// Socket.io `driver:status` payload.

@@ -57,6 +57,24 @@ class UpdateService {
   Future<String> currentVersion() async =>
       (await PackageInfo.fromPlatform()).version;
 
+  /// Newest published release (version, date) for Settings → About, or null if unreachable.
+  Future<({String version, DateTime? published})?> latestRelease() async {
+    try {
+      final r = await _dio.get<Map<String, dynamic>>(
+        'https://api.github.com/repos/$repo/releases/latest',
+      );
+      final tag = (r.data?['tag_name'] as String?) ?? '';
+      if (tag.isEmpty) return null;
+      return (
+        version: tag.replaceFirst(RegExp(r'^[vV]'), ''),
+        published: DateTime.tryParse((r.data?['published_at'] ?? '') as String)
+            ?.toLocal(),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// The newer release, or null when this app is up to date (or the release has no APK).
   Future<AppUpdate?> check({String? current}) async {
     final installed = current ?? await currentVersion();

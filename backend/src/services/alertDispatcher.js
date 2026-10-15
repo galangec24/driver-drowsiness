@@ -80,6 +80,7 @@ module.exports = {
   driverRoom,
   ADMIN_ROOM,
   emitToAdmins,
+  emitToParent,
   dispatchNewAlert,
   dispatchAcknowledged,
   dispatchFeedback,

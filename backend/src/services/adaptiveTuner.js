@@ -2,13 +2,17 @@ const cron = require('node-cron');
 const logger = require('../config/logger');
 const Driver = require('../models/Driver');
 const SensorLog = require('../models/SensorLog');
+const Alert = require('../models/Alert');
 
 /**
- * Adaptive per-driver EAR threshold. Once a day, look at the last 7 days of SensorLog for each
- * driver and recompute earThreshold from that driver's own open-eye baseline.
+ * Automatic, per-driver sensitivity (parents never edit thresholds). Every hour, and right after a
+ * parent marks an alert as real / false alarm:
  *
- * Eyes are open most of the time, so a high percentile of EAR is a robust estimate of the
- * driver's personal open-eye EAR regardless of how samples were classified (no feedback loop).
+ * 1. Eyes: earThreshold follows the driver's own open-eye EAR (last 7 days). Eyes are open most of
+ *    the time, so a high percentile is a robust estimate regardless of classification.
+ * 2. Feedback: if most recent alerts were marked "False alarm", alerts for this driver need more
+ *    evidence (PERCLOS, closure time, yawns) one step at a time; when alerts are confirmed real it
+ *    steps back toward the defaults. Bounded so it can never switch alerts off.
  */
 const TUNER = Object.freeze({
   windowDays: 7,
@@ -19,6 +23,45 @@ const TUNER = Object.freeze({
   minEar: 0.12,
   maxEar: 0.35,
 });
+
+/** Feedback-driven sensitivity: one step per tuning run, within safe bounds. */
+const SENSITIVITY = Object.freeze({
+  windowDays: 30,
+  minLabelled: 3,
+  relaxAbove: 0.5, // > half of the labelled alerts were false alarms → need more evidence
+  restoreBelow: 0.2, // mostly real alarms → step back toward the defaults
+  steps: {
+    perclosThreshold: { step: 0.05, default: 0.4, max: 0.6 },
+    drowsyDurationMs: { step: 250, default: 2000, max: 3500 },
+    yawnThreshold: { step: 1, default: 3, max: 6 },
+  },
+});
+
+/**
+ * Pure: next values for the feedback-driven thresholds.
+ * @param {{falseAlarms:number, real:number}} labels  parent feedback in the window
+ * @returns {{values:object, mode:'learning'|'standard'|'reduced', falseAlarmRate:number|null}}
+ */
+function computeSensitivity(labels, current, opts = SENSITIVITY) {
+  const total = labels.falseAlarms + labels.real;
+  const values = {};
+  for (const [k, s] of Object.entries(opts.steps)) {
+    values[k] = Number.isFinite(current[k]) && current[k] > 0 ? current[k] : s.default;
+  }
+  if (total < opts.minLabelled) return { values, mode: 'learning', falseAlarmRate: null };
+  const rate = labels.falseAlarms / total;
+  for (const [k, s] of Object.entries(opts.steps)) {
+    if (rate > opts.relaxAbove) values[k] = Math.min(s.max, values[k] + s.step);
+    else if (rate < opts.restoreBelow) values[k] = Math.max(s.default, values[k] - s.step);
+    values[k] = Math.round(values[k] * 1000) / 1000;
+  }
+  const relaxed = Object.entries(opts.steps).some(([k, s]) => values[k] > s.default);
+  return {
+    values,
+    mode: relaxed ? 'reduced' : 'standard',
+    falseAlarmRate: Math.round(rate * 100) / 100,
+  };
+}
 
 function percentile(sorted, p) {
   if (!sorted.length) return NaN;
@@ -61,12 +104,50 @@ async function tuneDriver(driver, now = new Date()) {
     rows.map((r) => r.signals.ear),
     driver.personalThresholds.earThreshold,
   );
-  if (!result) return { driverId: driver._id.toString(), skipped: true, samples: rows.length };
+  if (result) driver.personalThresholds.earThreshold = result.earThreshold;
 
-  driver.personalThresholds.earThreshold = result.earThreshold;
+  // Parent feedback ("False alarm" / "Real") in the last 30 days.
+  const fbSince = new Date(now.getTime() - SENSITIVITY.windowDays * 24 * 3600 * 1000);
+  const [falseAlarms, real] = await Promise.all([
+    Alert.countDocuments({
+      driverId: driver._id,
+      createdAt: { $gte: fbSince },
+      'feedback.falseAlarm': true,
+    }),
+    Alert.countDocuments({
+      driverId: driver._id,
+      createdAt: { $gte: fbSince },
+      'feedback.falseAlarm': false,
+    }),
+  ]);
+  const sens = computeSensitivity({ falseAlarms, real }, driver.personalThresholds);
+  Object.assign(driver.personalThresholds, sens.values);
+
+  driver.tuning = {
+    mode: result || sens.mode !== 'learning' ? sens.mode : 'learning',
+    eyeSamples: rows.length,
+    eyeBaseline: result ? result.baseline : (driver.tuning?.eyeBaseline ?? null),
+    falseAlarms,
+    realAlarms: real,
+    falseAlarmRate: sens.falseAlarmRate,
+    updatedAt: now,
+  };
   driver.lastTunedAt = now;
   await driver.save();
-  return { driverId: driver._id.toString(), skipped: false, ...result };
+  return {
+    driverId: driver._id.toString(),
+    skipped: !result,
+    samples: rows.length,
+    ...(result || {}),
+    mode: driver.tuning.mode,
+  };
+}
+
+/** Re-tune one driver soon after new feedback (fire-and-forget). */
+function retuneSoon(driverId) {
+  Driver.findById(driverId)
+    .then((d) => d && tuneDriver(d))
+    .catch((err) => logger.warn({ driverId: String(driverId), err: err.message }, 'retune failed'));
 }
 
 async function tuneAllDrivers(now = new Date()) {
@@ -86,11 +167,20 @@ async function tuneAllDrivers(now = new Date()) {
   return results;
 }
 
-/** Daily at 03:00 server time. Returns the cron task (call .stop() on shutdown). */
-function scheduleAdaptiveTuning(expression = '0 3 * * *') {
+/** Every hour (minute 15). Returns the cron task (call .stop() on shutdown). */
+function scheduleAdaptiveTuning(expression = '15 * * * *') {
   return cron.schedule(expression, () => {
     tuneAllDrivers().catch((err) => logger.error({ err }, 'adaptive tuning crashed'));
   });
 }
 
-module.exports = { computeEarThreshold, tuneDriver, tuneAllDrivers, scheduleAdaptiveTuning, TUNER };
+module.exports = {
+  computeEarThreshold,
+  computeSensitivity,
+  tuneDriver,
+  tuneAllDrivers,
+  retuneSoon,
+  scheduleAdaptiveTuning,
+  TUNER,
+  SENSITIVITY,
+};

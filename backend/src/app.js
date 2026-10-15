@@ -13,6 +13,42 @@ const ingestRoutes = require('./routes/ingest.routes');
 const alertsRoutes = require('./routes/alerts.routes');
 const pushRoutes = require('./routes/push.routes');
 const adminRoutes = require('./routes/admin.routes');
+const feedbackRoutes = require('./routes/feedback.routes');
+
+/**
+ * Which code is running (shown in the apps' Settings → About, so it updates by itself on deploy):
+ * Render sets RENDER_GIT_COMMIT; locally git is asked once at start.
+ */
+function readBuildInfo() {
+  let commit = process.env.RENDER_GIT_COMMIT || '';
+  if (!commit) {
+    try {
+      commit = require('child_process')
+        .execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+        .toString()
+        .trim();
+    } catch {
+      commit = '';
+    }
+  }
+  // One product version for everything: the apps' version (mobile_app/pubspec.yaml), raised per release.
+  let version = require('../package.json').version;
+  try {
+    const pubspec = require('fs').readFileSync(
+      path.resolve(__dirname, '../../mobile_app/pubspec.yaml'),
+      'utf8',
+    );
+    version = (pubspec.match(/^version:\s*([\d.]+)/m) || [])[1] || version;
+  } catch {
+    // backend deployed on its own: keep package.json's version
+  }
+  return {
+    version,
+    commit: commit ? commit.slice(0, 7) : null,
+    startedAt: new Date().toISOString(),
+  };
+}
+const buildInfo = readBuildInfo();
 
 function corsOptions() {
   // Native mobile clients send no Origin header; browsers must be on the allow-list.
@@ -40,7 +76,9 @@ function createApp() {
     app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/api/health' } }));
   }
 
-  app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+  app.get('/api/health', (_req, res) =>
+    res.json({ status: 'ok', time: new Date().toISOString(), ...buildInfo }),
+  );
   // The bare address is the API itself (no web page here): say so instead of a 404.
   app.get('/', (_req, res) =>
     res.json({
@@ -59,6 +97,7 @@ function createApp() {
   app.use('/api/alerts', alertsRoutes);
   app.use('/api/push', pushRoutes);
   app.use('/api/admin', adminRoutes);
+  app.use('/api/feedback', feedbackRoutes);
 
   app.use(notFound);
   app.use(errorHandler);

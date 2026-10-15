@@ -73,3 +73,19 @@ def test_errors_back_off_and_are_shown():
     assert ident.label().startswith("Identify failed: No Guardian Drive account")
     assert not ident.should_identify(True, 5.0)
     assert ident.should_identify(True, 10.0)
+
+
+def test_passengers_are_shown_but_not_monitored():
+    ident = DriverIdentity()
+    ident.started()
+    ident.on_result(
+        {
+            "driverId": "d1",
+            "name": "Ana",
+            "confidence": 0.9,
+            "passengers": [{"driverId": "d2", "name": "Ben"}],
+        },
+        0.0,
+    )
+    assert ident.driver_id == "d1"
+    assert ident.label() == "Driver: Ana (90%)  + passenger Ben"

@@ -17,6 +17,7 @@ import { Icon } from '../components/ui/Icon';
 import { OrbitLoader } from '../components/ui/OrbitLoader';
 import { ParallaxScene } from '../components/ui/ParallaxScene';
 import { TiltCard, TiltLayer } from '../components/ui/TiltCard';
+import { Copyright } from '../components/legal/Copyright';
 
 type Mode = 'login' | 'register';
 
@@ -339,6 +340,7 @@ export function LoginPage() {
           </div>
         </TiltCard>
       </div>
+      <Copyright className="absolute inset-x-0 bottom-3 px-4" />
     </div>
   );
 }

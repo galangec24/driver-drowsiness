@@ -26,6 +26,8 @@ class DriverIdentity:
     driver_id: str = ""
     name: str = ""
     confidence: float = 0.0
+    # Other registered family members recognised in the car (not driving).
+    passengers: tuple[str, ...] = ()
     status: str = "identifying"  # identifying | identified | unknown | ambiguous | error | fixed
     detail: str = ""
     _next_try: float = 0.0
@@ -73,6 +75,7 @@ class DriverIdentity:
             self.driver_id = str(driver_id)
             self.name = str(res.get("name") or "")
             self.confidence = float(res.get("confidence") or 0.0)
+            self.passengers = tuple(str(p.get("name") or "") for p in res.get("passengers") or [])
             self.status, self.detail = "identified", ""
             self._next_try = t + self.recheck_s
             return changed
@@ -102,7 +105,10 @@ class DriverIdentity:
         if self.status == "fixed":
             return f"Driver {self.driver_id[-6:]} (DRIVER_ID)"
         if self.driver_id:
-            return f"Driver: {self.name or self.driver_id[-6:]} ({self.confidence * 100:.0f}%)"
+            with_passengers = f"  + passenger {', '.join(self.passengers)}" if self.passengers else ""
+            return (
+                f"Driver: {self.name or self.driver_id[-6:]} ({self.confidence * 100:.0f}%){with_passengers}"
+            )
         if self.status == "unknown":
             return "Unknown face: not a registered driver"
         if self.status == "ambiguous":

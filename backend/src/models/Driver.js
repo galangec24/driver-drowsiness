@@ -60,6 +60,16 @@ const driverSchema = new mongoose.Schema(
       enrolledAt: Date,
     },
     lastTunedAt: Date,
+    // What automatic tuning learned (shown to the parent instead of editable thresholds).
+    tuning: {
+      mode: { type: String, enum: ['learning', 'standard', 'reduced'] },
+      eyeSamples: Number,
+      eyeBaseline: Number,
+      falseAlarms: Number,
+      realAlarms: Number,
+      falseAlarmRate: Number,
+      updatedAt: Date,
+    },
     // Last GPS fix reported by the in-car device (persisted at most every few seconds).
     lastLocation: { type: locationSchema, default: undefined },
   },
@@ -90,6 +100,7 @@ driverSchema.methods.toPublic = function toPublic() {
     faceEnrolled: (this.enrollment && this.enrollment.photoCount > 0) || false,
     enrollment: this.enrollment,
     lastTunedAt: this.lastTunedAt,
+    tuning: this.tuning && this.tuning.mode ? this.tuning : { mode: 'learning' },
     lastLocation: this.lastLocation || null,
     createdAt: this.createdAt,
   };

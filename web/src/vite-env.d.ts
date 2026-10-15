@@ -15,5 +15,8 @@ interface ImportMeta {
 }
 
 declare const __APP_VERSION__: string;
+/** When this site was built (ISO) and from which commit (short hash, may be ''). */
+declare const __BUILD_TIME__: string;
+declare const __GIT_COMMIT__: string;
 /** This machine's LAN IPv4 at build/dev-server start ('' if none). Only used to replace localhost. */
 declare const __LAN_HOST__: string;

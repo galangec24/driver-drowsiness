@@ -2,6 +2,7 @@ import { io, type Socket } from 'socket.io-client';
 import { API_URL } from '../api/client';
 import type { Alert, AckSource, DriverLiveStatus } from '../api/types';
 import type { TrainingJob } from '../api/admin';
+import type { Feedback } from '../api/feedback';
 
 export interface ServerToClientEvents {
   'alert:new': (alert: Alert) => void;
@@ -12,13 +13,13 @@ export interface ServerToClientEvents {
   /** Admins only: training worker job status and log output. */
   'training:job': (job: TrainingJob) => void;
   'training:log': (payload: { jobId: string; text: string }) => void;
+  /** Admins: a user sent feedback / it was updated. The sender: the team replied or changed its status. */
+  'feedback:new': (feedback: Feedback) => void;
+  'feedback:updated': (feedback: Feedback) => void;
 }
 
 export interface ClientToServerEvents {
-  'subscribe:driver': (
-    payload: { driverId: string },
-    ack?: (res: { ok: boolean; error?: string }) => void,
-  ) => void;
+  'subscribe:driver': (payload: { driverId: string }, ack?: (res: { ok: boolean; error?: string }) => void) => void;
 }
 
 export type GuardianSocket = Socket<ServerToClientEvents, ClientToServerEvents>;

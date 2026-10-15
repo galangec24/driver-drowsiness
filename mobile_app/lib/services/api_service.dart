@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../models/alert.dart';
 import '../models/driver.dart';
+import '../models/feedback.dart';
 import '../models/user.dart';
 import 'storage_service.dart';
 
@@ -239,6 +240,44 @@ class ApiService {
       token: r.data!['token'] as String,
       user: AppUser.fromJson(r.data!['user'] as Map<String, dynamic>),
     );
+  });
+
+  /// Server version and code commit (Settings → About updates itself on every deploy).
+  Future<({String version, String? commit})> health() => _call(() async {
+    final r = await _dio.get<Map<String, dynamic>>('/health');
+    return (
+      version: (r.data?['version'] as String?) ?? '',
+      commit: r.data?['commit'] as String?,
+    );
+  });
+
+  Future<void> sendFeedback({
+    required String category,
+    required String message,
+    required List<({String name, String data})> attachments,
+    required String appVersion,
+  }) => _call(() async {
+    await _dio.post<Map<String, dynamic>>(
+      '/feedback',
+      data: {
+        'category': category,
+        'message': message,
+        'attachments': [
+          for (final a in attachments) {'name': a.name, 'data': a.data},
+        ],
+        'platform': 'android',
+        'appVersion': appVersion,
+      },
+      options: Options(sendTimeout: const Duration(seconds: 120)),
+    );
+  });
+
+  Future<List<FeedbackItem>> myFeedback() => _call(() async {
+    final r = await _dio.get<Map<String, dynamic>>('/feedback/mine');
+    return [
+      for (final f in (r.data?['feedback'] as List? ?? const []))
+        FeedbackItem.fromJson(f as Map<String, dynamic>),
+    ];
   });
 
   Future<bool> pushEnabled() => _call(() async {

@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
+import '../config/brand.dart';
+import '../config/format.dart';
 import '../config/theme.dart';
+import '../services/api_service.dart';
 import '../services/fcm_service.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
@@ -24,6 +28,32 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   String _version = '';
   bool _checkingUpdate = false;
+  // Read live, so About is always current: server version + newest published release.
+  String _server = '…';
+  String _latest = '…';
+
+  Future<void> _loadAbout() async {
+    final api = context.read<DataController>().api;
+    try {
+      final h = await api.health();
+      if (mounted) {
+        setState(
+          () => _server =
+              'Online · v${h.version}${h.commit == null ? '' : ' (${h.commit})'}',
+        );
+      }
+    } on ApiException {
+      if (mounted) setState(() => _server = 'Not reachable');
+    }
+    final r = await UpdateService().latestRelease();
+    if (mounted) {
+      setState(
+        () => _latest = r == null
+            ? '—'
+            : '${r.version}${r.published == null ? '' : ' · ${timeAgo(r.published)}'}',
+      );
+    }
+  }
 
   Future<void> _checkForUpdate() async {
     setState(() => _checkingUpdate = true);
@@ -61,6 +91,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           }
         })
         .catchError((Object _) {});
+    _loadAbout();
   }
 
   Future<void> _editServer() async {
@@ -167,6 +198,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: 'App',
           children: [
             _Row('Version', _version.isEmpty ? '—' : _version),
+            _Row('Server status', _server),
+            _Row('Latest release', _latest),
             const SizedBox(height: 8),
             DepthButton(
               key: const ValueKey('check-updates'),
@@ -180,7 +213,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             InkWell(
               onTap: _editServer,
               child: _Row(
-                'Server',
+                'Server address',
                 auth.serverUrl,
                 trailing: const Icon(
                   Icons.edit_rounded,
@@ -191,6 +224,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const _Row('Distribution', 'Sideloaded APK'),
           ],
+        ),
+        const SizedBox(height: 16),
+        _Section(
+          title: 'Feedback',
+          children: [
+            const Text(
+              'Found a problem or have an idea? Send it to the team, with screenshots. '
+              'You will see the reply here.',
+              style: TextStyle(color: AppColors.muted),
+            ),
+            const SizedBox(height: 10),
+            DepthButton(
+              key: const ValueKey('open-feedback'),
+              label: 'Send feedback',
+              icon: Icons.feedback_rounded,
+              onPressed: () => context.push('/feedback'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        Text(
+          copyrightNotice(),
+          key: const ValueKey('copyright'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: AppColors.muted, fontSize: 11),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Maps © OpenStreetMap contributors, OpenFreeMap. Face detection: Google MediaPipe, face-api.js.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppColors.muted, fontSize: 10),
         ),
       ],
     );

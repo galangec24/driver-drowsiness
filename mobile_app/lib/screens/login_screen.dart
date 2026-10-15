@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
+import '../config/brand.dart';
 import '../config/theme.dart';
 import '../services/api_service.dart';
 import '../state/auth_controller.dart';
@@ -380,6 +381,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ).animate().fadeIn(duration: 200.ms),
                                 ),
                             ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          copyrightNotice(),
+                          key: const ValueKey('copyright'),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 11,
                           ),
                         ),
                       ],

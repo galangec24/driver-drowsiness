@@ -47,10 +47,22 @@ export interface Driver {
   faceEnrolled: boolean;
   enrollment?: { photoCount: number; quality: number; enrolledAt?: string };
   lastTunedAt?: string;
+  /** What automatic tuning learned (parents don't edit thresholds). */
+  tuning?: DriverTuning;
   createdAt: string;
   status: DriverStatus;
   lastUpdate: string | null;
   lastLocation?: GeoLocation | null;
+}
+
+export interface DriverTuning {
+  mode: 'learning' | 'standard' | 'reduced';
+  eyeSamples?: number;
+  eyeBaseline?: number | null;
+  falseAlarms?: number;
+  realAlarms?: number;
+  falseAlarmRate?: number | null;
+  updatedAt?: string;
 }
 
 export interface Signals {

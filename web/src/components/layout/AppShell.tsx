@@ -6,6 +6,7 @@ import { BottomNav } from './BottomNav';
 import { InstallBanner, OfflineBanner } from './Banners';
 import { listAlerts } from '../../api/alerts';
 import { usePollingFallback } from '../../hooks/useRealtime';
+import { Copyright } from '../legal/Copyright';
 
 /**
  * Responsive shell: side rail ≥640 px (labels ≥1024 px), bottom nav < 640 px,
@@ -41,6 +42,7 @@ export function AppShell() {
               {outlet}
             </motion.div>
           </AnimatePresence>
+          <Copyright className="mt-10" />
         </div>
       </main>
       <BottomNav unacknowledged={unacknowledged} />

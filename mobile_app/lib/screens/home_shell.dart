@@ -63,26 +63,42 @@ class _HomeShellState extends State<HomeShell> {
     super.dispose();
   }
 
+  // Alerts from the last few seconds: several drivers (different cars) can alert at once, and the
+  // banner then names all of them instead of the newest hiding the others.
+  final List<(DateTime, DriverAlert)> _recent = [];
+
   void _showBanner(DriverAlert a) {
     if (!mounted) return;
+    final now = DateTime.now();
+    _recent
+      ..removeWhere((r) => now.difference(r.$1) > const Duration(seconds: 10))
+      ..add((now, a));
+    final latestPerDriver = <String, DriverAlert>{
+      for (final r in _recent) r.$2.driverId: r.$2,
+    };
+    final several = latestPerDriver.length > 1;
+    final severe = latestPerDriver.values.any((x) => x.type.severe);
+    final text = several
+        ? '${latestPerDriver.length} drivers need attention: '
+              '${latestPerDriver.values.map((x) => '${x.driverName ?? 'Driver'} (${x.type.label})').join(', ')}'
+        : '${a.driverName ?? 'Driver'}: ${a.type.label} · ${(a.confidence * 100).round()}%';
     final messenger = ScaffoldMessenger.of(context);
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          backgroundColor: a.type.severe
-              ? const Color(0xFF3B0D12)
-              : AppColors.ink800,
-          duration: Duration(seconds: a.type.severe ? 8 : 5),
+          backgroundColor: severe ? const Color(0xFF3B0D12) : AppColors.ink800,
+          duration: Duration(seconds: severe || several ? 10 : 5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
             side: BorderSide(
-              color: (a.type.severe ? AppColors.danger : AppColors.warn)
-                  .withValues(alpha: 0.6),
+              color: (severe ? AppColors.danger : AppColors.warn).withValues(
+                alpha: 0.6,
+              ),
             ),
           ),
           content: Text(
-            '${a.driverName ?? 'Driver'}: ${a.type.label} · ${(a.confidence * 100).round()}%',
+            text,
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w600,

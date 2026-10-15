@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { APK_URL } from '../lib/platform';
 import { pushConfig } from '../api/auth';
-import { API_URL } from '../api/client';
 import { useAuth } from '../store/auth';
 import { useRealtime } from '../hooks/useRealtime';
 import { GlassCard } from '../components/ui/GlassCard';
@@ -14,6 +13,7 @@ import { clearSnapshots } from '../lib/offlineCache';
 import { disableNotifications, enableNotifications, notificationsEnabled, notificationsSupported } from '../lib/notify';
 import { markFarewell } from '../lib/farewell';
 import { UpdatesCard } from '../components/settings/UpdatesCard';
+import { AboutCard } from '../components/settings/AboutCard';
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -111,6 +111,17 @@ export function SettingsPage() {
 
         <UpdatesCard />
 
+        <GlassCard interactive={false} data-testid="feedback-card">
+          <h2 className="mb-2 text-lg font-bold text-white">Feedback</h2>
+          <p className="mb-4 text-sm text-ink-muted">
+            Found a problem or have an idea? Send it to the team, with screenshots or files. You will see the reply
+            here.
+          </p>
+          <Link to="/feedback">
+            <DepthButton icon={<Icon name="mail" size={18} />}>Send feedback</DepthButton>
+          </Link>
+        </GlassCard>
+
         <GlassCard interactive={false}>
           <h2 className="mb-2 text-lg font-bold text-white">Get the app</h2>
           <p className="mb-4 text-sm text-ink-muted">
@@ -127,24 +138,21 @@ export function SettingsPage() {
           </div>
         </GlassCard>
 
-        <GlassCard interactive={false}>
-          <h2 className="mb-2 text-lg font-bold text-white">About</h2>
-          <Row label="Version">{__APP_VERSION__}</Row>
-          <Row label="Server">
-            <span className="break-all font-mono text-xs">{API_URL}</span>
-          </Row>
-          <Row label="Offline cache">
-            <button
-              className="text-accent-glow hover:underline"
-              onClick={() => {
-                clearSnapshots();
-                toast.show({ title: 'Offline cache cleared', tone: 'info' });
-              }}
-            >
-              Clear
-            </button>
-          </Row>
-        </GlassCard>
+        <AboutCard
+          footer={
+            <Row label="Offline cache">
+              <button
+                className="text-accent-glow hover:underline"
+                onClick={() => {
+                  clearSnapshots();
+                  toast.show({ title: 'Offline cache cleared', tone: 'info' });
+                }}
+              >
+                Clear
+              </button>
+            </Row>
+          }
+        />
       </div>
     </div>
   );

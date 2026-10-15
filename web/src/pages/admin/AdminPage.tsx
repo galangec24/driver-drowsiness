@@ -10,10 +10,12 @@ import { ParentsTab } from './ParentsTab';
 import { DatasetsTab } from './DatasetsTab';
 import { TrainingTab } from './TrainingTab';
 import { ModelsTab } from './ModelsTab';
+import { FeedbackTab } from './FeedbackTab';
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'parents', label: 'Parents' },
+  { id: 'feedback', label: 'Feedback' },
   { id: 'datasets', label: 'Datasets' },
   { id: 'training', label: 'Training' },
   { id: 'models', label: 'Models' },
@@ -40,9 +42,15 @@ function useTrainingEvents() {
         old ? { ...old, log: ((old.log ?? '') + text).slice(-60000) } : old,
       );
     };
+    // New feedback from users / replies from another admin: refresh the inbox.
+    const onFeedback = () => void qc.invalidateQueries({ queryKey: ['admin', 'feedback'] });
+    socket.on('feedback:new', onFeedback);
+    socket.on('feedback:updated', onFeedback);
     socket.on('training:job', onJob);
     socket.on('training:log', onLog);
     return () => {
+      socket.off('feedback:new', onFeedback);
+      socket.off('feedback:updated', onFeedback);
       socket.off('training:job', onJob);
       socket.off('training:log', onLog);
     };
@@ -95,6 +103,7 @@ export function AdminPage() {
 
       {tab === 'overview' && <OverviewTab onNavigate={go} />}
       {tab === 'parents' && <ParentsTab />}
+      {tab === 'feedback' && <FeedbackTab />}
       {tab === 'datasets' && <DatasetsTab />}
       {tab === 'training' && <TrainingTab />}
       {tab === 'models' && <ModelsTab />}

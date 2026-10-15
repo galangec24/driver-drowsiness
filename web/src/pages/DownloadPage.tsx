@@ -22,6 +22,7 @@ import { Icon } from '../components/ui/Icon';
 import { ParallaxScene } from '../components/ui/ParallaxScene';
 import { Spinner } from '../components/ui/Spinner';
 import { TiltCard, TiltLayer } from '../components/ui/TiltCard';
+import { Copyright } from '../components/legal/Copyright';
 
 const ANDROID_STEPS = [
   'Tap **Download APK** and wait for the download to finish.',
@@ -326,6 +327,7 @@ export function DownloadPage() {
         <p className="text-center text-xs text-ink-muted">
           The app only shows information for your own account. Sign in with the parent account you created on this site.
         </p>
+        <Copyright />
       </div>
     </div>
   );

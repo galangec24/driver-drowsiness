@@ -1,4 +1,6 @@
 const { z } = require('zod');
+// Parent feedback changes the driver's sensitivity: re-tune right away, not at the next hourly run.
+const { retuneSoon } = require('../services/adaptiveTuner');
 const Alert = require('../models/Alert');
 const Driver = require('../models/Driver');
 const HttpError = require('../utils/httpError');
@@ -69,6 +71,7 @@ async function acknowledge(req, res) {
   );
 
   if (updated) {
+    if (update.feedback) retuneSoon(updated.driverId);
     alertDispatcher.dispatchAcknowledged(
       req.user.parentId,
       updated._id.toString(),
@@ -92,6 +95,7 @@ async function feedback(req, res) {
     { new: true },
   );
   if (!alert) throw new HttpError(404, 'Alert not found');
+  retuneSoon(alert.driverId);
   alertDispatcher.dispatchFeedback(req.user.parentId, alert._id.toString(), req.body.falseAlarm);
   res.json({ alert: alert.toPublic() });
 }

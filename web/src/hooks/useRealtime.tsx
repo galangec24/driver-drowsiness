@@ -100,7 +100,9 @@ function applyStatus(qc: QueryClient, s: DriverLiveStatus) {
 }
 
 export function RealtimeProvider({ children }: { children: ReactNode }) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const userIdRef = useRef(user?.id);
+  userIdRef.current = user?.id;
   const qc = useQueryClient();
   const toast = useToast();
   const [socket, setSocket] = useState<GuardianSocket | null>(null);
@@ -152,6 +154,18 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     s.on('alert:feedback', ({ alertId, falseAlarm }) => applyFeedback(qc, alertId, falseAlarm));
 
     s.on('alert:updated', ({ alertId, ...changes }) => applyAlertUpdated(qc, alertId, changes));
+
+    s.on('feedback:updated', (fb) => {
+      void qc.invalidateQueries({ queryKey: ['feedback', 'mine'] });
+      if (fb.adminReply && fb.userId === userIdRef.current) {
+        toastRef.current.show({
+          title: 'Reply to your feedback',
+          body: fb.adminReply.length > 120 ? `${fb.adminReply.slice(0, 120)}…` : fb.adminReply,
+          tone: 'info',
+          durationMs: 8000,
+        });
+      }
+    });
 
     s.on('driver:status', (status) => {
       setLive((prev) => ({ ...prev, [status.driverId]: status }));

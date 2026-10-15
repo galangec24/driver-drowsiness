@@ -98,6 +98,32 @@ describe('POST /api/ingest/identify: who is in the driver seat?', () => {
   });
 });
 
+describe('two registered family members in the same car', () => {
+  test('the face closest to the camera is the driver; the other is reported as a passenger', async () => {
+    const family = await registerParent(stack.app, { email: 'twokids@example.com' });
+    const ana = await enroll(family, 'Ana', 'A');
+    const ben = await enroll(family, 'Ben', 'B');
+
+    const res = await identify({
+      family: 'twokids@example.com',
+      image: fixtureBase64('two_faces.jpg'),
+    }).expect(200);
+    expect(res.body).toMatchObject({ driverId: ana, name: 'Ana', faces: 2 });
+    expect(res.body.passengers).toEqual([{ driverId: ben, name: 'Ben' }]);
+  });
+
+  test('a registered child as passenger next to an unknown driver is not taken for the driver', async () => {
+    const family = await registerParent(stack.app, { email: 'passenger@example.com' });
+    const ben = await enroll(family, 'Ben', 'B');
+    const res = await identify({
+      family: 'passenger@example.com',
+      image: fixtureBase64('two_faces.jpg'),
+    }).expect(200);
+    expect(res.body).toMatchObject({ driverId: null, reason: 'unknown' });
+    expect(res.body.passengers).toEqual([{ driverId: ben, name: 'Ben' }]);
+  });
+});
+
 describe('pickDriver', () => {
   const vec = (x) => Array.from({ length: 128 }, (_, i) => (i === 0 ? x : 0));
   const drivers = [

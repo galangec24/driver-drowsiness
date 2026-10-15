@@ -11,7 +11,7 @@ const alertDispatcher = require('../services/alertDispatcher');
 const { base64ToBuffer, sniff } = require('../services/imageDecoder');
 const { storeAlertSnapshot } = require('../services/mediaStorage');
 const User = require('../models/User');
-const { analyzePhoto } = require('../services/faceEnrollment');
+const { analyzeAllFaces } = require('../services/faceEnrollment');
 const { pickDriver } = require('../services/driverIdentifier');
 const { loadFaceModels, isReady } = require('../config/faceApi');
 
@@ -153,18 +153,33 @@ async function identify(req, res) {
       throw new HttpError(503, 'Face recognition models are not available');
     }
   }
-  let probe;
-  try {
-    probe = await analyzePhoto(req.body.image);
-  } catch (err) {
-    if (err.status === 422) {
-      res.json({ driverId: null, confidence: 0, reason: 'no_face', drivers: enrolled.length });
-      return;
-    }
-    throw err;
+  const faces = await analyzeAllFaces(req.body.image);
+  if (!faces.length) {
+    res.json({
+      driverId: null,
+      confidence: 0,
+      reason: 'no_face',
+      passengers: [],
+      drivers: enrolled.length,
+    });
+    return;
   }
-  const result = pickDriver(enrolled, probe.descriptor);
-  res.json({ ...result, drivers: enrolled.length });
+  // Largest face = closest to the dashboard camera = the driver. Other registered family members
+  // in view are passengers (e.g. two of the parent's children in the same car).
+  const [driverFace, ...others] = faces;
+  const result = pickDriver(enrolled, driverFace.descriptor);
+  const passengers = [];
+  for (const face of others.slice(0, 4)) {
+    const p = pickDriver(enrolled, face.descriptor);
+    if (
+      p.driverId &&
+      p.driverId !== result.driverId &&
+      !passengers.some((x) => x.driverId === p.driverId)
+    ) {
+      passengers.push({ driverId: p.driverId, name: p.name });
+    }
+  }
+  res.json({ ...result, passengers, faces: faces.length, drivers: enrolled.length });
 }
 
 async function snapshot(req, res) {

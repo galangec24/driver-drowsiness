@@ -2,7 +2,14 @@ const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const Driver = require('../models/Driver');
 const SensorLog = require('../models/SensorLog');
-const { computeEarThreshold, tuneDriver, tuneAllDrivers, TUNER } = require('./adaptiveTuner');
+const Alert = require('../models/Alert');
+const {
+  computeEarThreshold,
+  computeSensitivity,
+  tuneDriver,
+  tuneAllDrivers,
+  TUNER,
+} = require('./adaptiveTuner');
 
 function samples(n, mean, spread = 0.02) {
   // Deterministic spread around the mean.
@@ -90,5 +97,57 @@ describe('tuneDriver / tuneAllDrivers (MongoDB)', () => {
 
     const all = await tuneAllDrivers(now);
     expect(all.find((x) => x.driverId === skipped._id.toString()).skipped).toBe(true);
+  });
+
+  test('parent "False alarm" taps make that driver need more evidence; real alarms restore it', async () => {
+    const parentId = new mongoose.Types.ObjectId();
+    const driver = await Driver.create({ parentId, name: 'Kim' });
+    const mk = (falseAlarm) => ({
+      driverId: driver._id,
+      parentId,
+      type: 'drowsy',
+      confidence: 0.8,
+      feedback: { falseAlarm, by: 'web', at: new Date() },
+    });
+    await Alert.insertMany([mk(true), mk(true), mk(true), mk(false)]);
+    await tuneDriver(driver);
+    let saved = await Driver.findById(driver._id);
+    expect(saved.personalThresholds.perclosThreshold).toBeCloseTo(0.45);
+    expect(saved.personalThresholds.drowsyDurationMs).toBe(2250);
+    expect(saved.tuning).toMatchObject({ mode: 'reduced', falseAlarms: 3, realAlarms: 1 });
+    expect(saved.toPublic().tuning.mode).toBe('reduced');
+
+    // Later the alerts turn out real: steps back toward the defaults.
+    await Alert.updateMany({ driverId: driver._id }, { 'feedback.falseAlarm': false });
+    await tuneDriver(saved);
+    saved = await Driver.findById(driver._id);
+    expect(saved.personalThresholds.perclosThreshold).toBeCloseTo(0.4);
+    expect(saved.tuning.mode).toBe('standard');
+  });
+});
+
+describe('computeSensitivity (pure)', () => {
+  const defaults = { perclosThreshold: 0.4, drowsyDurationMs: 2000, yawnThreshold: 3 };
+
+  test('learning until a few alerts have feedback', () => {
+    const r = computeSensitivity({ falseAlarms: 1, real: 1 }, defaults);
+    expect(r.mode).toBe('learning');
+    expect(r.values).toEqual(defaults);
+  });
+
+  test('never relaxes beyond the safe maximum, never below the defaults', () => {
+    let t = defaults;
+    for (let i = 0; i < 20; i += 1) t = computeSensitivity({ falseAlarms: 9, real: 1 }, t).values;
+    expect(t).toEqual({ perclosThreshold: 0.6, drowsyDurationMs: 3500, yawnThreshold: 6 });
+    for (let i = 0; i < 20; i += 1) t = computeSensitivity({ falseAlarms: 0, real: 10 }, t).values;
+    expect(t).toEqual(defaults);
+  });
+
+  test('a mixed record keeps the current values', () => {
+    const current = { perclosThreshold: 0.5, drowsyDurationMs: 2500, yawnThreshold: 4 };
+    const r = computeSensitivity({ falseAlarms: 2, real: 3 }, current);
+    expect(r.values).toEqual(current);
+    expect(r.mode).toBe('reduced');
+    expect(r.falseAlarmRate).toBe(0.4);
   });
 });

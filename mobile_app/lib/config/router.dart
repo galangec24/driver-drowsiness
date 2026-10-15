@@ -5,6 +5,7 @@ import '../screens/alerts_screen.dart';
 import '../screens/dashboard_screen.dart';
 import '../screens/driver_detail_screen.dart';
 import '../screens/drivers_screen.dart';
+import '../screens/feedback_screen.dart';
 import '../screens/home_shell.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_driver_screen.dart';
@@ -73,6 +74,10 @@ GoRouter buildRouter(AuthController auth) => GoRouter(
           pageBuilder: (_, s) => _page(s, const SettingsScreen()),
         ),
       ],
+    ),
+    GoRoute(
+      path: '/feedback',
+      pageBuilder: (_, s) => _page(s, const FeedbackScreen()),
     ),
     GoRoute(
       path: '/drivers/new',

@@ -29,6 +29,20 @@ class DashboardScreen extends StatelessWidget {
     final drowsy = data.drivers
         .where((d) => data.statusOf(d) == DriverStatus.drowsy)
         .length;
+    // Several drivers (different cars) can need the parent at the same time: list them all.
+    final attention =
+        data.drivers
+            .where(
+              (d) =>
+                  data.statusOf(d) == DriverStatus.drowsy ||
+                  data.statusOf(d) == DriverStatus.warning,
+            )
+            .toList()
+          ..sort((a, b) {
+            int rank(DriverStatus s) => s == DriverStatus.drowsy ? 0 : 1;
+            final r = rank(data.statusOf(a)).compareTo(rank(data.statusOf(b)));
+            return r != 0 ? r : a.name.compareTo(b.name);
+          });
 
     return RefreshIndicator(
       onRefresh: data.refresh,
@@ -47,6 +61,64 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
           OfflineBanner(connected: data.connected, cachedAt: data.cachedAt),
+          if (attention.isNotEmpty)
+            Container(
+              key: const ValueKey('attention'),
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.danger.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.danger.withValues(alpha: 0.45),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    attention.length == 1
+                        ? '1 driver needs attention'
+                        : '${attention.length} drivers need attention',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  for (final d in attention)
+                    ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        Icons.warning_amber_rounded,
+                        color: data.statusOf(d) == DriverStatus.drowsy
+                            ? AppColors.danger
+                            : AppColors.warn,
+                      ),
+                      title: Text(
+                        d.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      subtitle: Text(
+                        data.statusOf(d) == DriverStatus.drowsy
+                            ? 'Drowsy'
+                            : 'Getting tired',
+                        style: const TextStyle(color: AppColors.muted),
+                      ),
+                      trailing: const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.muted,
+                      ),
+                      onTap: () => context.push('/drivers/${d.id}'),
+                    ),
+                ],
+              ),
+            ),
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,

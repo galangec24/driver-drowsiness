@@ -20,7 +20,7 @@ import '../widgets/location_map.dart';
 import '../widgets/mesh_background.dart';
 import '../widgets/signal_chart.dart';
 import '../widgets/status_pill.dart';
-import '../widgets/threshold_slider.dart';
+import '../widgets/auto_sensitivity_card.dart';
 
 /// Threshold sliders, EAR/HR/score charts, face verify, delete.
 class DriverDetailScreen extends StatefulWidget {
@@ -34,11 +34,9 @@ class DriverDetailScreen extends StatefulWidget {
 
 class _DriverDetailScreenState extends State<DriverDetailScreen> {
   Driver? _driver;
-  Thresholds? _draft;
   List<SensorPoint> _points = [];
   List<DriverAlert> _alerts = [];
   String? _error;
-  bool _saving = false;
   bool _verifying = false;
   DateTime? _lastLive;
 
@@ -59,7 +57,6 @@ class _DriverDetailScreenState extends State<DriverDetailScreen> {
       if (!mounted) return;
       setState(() {
         _driver = results[0] as Driver;
-        _draft = _driver!.thresholds;
         _points = results[1] as List<SensorPoint>;
         _alerts =
             (results[2]
@@ -81,34 +78,6 @@ class _DriverDetailScreenState extends State<DriverDetailScreen> {
     _lastLive = live.lastUpdate;
     _points = [..._points, SensorPoint.fromLive(live)];
     if (_points.length > 120) _points = _points.sublist(_points.length - 120);
-  }
-
-  Future<void> _save() async {
-    final d = _driver;
-    final draft = _draft;
-    if (d == null || draft == null) return;
-    final patch = draft.diff(d.thresholds);
-    if (patch.isEmpty) return;
-    setState(() => _saving = true);
-    final data = context.read<DataController>();
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final updated = await data.api.updateThresholds(d.id, patch);
-      data.replaceDriver(updated);
-      setState(() {
-        _driver = updated;
-        _draft = updated.thresholds;
-      });
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Thresholds saved — applied to the next reading'),
-        ),
-      );
-    } on ApiException catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e.message)));
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
   }
 
   Future<void> _verify(ImageSource source) async {
@@ -298,7 +267,7 @@ class _DriverDetailScreenState extends State<DriverDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _thresholds(d),
+                    AutoSensitivityCard(name: d.name, tuning: d.tuning),
                     const SizedBox(height: 16),
                     _verifyCard(d),
                     const SizedBox(height: 16),
@@ -397,203 +366,6 @@ class _DriverDetailScreenState extends State<DriverDetailScreen> {
             ),
           ),
           StatusPill(status: status),
-        ],
-      ),
-    );
-  }
-
-  Widget _thresholds(Driver d) {
-    final t = _draft ?? d.thresholds;
-    final changed = t.diff(d.thresholds).isNotEmpty;
-    final weights = t.fusionWeightVision + t.fusionWeightPhysio;
-    return GlassCard(
-      interactive: false,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Personal thresholds',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ThresholdSlider(
-            label: 'Eye-closure (EAR) threshold',
-            help: 'Below this eye aspect ratio counts as closing. Auto-tuned daily.',
-            value: t.earThreshold,
-            min: 0.1,
-            max: 0.35,
-            divisions: 50,
-            format: (v) => v.toStringAsFixed(3),
-            onChanged: (v) => setState(
-              () => _draft = t.copyWith(
-                earThreshold: double.parse(v.toStringAsFixed(3)),
-              ),
-            ),
-          ),
-          ThresholdSlider(
-            label: 'PERCLOS limit',
-            help: 'Share of time eyes are closed that counts as fully drowsy.',
-            value: t.perclosThreshold,
-            min: 0.1,
-            max: 0.9,
-            divisions: 80,
-            format: (v) => '${(v * 100).round()}%',
-            onChanged: (v) => setState(
-              () => _draft = t.copyWith(
-                perclosThreshold: double.parse(v.toStringAsFixed(2)),
-              ),
-            ),
-          ),
-          ThresholdSlider(
-            label: 'Drowsy duration',
-            help: 'How long closure must persist before it matters.',
-            value: t.drowsyDurationMs,
-            min: 500,
-            max: 6000,
-            divisions: 55,
-            format: (v) => '${(v / 1000).toStringAsFixed(1)} s',
-            onChanged: (v) => setState(
-              () => _draft = t.copyWith(drowsyDurationMs: v.roundToDouble()),
-            ),
-          ),
-          ThresholdSlider(
-            label: 'Vision weight',
-            help: 'Weight of EAR + PERCLOS in the fused score.',
-            value: t.fusionWeightVision,
-            min: 0,
-            max: 1,
-            divisions: 20,
-            format: (v) => v.toStringAsFixed(2),
-            onChanged: (v) => setState(
-              () => _draft = t.copyWith(
-                fusionWeightVision: double.parse(v.toStringAsFixed(2)),
-              ),
-            ),
-          ),
-          ThresholdSlider(
-            label: 'Heart-rate weight',
-            help: 'Weight of the physiological signal.',
-            value: t.fusionWeightPhysio,
-            min: 0,
-            max: 1,
-            divisions: 20,
-            format: (v) => v.toStringAsFixed(2),
-            onChanged: (v) => setState(
-              () => _draft = t.copyWith(
-                fusionWeightPhysio: double.parse(v.toStringAsFixed(2)),
-              ),
-            ),
-          ),
-          ThresholdSlider(
-            label: 'Heart-rate drop',
-            help: 'Drop below the driver’s own resting heart rate (watch) that counts as fully drowsy.',
-            value: t.hrDropThreshold,
-            min: 0.05,
-            max: 0.4,
-            divisions: 35,
-            format: (v) => '${(v * 100).round()}%',
-            onChanged: (v) => setState(
-              () => _draft = t.copyWith(
-                hrDropThreshold: double.parse(v.toStringAsFixed(2)),
-              ),
-            ),
-          ),
-          ThresholdSlider(
-            label: 'Breathing slow-down',
-            help: 'Drop below the driver’s own breathing rate (dashboard radar) that counts as fully drowsy.',
-            value: t.breathDropThreshold,
-            min: 0.05,
-            max: 0.5,
-            divisions: 45,
-            format: (v) => '${(v * 100).round()}%',
-            onChanged: (v) => setState(
-              () => _draft = t.copyWith(
-                breathDropThreshold: double.parse(v.toStringAsFixed(2)),
-              ),
-            ),
-          ),
-          ThresholdSlider(
-            label: 'Yawn limit',
-            help: 'Yawns within 5 minutes that raise a fatigue warning on their own.',
-            value: t.yawnThreshold,
-            min: 1,
-            max: 10,
-            divisions: 9,
-            format: (v) => '${v.round()} / 5 min',
-            onChanged: (v) => setState(
-              () => _draft = t.copyWith(yawnThreshold: v.roundToDouble()),
-            ),
-          ),
-          ThresholdSlider(
-            label: 'Head-nod limit',
-            help: 'Head nods within 5 minutes that count as falling asleep (drowsy).',
-            value: t.nodThreshold,
-            min: 1,
-            max: 6,
-            divisions: 5,
-            format: (v) => '${v.round()} / 5 min',
-            onChanged: (v) => setState(
-              () => _draft = t.copyWith(nodThreshold: v.roundToDouble()),
-            ),
-          ),
-          ThresholdSlider(
-            label: 'Head-nod weight',
-            help: 'Extra weight of a single head nod in the fused score.',
-            value: t.fusionWeightNod,
-            min: 0.05,
-            max: 0.6,
-            divisions: 11,
-            format: (v) => v.toStringAsFixed(2),
-            onChanged: (v) => setState(
-              () => _draft = t.copyWith(
-                fusionWeightNod: double.parse(v.toStringAsFixed(2)),
-              ),
-            ),
-          ),
-          ThresholdSlider(
-            label: 'Yawn weight',
-            help: 'Extra weight of yawning in the fused score.',
-            value: t.fusionWeightYawn,
-            min: 0.05,
-            max: 0.5,
-            divisions: 9,
-            format: (v) => v.toStringAsFixed(2),
-            onChanged: (v) => setState(
-              () => _draft = t.copyWith(
-                fusionWeightYawn: double.parse(v.toStringAsFixed(2)),
-              ),
-            ),
-          ),
-          if ((weights - 1).abs() > 0.001)
-            Text(
-              'Weights add up to ${weights.toStringAsFixed(2)} — 1.00 keeps the score on a 0–1 scale.',
-              style: const TextStyle(color: Color(0xFFFCD34D), fontSize: 12),
-            ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              DepthButton(
-                label: 'Reset',
-                variant: DepthVariant.ghost,
-                compact: true,
-                onPressed: changed
-                    ? () => setState(() => _draft = d.thresholds)
-                    : null,
-              ),
-              const SizedBox(width: 8),
-              DepthButton(
-                label: 'Save',
-                compact: true,
-                loading: _saving,
-                onPressed: changed ? _save : null,
-              ),
-            ],
-          ),
         ],
       ),
     );

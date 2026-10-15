@@ -3,6 +3,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { networkInterfaces } from 'node:os';
+import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import pkg from './package.json' with { type: 'json' };
 
 /** This PC's Wi-Fi/LAN IPv4, so the download page's QR code works from a phone during development. */
@@ -15,9 +17,32 @@ function lanAddress(): string {
   return '';
 }
 
+/**
+ * Settings → About updates itself on every release/deploy: one product version for all apps
+ * (mobile_app/pubspec.yaml, raised per release), plus when and from which commit this site was built.
+ */
+function productVersion(): string {
+  try {
+    const pubspec = readFileSync(new URL('../mobile_app/pubspec.yaml', import.meta.url), 'utf8');
+    return pubspec.match(/^version:\s*([\d.]+)/m)?.[1] ?? pkg.version;
+  } catch {
+    return pkg.version;
+  }
+}
+
+function gitCommit(): string {
+  try {
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    return '';
+  }
+}
+
 export default defineConfig(({ command }) => ({
   define: {
-    __APP_VERSION__: JSON.stringify(pkg.version),
+    __APP_VERSION__: JSON.stringify(productVersion()),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    __GIT_COMMIT__: JSON.stringify(gitCommit()),
     // Dev server only: production builds never embed a private network address.
     __LAN_HOST__: JSON.stringify(command === 'serve' ? lanAddress() : ''),
   },

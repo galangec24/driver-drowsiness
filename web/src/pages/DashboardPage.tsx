@@ -13,6 +13,9 @@ import { Icon } from '../components/ui/Icon';
 import { OrbitLoader } from '../components/ui/OrbitLoader';
 import { errorMessage } from '../api/client';
 import { useNow } from '../hooks/useNow';
+import { fleet, mappable, needsAttention } from '../lib/fleet';
+import { AttentionPanel } from '../components/dashboard/AttentionPanel';
+import { FleetMap } from '../components/map/FleetMap';
 
 function Stat({ label, value, tone }: { label: string; value: string | number; tone: string }) {
   return (
@@ -36,13 +39,12 @@ export function DashboardPage() {
   });
 
   const list = drivers.data ?? [];
-  const recentCutoff = Date.now() - 30000;
-  const onlineDrivers = list.filter((d) => {
-    const last = live[d.id]?.lastUpdate ?? d.lastUpdate;
-    return last && new Date(last).getTime() > recentCutoff;
-  });
-  const online = onlineDrivers.length;
-  const drowsyNow = onlineDrivers.filter((d) => (live[d.id]?.status ?? d.status) === 'drowsy').length;
+  // Several drivers can be on the road (and in trouble) at the same time.
+  const entries = fleet(list, live);
+  const online = entries.filter((e) => e.status !== 'offline').length;
+  const drowsyNow = entries.filter((e) => e.status === 'drowsy').length;
+  const attention = needsAttention(entries);
+  const onMap = mappable(entries);
 
   return (
     <div className="flex flex-col gap-6">
@@ -55,6 +57,8 @@ export function DashboardPage() {
           <DepthButton icon={<Icon name="plus" size={18} />}>Register driver</DepthButton>
         </Link>
       </header>
+
+      <AttentionPanel entries={attention} />
 
       <motion.section
         className="grid grid-cols-2 gap-4 lg:grid-cols-4"
@@ -71,6 +75,19 @@ export function DashboardPage() {
         />
         <Stat label="Drowsy now" value={drowsyNow} tone={drowsyNow > 0 ? 'text-red-300' : 'text-white'} />
       </motion.section>
+
+      {onMap.length > 0 && (
+        <section>
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-bold text-white">Where everyone is</h2>
+            <span className="text-xs text-ink-muted">
+              <span className="text-emerald-300">● awake</span> · <span className="text-amber-300">● tired</span> ·{' '}
+              <span className="text-red-300">● drowsy</span> · <span className="text-slate-400">● last known</span>
+            </span>
+          </div>
+          <FleetMap entries={onMap} />
+        </section>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[1fr_400px]">
         <section>

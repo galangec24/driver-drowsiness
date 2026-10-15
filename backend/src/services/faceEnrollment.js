@@ -91,6 +91,33 @@ async function analyzePhoto(base64) {
 }
 
 /**
+ * Every face in a camera frame, largest (closest to the camera) first: in a car that is the driver,
+ * the others are passengers. [] when there is no face.
+ * @returns {Promise<{descriptor:number[], area:number, score:number}[]>}
+ */
+async function analyzeAllFaces(base64) {
+  const faceapi = await loadFaceModels();
+  const img = decodeImage(base64ToBuffer(base64));
+  const tensor = faceapi.tf.tensor3d(img.rgb, [img.height, img.width, 3], 'int32');
+  let results;
+  try {
+    results = await faceapi
+      .detectAllFaces(tensor, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+      .withFaceLandmarks()
+      .withFaceDescriptors();
+  } finally {
+    tensor.dispose();
+  }
+  return results
+    .map((r) => ({
+      descriptor: Array.from(r.descriptor),
+      area: r.detection.box.area,
+      score: r.detection.score,
+    }))
+    .sort((a, b) => b.area - a.area);
+}
+
+/**
  * Enroll a driver from 1–3 photos (front, left, right). Returns { embedding, quality, photos }.
  * The embedding must never be sent to a client.
  */
@@ -138,6 +165,7 @@ async function enrollPhotos(photos) {
 
 module.exports = {
   analyzePhoto,
+  analyzeAllFaces,
   enrollPhotos,
   scoreQuality,
   averageDescriptors,

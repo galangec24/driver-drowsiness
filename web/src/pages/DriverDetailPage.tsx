@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { deleteDriver, driverLogs, getDriver, updateThresholds, verifyDriver } from '../api/drivers';
+import { deleteDriver, driverLogs, getDriver, verifyDriver } from '../api/drivers';
 import { listAlerts } from '../api/alerts';
 import { errorMessage } from '../api/client';
 import type { SensorLogPoint } from '../api/types';
@@ -14,7 +14,7 @@ import { LineChart } from '../components/ui/LineChart';
 import { Icon } from '../components/ui/Icon';
 import { OrbitLoader } from '../components/ui/OrbitLoader';
 import { useToast } from '../components/ui/Toast';
-import { ThresholdEditor } from '../components/driver/ThresholdEditor';
+import { AutoSensitivityCard } from '../components/driver/AutoSensitivityCard';
 import { CameraCapture } from '../components/driver/CameraCapture';
 import { AlertFeed } from '../components/alert/AlertFeed';
 import { LocationMap } from '../components/map/LocationMap';
@@ -66,16 +66,6 @@ export function DriverDetailPage() {
       ].slice(-120);
     });
   }, [current, id, qc]);
-
-  const save = useMutation({
-    mutationFn: (patch: Parameters<typeof updateThresholds>[1]) => updateThresholds(id, patch),
-    onSuccess: (d) => {
-      qc.setQueryData(['driver', id], d);
-      void qc.invalidateQueries({ queryKey: ['drivers'] });
-      toast.show({ title: 'Thresholds saved', body: 'Applied to the next sensor reading.', tone: 'success' });
-    },
-    onError: (err) => toast.show({ title: 'Could not save', body: errorMessage(err), tone: 'danger' }),
-  });
 
   const verify = useMutation({
     mutationFn: (photo: string) => verifyDriver(id, photo),
@@ -195,10 +185,7 @@ export function DriverDetailPage() {
             <LocationMap location={current?.location ?? d.lastLocation} mode="live" label={d.name} height={320} />
           </GlassCard>
 
-          <GlassCard interactive={false}>
-            <h2 className="mb-4 text-lg font-bold text-white">Personal thresholds</h2>
-            <ThresholdEditor value={d.personalThresholds} saving={save.isPending} onSave={(p) => save.mutate(p)} />
-          </GlassCard>
+          <AutoSensitivityCard name={d.name} tuning={d.tuning} />
 
           <GlassCard interactive={false} className="flex flex-col gap-3">
             <h2 className="text-lg font-bold text-white">Verify face</h2>

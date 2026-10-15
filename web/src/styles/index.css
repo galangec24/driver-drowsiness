@@ -241,3 +241,28 @@ input[type='range'].gd-range::-moz-range-thumb {
     animation: none;
   }
 }
+/* Status colours on the all-drivers map (components/map/FleetMap.tsx) */
+button.gd-driver-marker {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.gd-driver-marker.gd-status-alert .gd-dot {
+  background: #10b981;
+}
+.gd-driver-marker.gd-status-warning .gd-dot {
+  background: #f59e0b;
+}
+.gd-driver-marker.gd-status-warning .gd-pulse {
+  background: rgb(245 158 11 / 0.4);
+}
+.gd-driver-marker.gd-status-drowsy .gd-dot {
+  background: #ef4444;
+}
+.gd-driver-marker.gd-status-drowsy .gd-pulse {
+  background: rgb(239 68 68 / 0.45);
+}
+.gd-driver-marker.gd-status-offline .gd-dot {
+  background: #6b7280;
+}
