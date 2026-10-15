@@ -11,6 +11,7 @@ import { AlertsPage } from './pages/AlertsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { DownloadPage } from './pages/DownloadPage';
 import { AppLoginPage } from './pages/AppLoginPage';
+import { EmbedMapPage } from './pages/EmbedMapPage';
 import { AdminPage } from './pages/admin/AdminPage';
 
 /** "/" is the parent dashboard; admins have their own console. */
@@ -38,6 +39,8 @@ export const router = createBrowserRouter([
   { path: '/download', element: <DownloadPage /> },
   // Opened in the normal browser by the Windows/Android app for Google sign-in.
   { path: '/app-login', element: <AppLoginPage /> },
+  // 3D map shown inside the Android app (coordinates only, no sign-in).
+  { path: '/embed/map', element: <EmbedMapPage /> },
   {
     element: <RequireAuth />,
     children: [

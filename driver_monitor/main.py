@@ -27,6 +27,7 @@ from detectors.face_detector import FaceBox
 from detectors.head_nod import NodDetector
 from detectors.head_pose import HeadPose, estimate_head_pose
 from detectors.landmarks import Points, pose_points
+from detectors.low_light import NightVision
 from detectors.mouth import YawnDetector, mouth_aspect_ratio
 from detectors.perclos import PerclosTracker
 from fusion.scorer import IntervalAggregator
@@ -36,6 +37,7 @@ from transport.driver_identity import DriverIdentity
 from transport.gps import LocationSource, NoLocation, make_location_source
 from transport.ingest_client import IngestClient, build_payload, encode_snapshot
 from transport.model_sync import eye_model_path, fetch_device_config, local_eye_version, save_eye_model
+from transport.outbox import Outbox, StoreAndForward
 from utils.logger import get_logger
 from utils.recorder import SessionRecorder
 
@@ -88,15 +90,19 @@ class Monitor:
     breathing: BreathingState | None = None  # dashboard radar
     wearable_status: Any = None  # callable -> dict for the payload's `wearable` field
     radar_status: Any = None  # callable -> dict for the payload's `radar` field
+    # Night mode: averages + contrast-stretches dark frames for the detectors (detectors/low_light.py)
+    night: NightVision = field(default_factory=NightVision)
     _frame_no: int = 0
     _next_post: float = 0.0
 
     def process_frame(self, bgr: np.ndarray, t: float) -> FrameResult:
         """Analyse every Nth frame; other frames reuse the last result for the overlay."""
         self._frame_no += 1
+        self.night.push(bgr)  # every frame: night mode averages consecutive frames
         if self._frame_no % self.analyze_every != 0:
             return self.last
 
+        bgr = self.night.frame(bgr)  # unchanged in daylight
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
         h, w = rgb.shape[:2]
         result = FrameResult(face=self.detector.detect(rgb))
@@ -279,6 +285,12 @@ def run(
     detector = FaceDetector(config.FACE_DETECTOR_MODEL)
     landmarker = LandmarkExtractor(config.FACE_LANDMARKER_MODEL)
     client = IngestClient(cfg.api_url, cfg.api_key) if post else None
+    # No internet: readings (and in-car alarm snapshots) wait in data/outbox.sqlite and are sent,
+    # oldest first, when the connection is back (transport/outbox.py).
+    outbox = Outbox(config.OUTBOX_PATH) if client is not None else None
+    sender = StoreAndForward(client, outbox, log) if outbox is not None else None
+    if outbox is not None and outbox.count():
+        log.info(f"{outbox.count()} readings from an earlier offline period will be sent first")
     recorder = SessionRecorder(record, label, state) if record else None
     cap, video_fps = open_source(cfg, video)
     # Analyse ~10 frames/s regardless of the source frame rate (30 fps camera -> every 3rd frame).
@@ -341,6 +353,10 @@ def run(
     alerter = WatchAlerter(send=vibrate) if cfg.watch_alerts else None
     pool = ThreadPoolExecutor(max_workers=1)  # POSTs never block the camera loop
     snap_pool = ThreadPoolExecutor(max_workers=1)  # alert snapshots, separate from 1 Hz ingest
+    flush_pool = ThreadPoolExecutor(max_workers=1)  # sends the offline backlog
+    flush_job: Future[Any] | None = None
+    next_flush = 0.0
+    last_offline_snap = -1e9
     inflight: Future[dict[str, Any]] | None = None
     stop = {"flag": False}
     signal.signal(signal.SIGINT, lambda *_: stop.__setitem__("flag", True))
@@ -439,8 +455,28 @@ def run(
                     saved += 1
                 last_save = t
 
+            # Offline backlog: try to send it every 10 s (also right after a reading was stored).
+            if sender is not None and flush_job is None and sender.backlog and now >= next_flush:
+                flush_job = flush_pool.submit(sender.flush)
+            elif flush_job is not None and flush_job.done():
+                try:
+                    fr = flush_job.result()
+                    if fr.sent:
+                        log.info(
+                            f"back online: sent {fr.sent} stored readings ({fr.alerts} alerts), "
+                            f"{sender.backlog} left"
+                        )
+                except Exception as exc:  # noqa: BLE001
+                    log.warning(f"sending stored readings failed: {exc}")
+                flush_job = None
+                next_flush = now + 10.0
+
             if inflight is not None and inflight.done():
                 try:
+                    stored = inflight.result() is None
+                    if stored:
+                        inflight = None
+                        raise _Stored()
                     monitor.last_response = inflight.result()
                     r = monitor.last_response
                     if alerter is not None:
@@ -455,6 +491,8 @@ def run(
                             client.post_snapshot, monitor.driver_id, r["alertId"], encode_snapshot(frame)
                         )
                         log.info(f"alert {r['alertId']}: snapshot uploading")
+                except _Stored:
+                    pass
                 except Exception as exc:  # noqa: BLE001 - network errors must not kill the loop
                     log.warning(f"POST failed: {exc}")
                 inflight = None
@@ -466,16 +504,38 @@ def run(
                 if recorder:
                     recorder.write(t, payload)
                 # Nobody recognised yet: there is no driver to report for (and no parent to alert).
-                if client is not None and monitor.driver_id:
+                if sender is not None and monitor.driver_id:
+                    # Offline + the in-car alarm is sounding: keep a frame for the parent's alert.
+                    snap = None
+                    if (
+                        not sender.online
+                        and cfg.send_snapshots
+                        and alerter is not None
+                        and alerter.level >= 2
+                        and now - last_offline_snap > 30
+                    ):
+                        snap = encode_snapshot(frame)
+                        last_offline_snap = now
                     if inflight is None:
-                        inflight = pool.submit(client.post, payload)
+                        inflight = pool.submit(sender.send, payload, snap)
                     else:
                         log.warning("Previous POST still in flight; skipping this interval")
 
             if cfg.show_window:
                 hr = pick_heart(monitor.hearts) if monitor.hearts else None
+                light = monitor.night.lighting
                 extra_lines = [
                     identity.label(),
+                    *(
+                        [f"NIGHT MODE{' (IR)' if light.infrared else ''}  light {light.luma:.0f}/255"]
+                        if light.night
+                        else []
+                    ),
+                    *(
+                        [f"OFFLINE: {sender.backlog} readings saved, sent when online"]
+                        if sender is not None and sender.backlog
+                        else []
+                    ),
                     (
                         f"MAR {result.mar:.2f}  yawns/5min {monitor.yawn.count(t)}"
                         + ("  YAWN" if result.yawning else "")
@@ -518,6 +578,11 @@ def run(
         cv2.destroyAllWindows()
         pool.shutdown(wait=False, cancel_futures=True)
         snap_pool.shutdown(wait=False, cancel_futures=True)
+        flush_pool.shutdown(wait=False, cancel_futures=True)
+        if outbox is not None:
+            if outbox.count():
+                log.info(f"{outbox.count()} readings kept for the next start (no connection)")
+            outbox.close()
         if wearable is not None:
             wearable.vibrate(0)
             wearable.close()
@@ -532,6 +597,10 @@ def run(
         detector.close()
         landmarker.close()
         log.info("Driver monitor stopped.")
+
+
+class _Stored(Exception):
+    """The reading was stored for later (offline), there is no backend response to show."""
 
 
 def apply_device_config(

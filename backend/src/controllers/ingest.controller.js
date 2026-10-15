@@ -54,6 +54,9 @@ const ingestSchema = z
       })
       .passthrough(),
     timestamp: z.string().datetime({ offset: true }).optional(),
+    // true = recorded while the device was offline and sent later (store-and-forward): the
+    // device timestamp is kept even if it is old (up to 24 h).
+    queued: z.boolean().optional(),
     location: locationSchema.optional().nullable(),
     // Wearable link state, shown to the parent (not used for scoring).
     wearable: z

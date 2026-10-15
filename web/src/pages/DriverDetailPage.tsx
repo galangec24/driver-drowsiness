@@ -192,7 +192,7 @@ export function DriverDetailPage() {
             <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-white">
               <Icon name="pin" size={20} className="text-accent-glow" /> Live location
             </h2>
-            <LocationMap location={current?.location ?? d.lastLocation} mode="live" />
+            <LocationMap location={current?.location ?? d.lastLocation} mode="live" label={d.name} height={320} />
           </GlassCard>
 
           <GlassCard interactive={false}>

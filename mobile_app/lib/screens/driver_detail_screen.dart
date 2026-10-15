@@ -291,6 +291,8 @@ class _DriverDetailScreenState extends State<DriverDetailScreen> {
                                       orElse: () => d,
                                     )
                                     .lastLocation,
+                            label: d.name,
+                            height: 280,
                           ),
                         ],
                       ),

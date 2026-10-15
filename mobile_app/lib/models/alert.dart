@@ -42,6 +42,7 @@ class DriverAlert {
     this.location,
     this.snapshotUrl,
     this.yawnCount,
+    this.delayedS,
   });
 
   factory DriverAlert.fromJson(Map<String, dynamic> j) {
@@ -68,6 +69,7 @@ class DriverAlert {
       location: GeoLocation.fromJson(j['location']),
       snapshotUrl: j['snapshotUrl'] as String?,
       yawnCount: (s['yawnCount'] as num?)?.toInt(),
+      delayedS: (j['delayedS'] as num?)?.toInt(),
     );
   }
 
@@ -92,6 +94,9 @@ class DriverAlert {
 
   /// Camera frame of the driver at the trigger moment (relative or absolute URL).
   final String? snapshotUrl;
+
+  /// Recorded while the car had no internet and delivered this many seconds later.
+  final int? delayedS;
 
   /// Yawns in the 5 minutes before the alert.
   final int? yawnCount;
@@ -119,6 +124,7 @@ class DriverAlert {
     location: location,
     snapshotUrl: snapshotUrl ?? this.snapshotUrl,
     yawnCount: yawnCount,
+    delayedS: delayedS,
   );
 
   DriverAlert acknowledge(String by, {bool? falseAlarm}) => copyWith(

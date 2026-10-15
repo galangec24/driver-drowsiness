@@ -168,3 +168,76 @@ input[type='range'].gd-range::-moz-range-thumb {
   backdrop-filter: blur(6px);
   transform: rotateX(25deg) rotateY(-25deg);
 }
+
+/* 3D map markers (components/map/Map3D.tsx) */
+.gd-driver-marker,
+.gd-you-marker {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.gd-driver-marker .gd-dot,
+.gd-you-marker .gd-dot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 3px solid #fff;
+  border-radius: 9999px;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.45);
+}
+.gd-driver-marker .gd-dot {
+  background: #10b981;
+}
+.gd-you-marker .gd-dot {
+  width: 18px;
+  height: 18px;
+  background: #6366f1;
+}
+.gd-driver-marker .gd-pulse {
+  position: absolute;
+  top: -9px;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: rgb(16 185 129 / 0.35);
+  animation: gd-pulse 1.8s ease-out infinite;
+}
+.gd-driver-marker .gd-arrow {
+  position: absolute;
+  top: -15px;
+  font-size: 12px;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.8);
+  transform-origin: 50% 21px;
+}
+.gd-driver-marker .gd-label,
+.gd-you-marker .gd-label {
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgb(5 6 15 / 0.85);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+@keyframes gd-pulse {
+  from {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gd-driver-marker .gd-pulse {
+    animation: none;
+  }
+}

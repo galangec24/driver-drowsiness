@@ -37,6 +37,18 @@ class GeoLocation {
   String get _point => '${lat.toStringAsFixed(6)},${lng.toStringAsFixed(6)}';
 
   /// Google's keyless embeddable map (same as the web app).
+  /// The website's 3D map (buildings, tilt, heading) for the in-app map view: /embed/map.
+  Uri map3dUri(String webAppUrl, {String? name, bool live = true}) =>
+      Uri.parse('$webAppUrl/embed/map').replace(
+        queryParameters: {
+          'lat': lat.toStringAsFixed(6),
+          'lng': lng.toStringAsFixed(6),
+          if (heading != null) 'heading': heading!.toStringAsFixed(0),
+          if (name != null && name.isNotEmpty) 'name': name,
+          'mode': live ? 'live' : 'event',
+        },
+      );
+
   Uri embedUri({int zoom = 16}) =>
       Uri.parse('https://maps.google.com/maps?q=$_point&z=$zoom&output=embed');
 

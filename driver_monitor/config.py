@@ -12,6 +12,8 @@ FACE_DETECTOR_MODEL = MODEL_DIR / "blaze_face_short_range.tflite"
 FACE_LANDMARKER_MODEL = MODEL_DIR / "face_landmarker.task"
 # Open/closed eye classifier trained in ml/ (scripts/train_eye_state.py); committed, not downloaded.
 EYE_STATE_MODEL = MODEL_DIR / "eye_state.json"
+# Readings waiting for the internet (store-and-forward, transport/outbox.py).
+OUTBOX_PATH = ROOT / "data" / "outbox.sqlite"
 
 MODEL_URLS = {
     FACE_DETECTOR_MODEL: "https://storage.googleapis.com/mediapipe-models/face_detector/"

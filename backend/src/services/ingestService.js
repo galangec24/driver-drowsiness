@@ -25,14 +25,18 @@ const OBSERVED_TYPES = new Set(['yawning', 'nodding']);
 // Device clocks this far from the server's are ignored (a Raspberry Pi has no battery-backed
 // clock and boots at a stale time until NTP syncs) — the server's receive time is used instead.
 const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
+// Readings the device stored while offline (payload.queued) may arrive this late.
+const MAX_BACKFILL_MS = 24 * 60 * 60 * 1000;
+// A queued reading older than this makes its alert "delayed" (shown to the parent).
+const DELAYED_AFTER_MS = 60 * 1000;
 
 /** Device timestamp if plausible, else the server time. */
-function resolveTimestamp(raw, now) {
+function resolveTimestamp(raw, now, queued = false) {
   if (!raw) return new Date(now);
   const t = new Date(raw);
-  if (Number.isNaN(t.getTime()) || Math.abs(t.getTime() - now) > MAX_CLOCK_SKEW_MS) {
-    return new Date(now);
-  }
+  const ms = t.getTime();
+  if (Number.isNaN(ms) || ms - now > MAX_CLOCK_SKEW_MS) return new Date(now);
+  if (now - ms > (queued ? MAX_BACKFILL_MS : MAX_CLOCK_SKEW_MS)) return new Date(now);
   return t;
 }
 
@@ -97,7 +101,8 @@ function inCooldown(driverId, type, now) {
   const last = lastAlertAt.get(`${driverId}:${type}`);
   const cooldown =
     { yawning: YAWN_COOLDOWN_MS, nodding: NOD_COOLDOWN_MS }[type] ?? env.alertCooldownMs;
-  return last !== undefined && now - last < cooldown;
+  // abs: readings sent late (store-and-forward) can be older than the last live alert.
+  return last !== undefined && Math.abs(now - last) < cooldown;
 }
 
 /** Optional wearable/yawn signals, kept only when present (SensorLog, status, alerts). */
@@ -132,7 +137,16 @@ function verifyCandidate(window, driver) {
   return { allow: score >= threshold, score, threshold, modelVersion: model.version };
 }
 
-async function createAlert(driver, type, confidence, signals, timestamp, verifier, location) {
+async function createAlert(
+  driver,
+  type,
+  confidence,
+  signals,
+  timestamp,
+  verifier,
+  location,
+  delayedS,
+) {
   const alert = await Alert.create({
     driverId: driver._id,
     parentId: driver.parentId,
@@ -150,6 +164,7 @@ async function createAlert(driver, type, confidence, signals, timestamp, verifie
     },
     ...(location && { location }),
     ...(verifier && { verifier }),
+    ...(delayedS && { delayedS }),
   });
   const pub = alert.toPublic({ driverName: driver.name });
   alertDispatcher.dispatchNewAlert(pub);
@@ -162,12 +177,17 @@ async function createAlert(driver, type, confidence, signals, timestamp, verifie
  */
 async function processIngest(driver, payload) {
   const { signals, source } = payload;
-  const now = Date.now();
-  const timestamp = resolveTimestamp(payload.timestamp, now);
+  const received = Date.now();
+  const queued = payload.queued === true;
+  const timestamp = resolveTimestamp(payload.timestamp, received, queued);
+  // Store-and-forward readings are evaluated at the moment they were recorded.
+  const now = queued ? timestamp.getTime() : received;
+  const lateMs = received - timestamp.getTime();
+  const delayedS = queued && lateMs > DELAYED_AFTER_MS ? Math.round(lateMs / 1000) : undefined;
   const driverId = driver._id.toString();
   const tickLocation = normalizeLocation(payload.location, timestamp);
-  const location = currentLocation(driverId, tickLocation, now);
-  if (tickLocation) persistLocation(driver, tickLocation, now);
+  const location = queued ? tickLocation : currentLocation(driverId, tickLocation, now);
+  if (tickLocation && !queued) persistLocation(driver, tickLocation, now);
 
   // 4. Fusion
   const { fusionScore: raw, classification, components } = computeDrowsinessScore(signals, driver);
@@ -220,7 +240,7 @@ async function processIngest(driver, payload) {
             window: window.map(({ t, ...rest }) => ({ ...rest, t: t / 1000 })),
           };
     alertPromises.push(
-      createAlert(driver, type, fusionScore, signals, timestamp, verifier, location),
+      createAlert(driver, type, fusionScore, signals, timestamp, verifier, location, delayedS),
     );
   }
   // Someone other than the registered driver is behind the wheel.
@@ -239,6 +259,7 @@ async function processIngest(driver, payload) {
         timestamp,
         null,
         location,
+        delayedS,
       ),
     );
   }
@@ -264,8 +285,13 @@ async function processIngest(driver, payload) {
     // Last known fix (kept across ticks without GPS); null if none yet.
     location,
   };
-  statusStore.set(driverId, status);
-  alertDispatcher.dispatchDriverStatus(driver.parentId.toString(), status);
+  // A late reading must not replace a newer live status on the dashboard.
+  const current = statusStore.get(driverId);
+  const older = queued && current && new Date(current.lastUpdate).getTime() > timestamp.getTime();
+  if (!older) {
+    statusStore.set(driverId, status);
+    alertDispatcher.dispatchDriverStatus(driver.parentId.toString(), status);
+  }
 
   return { classification, fusionScore, alertTriggered: alertId !== null, alertId };
 }

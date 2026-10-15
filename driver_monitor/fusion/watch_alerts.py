@@ -37,6 +37,11 @@ class WatchAlerter:
     _backend_level: int = NONE
     last_reason: str = ""
 
+    @property
+    def level(self) -> int:
+        """In-car alert level in force now (NONE / MILD / HIGH)."""
+        return self._active
+
     def apply_thresholds(self, t: dict[str, Any]) -> None:
         if isinstance(t.get("drowsyDurationMs"), int | float) and t["drowsyDurationMs"] > 0:
             self.drowsy_duration_s = t["drowsyDurationMs"] / 1000.0

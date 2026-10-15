@@ -77,7 +77,10 @@ describe('AlertCard snapshot and location', () => {
 
   test('opens the detail view with the driver snapshot, Google map and directions', async () => {
     render(<AlertCard alert={makeAlert({ snapshotUrl: 'https://cdn.example/snap.jpg', location: where })} />);
-    expect(screen.getByTestId('alert-snapshot').querySelector('img')).toHaveAttribute('src', 'https://cdn.example/snap.jpg');
+    expect(screen.getByTestId('alert-snapshot').querySelector('img')).toHaveAttribute(
+      'src',
+      'https://cdn.example/snap.jpg',
+    );
 
     await userEvent.click(screen.getByRole('button', { name: 'Snapshot & map' }));
     const dialog = screen.getByRole('dialog');
@@ -102,5 +105,19 @@ describe('AlertCard snapshot and location', () => {
     render(<AlertCard alert={makeAlert({ location: where })} />);
     await userEvent.click(screen.getByRole('button', { name: 'Map' }));
     expect(screen.getByText('No camera snapshot for this alert.')).toBeInTheDocument();
+  });
+});
+
+describe('AlertCard delivered late', () => {
+  test('an alert recorded offline shows when it happened and that it was sent late', () => {
+    const happened = new Date(Date.now() - 20 * 60 * 1000).toISOString();
+    const alert = makeAlert({
+      createdAt: new Date().toISOString(),
+      delayedS: 1200,
+      sensorSnapshot: { ear: 0.08, perclos: 0.8, heartRate: 50, timestamp: happened },
+    });
+    render(<AlertCard alert={alert} onAcknowledge={() => {}} />);
+    expect(screen.getByTestId('alert-delayed')).toHaveTextContent('Sent 20 min late: the car was offline');
+    expect(screen.getByText(/20 min/)).toBeInTheDocument();
   });
 });

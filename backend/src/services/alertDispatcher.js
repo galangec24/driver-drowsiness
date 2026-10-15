@@ -32,7 +32,11 @@ async function pushFcm(parentId, alert) {
       user && user.fcmToken,
       {
         title: `Guardian Drive: ${alert.type.toUpperCase()}`,
-        body: `${alert.driverName || 'Driver'} - confidence ${Math.round(alert.confidence * 100)}%`,
+        body:
+          `${alert.driverName || 'Driver'} - confidence ${Math.round(alert.confidence * 100)}%` +
+          (alert.delayedS
+            ? ` (happened ${Math.round(alert.delayedS / 60)} min ago, sent when the car was back online)`
+            : ''),
       },
       { alertId: alert.id, driverId: alert.driverId, type: alert.type },
     );

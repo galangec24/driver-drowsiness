@@ -57,8 +57,17 @@ export function AlertDetailModal({ alert, onClose }: { alert: Alert; onClose: ()
           <section>
             <h3 className="label mb-2">Driver at the moment of the alert</h3>
             {snapshot ? (
-              <a href={snapshot} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-xl border border-white/10 shadow-depth-2">
-                <img src={snapshot} alt={`${alert.driverName || 'Driver'} when the alert fired`} className="w-full object-cover" />
+              <a
+                href={snapshot}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block overflow-hidden rounded-xl border border-white/10 shadow-depth-2"
+              >
+                <img
+                  src={snapshot}
+                  alt={`${alert.driverName || 'Driver'} when the alert fired`}
+                  className="w-full object-cover"
+                />
               </a>
             ) : (
               <div className="glass-inset flex aspect-[4/3] flex-col items-center justify-center gap-2 text-center text-sm text-ink-muted">
@@ -83,7 +92,13 @@ export function AlertDetailModal({ alert, onClose }: { alert: Alert; onClose: ()
 
           <section>
             <h3 className="label mb-2">Where it happened</h3>
-            <LocationMap location={alert.location} mode="event" height={240} title="Alert location on Google Maps" />
+            <LocationMap
+              location={alert.location}
+              mode="event"
+              height={260}
+              title="Alert location on Google Maps"
+              label={alert.driverName ?? undefined}
+            />
           </section>
         </div>
       </motion.div>

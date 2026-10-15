@@ -5,21 +5,27 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../config/format.dart';
+import '../config/links.dart';
 import '../config/theme.dart';
 import '../models/geo_location.dart';
 import 'depth_button.dart';
 
-/// Google map of the driver's position (keyless embed in a WebView) + heading/speed
-/// + "Directions" / "Open in Google Maps" (opens the Maps app). Parity with web LocationMap.
+/// 3D map of the driver's position (the website's /embed/map page in a WebView: buildings,
+/// tilt, heading) + heading/speed + "Directions" / "Open in Google Maps" (opens the Maps app).
+/// Parity with web LocationMap.
 class LocationMap extends StatefulWidget {
   const LocationMap({
     super.key,
     required this.location,
     this.live = true,
     this.height = 220,
+    this.label,
   });
 
   final GeoLocation? location;
+
+  /// Driver name shown on the map marker.
+  final String? label;
 
   /// Live = re-centres as the car moves; otherwise a fixed point (where an alert happened).
   final bool live;
@@ -69,8 +75,9 @@ class _LocationMapState extends State<LocationMap> {
           },
           // Taps inside the embed ("View larger map") open the real Maps app.
           onNavigationRequest: (req) {
-            if (req.url.startsWith('https://maps.google.com/maps?q=') &&
-                req.url.contains('output=embed')) {
+            if (req.url.startsWith('$webAppUrl/embed/map') ||
+                (req.url.startsWith('https://maps.google.com/maps?q=') &&
+                    req.url.contains('output=embed'))) {
               return NavigationDecision.navigate;
             }
             if (req.isMainFrame) {
@@ -85,7 +92,9 @@ class _LocationMapState extends State<LocationMap> {
         ),
       );
     _loading = true;
-    _web!.loadRequest(loc.embedUri());
+    _web!.loadRequest(
+      loc.map3dUri(webAppUrl, name: widget.label, live: widget.live),
+    );
   }
 
   Future<void> _open(Uri uri) async {

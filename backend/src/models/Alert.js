@@ -41,6 +41,8 @@ const alertSchema = new mongoose.Schema(
     location: { type: locationSchema, default: undefined },
     // Camera frame of the driver at the trigger moment, uploaded by the in-car device.
     snapshotUrl: { type: String },
+    // Recorded while the device had no internet and delivered this many seconds later.
+    delayedS: { type: Number },
     acknowledged: { type: Boolean, default: false },
     acknowledgedAt: Date,
     acknowledgedBy: { type: String, enum: ['apk', 'web', 'unknown'] },
@@ -69,6 +71,7 @@ alertSchema.methods.toPublic = function toPublic(extra = {}) {
     sensorSnapshot: this.sensorSnapshot,
     location: this.location || null,
     snapshotUrl: this.snapshotUrl || null,
+    delayedS: this.delayedS || null,
     acknowledged: this.acknowledged,
     acknowledgedAt: this.acknowledgedAt,
     acknowledgedBy: this.acknowledgedBy,

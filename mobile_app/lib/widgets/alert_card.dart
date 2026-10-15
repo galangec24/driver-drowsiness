@@ -162,7 +162,9 @@ class AlertCard extends StatelessWidget {
                                 ),
                                 const Spacer(),
                                 Text(
-                                  timeAgo(alert.createdAt),
+                                  alert.delayedS != null
+                                      ? '${timeAgo(alert.createdAt)} · sent late (offline)'
+                                      : timeAgo(alert.createdAt),
                                   style: const TextStyle(
                                     color: AppColors.muted,
                                     fontSize: 11,

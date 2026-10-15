@@ -106,7 +106,12 @@ class AlertDetailSheet extends StatelessWidget {
           ),
           const SizedBox(height: 22),
           const _Label('Where it happened'),
-          LocationMap(location: alert.location, live: false, height: 240),
+          LocationMap(
+            location: alert.location,
+            live: false,
+            height: 260,
+            label: alert.driverName,
+          ),
         ],
       ),
     );

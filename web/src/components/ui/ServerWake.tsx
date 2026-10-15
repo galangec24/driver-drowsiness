@@ -21,7 +21,8 @@ export function ServerWake() {
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    if (!navigator.onLine) {
+    // Offline, or a page that doesn't use the API (the 3D map inside the Android app).
+    if (!navigator.onLine || window.location.pathname.startsWith('/embed/')) {
       setState('ready');
       return undefined;
     }

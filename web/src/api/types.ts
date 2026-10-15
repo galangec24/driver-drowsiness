@@ -111,6 +111,8 @@ export interface Alert {
   location?: GeoLocation | null;
   /** Camera frame of the driver at the trigger moment (relative /uploads/... or absolute). */
   snapshotUrl?: string | null;
+  /** Recorded while the car had no internet and delivered this many seconds later. */
+  delayedS?: number | null;
   acknowledged: boolean;
   acknowledgedAt?: string;
   acknowledgedBy?: AckSource;
