@@ -379,4 +379,4 @@ Manual test scenarios: [docs/TESTING.md](docs/TESTING.md), [docs/NIGHT_VISION_TE
 
 ---
 
-© 2026 Emmanuel Christian. Guardian Drive capstone project.
+© 2026 Emmanuel Christian. Guardian Drive capstone project, released under the [MIT License](LICENSE).
