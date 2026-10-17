@@ -20,8 +20,18 @@ const LOCATION_FRESH_MS = 2 * 60 * 1000;
 const YAWN_COOLDOWN_MS = 5 * 60 * 1000;
 // Nodding is dangerous: re-alert after a minute if the driver keeps nodding.
 const NOD_COOLDOWN_MS = 60 * 1000;
+// Distraction (eyes off the road, restless movement) repeats at most every 2 minutes.
+const DISTRACTION_COOLDOWN_MS = 2 * 60 * 1000;
 // Direct, debounced camera observations: they don't go through the false-alarm verifier.
-const OBSERVED_TYPES = new Set(['yawning', 'nodding']);
+const OBSERVED_TYPES = new Set(['yawning', 'nodding', 'distraction']);
+// Each observed type is a count over the last 5 minutes: it re-alerts only when the count grows
+// (a new nod / yawn / distraction), never just because the old ones are still in the window.
+const OBSERVED_COUNT = {
+  yawning: 'yawnCount',
+  nodding: 'nodCount',
+  distraction: 'distractionCount',
+};
+const alertedCount = new Map(); // `${driverId}:${type}` → count at the last alert
 // Device clocks this far from the server's are ignored (a Raspberry Pi has no battery-backed
 // clock and boots at a stale time until NTP syncs) — the server's receive time is used instead.
 const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
@@ -42,6 +52,7 @@ function resolveTimestamp(raw, now, queued = false) {
 
 function resetCooldowns() {
   lastAlertAt.clear();
+  alertedCount.clear();
   locationSavedAt.clear();
   signalWindow.clear();
 }
@@ -86,9 +97,17 @@ function round(v, digits = 4) {
 function alertTypeFor(classification, signals, driver, components = {}) {
   if (components.nodEscalated) return 'nodding';
   if (components.yawnEscalated) return 'yawning';
+  const t = resolveThresholds(driver, signals);
+  // Drowsiness always wins; otherwise repeated eyes-off-the-road / restless episodes alert.
+  if (
+    classification !== 'drowsy' &&
+    typeof signals.distractionCount === 'number' &&
+    signals.distractionCount >= t.distractionThreshold
+  ) {
+    return 'distraction';
+  }
   if (classification === 'warning') return 'warning';
   if (classification !== 'drowsy') return null;
-  const t = resolveThresholds(driver);
   const deepClosure =
     typeof signals.ear === 'number' &&
     signals.ear < t.earThreshold * 0.5 &&
@@ -97,10 +116,35 @@ function alertTypeFor(classification, signals, driver, components = {}) {
   return deepClosure ? 'microsleep' : 'drowsy';
 }
 
+/** Observed types: true when the count grew since the last alert (and tracks it shrinking). */
+function hasNewEvidence(driverId, signals) {
+  const fresh = {};
+  for (const [type, field] of Object.entries(OBSERVED_COUNT)) {
+    const key = `${driverId}:${type}`;
+    const n = typeof signals[field] === 'number' ? signals[field] : 0;
+    const last = alertedCount.get(key);
+    if (last !== undefined && n < last) alertedCount.set(key, n); // old ones left the window
+    fresh[type] = last === undefined || n > alertedCount.get(key);
+  }
+  return fresh;
+}
+
+/** How sure the alert is: the evidence behind *its* type, not the overall fused score. */
+function alertConfidence(type, fusionScore, components, signals, t) {
+  if (type === 'nodding') return components.nodScore ?? fusionScore;
+  if (type === 'yawning') return components.yawnScore ?? fusionScore;
+  if (type === 'distraction') {
+    return Math.min(1, (signals.distractionCount || 0) / (t.distractionThreshold || 1));
+  }
+  return fusionScore;
+}
+
 function inCooldown(driverId, type, now) {
   const last = lastAlertAt.get(`${driverId}:${type}`);
   const cooldown =
-    { yawning: YAWN_COOLDOWN_MS, nodding: NOD_COOLDOWN_MS }[type] ?? env.alertCooldownMs;
+    { yawning: YAWN_COOLDOWN_MS, nodding: NOD_COOLDOWN_MS, distraction: DISTRACTION_COOLDOWN_MS }[
+      type
+    ] ?? env.alertCooldownMs;
   // abs: readings sent late (store-and-forward) can be older than the last live alert.
   return last !== undefined && Math.abs(now - last) < cooldown;
 }
@@ -113,6 +157,10 @@ function extraSignals(signals) {
     'hrBaseline',
     'yawnCount',
     'nodCount',
+    'distractionCount',
+    'blinkRate',
+    'longBlinkCount',
+    'fuzzyScore',
     'mar',
     'breathingRate',
     'breathingBaseline',
@@ -159,6 +207,12 @@ async function createAlert(
       ...(typeof signals.hrv === 'number' && { hrv: signals.hrv }),
       ...(typeof signals.yawnCount === 'number' && { yawnCount: signals.yawnCount }),
       ...(typeof signals.nodCount === 'number' && { nodCount: signals.nodCount }),
+      ...(typeof signals.distractionCount === 'number' && {
+        distractionCount: signals.distractionCount,
+      }),
+      ...(typeof signals.blinkRate === 'number' && { blinkRate: signals.blinkRate }),
+      ...(typeof signals.longBlinkCount === 'number' && { longBlinkCount: signals.longBlinkCount }),
+      ...(typeof signals.fuzzyScore === 'number' && { fuzzyScore: signals.fuzzyScore }),
       ...(typeof signals.breathingRate === 'number' && { breathingRate: signals.breathingRate }),
       timestamp,
     },
@@ -203,6 +257,7 @@ async function processIngest(driver, payload) {
 
   // Candidate alert type + verifier verdict (pure computation; side effects follow in order).
   const type = alertTypeFor(classification, signals, driver, components);
+  const fresh = queued ? null : hasNewEvidence(driverId, signals);
   // The verifier models eye/heart-rate confounders; a yawn count is a direct, debounced
   // observation, so yawning alerts don't go through it.
   const verdict = type && !OBSERVED_TYPES.has(type) ? verifyCandidate(window, driver) : null;
@@ -227,9 +282,13 @@ async function processIngest(driver, payload) {
   // 6. Alert (non-'alert' classifications) → false-positive verifier → per-type cooldown
   let alertId = null;
   const alertPromises = [];
-  const allowed = OBSERVED_TYPES.has(type) || (verdict && verdict.allow);
+  const observed = OBSERVED_TYPES.has(type);
+  const allowed = observed ? !fresh || fresh[type] : verdict && verdict.allow;
   if (type && allowed && !inCooldown(driverId, type, now)) {
     lastAlertAt.set(`${driverId}:${type}`, now);
+    if (observed && fresh) {
+      alertedCount.set(`${driverId}:${type}`, signals[OBSERVED_COUNT[type]] || 0);
+    }
     const verifier =
       !verdict || verdict.score === null
         ? null
@@ -240,7 +299,16 @@ async function processIngest(driver, payload) {
             window: window.map(({ t, ...rest }) => ({ ...rest, t: t / 1000 })),
           };
     alertPromises.push(
-      createAlert(driver, type, fusionScore, signals, timestamp, verifier, location, delayedS),
+      createAlert(
+        driver,
+        type,
+        alertConfidence(type, fusionScore, components, signals, resolveThresholds(driver, signals)),
+        signals,
+        timestamp,
+        verifier,
+        location,
+        delayedS,
+      ),
     );
   }
   // Someone other than the registered driver is behind the wheel.

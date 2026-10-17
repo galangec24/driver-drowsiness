@@ -44,11 +44,14 @@ class Config:
     # Eye-state image model: "shadow" (default) = computed + shown, PERCLOS keeps the EAR rule;
     # "on" = the model decides closed frames for PERCLOS; "off" = not loaded.
     eye_state: str
-    # Vehicle location (transport/gps.py): none | fixed | nmea
-    gps_source: str = "none"
+    # Vehicle location (transport/gps.py): auto | windows | none | fixed | nmea
+    gps_source: str = "auto"
     gps_fixed: str = ""
     gps_port: str = ""
     gps_baud: int = 9600
+    # Google Geolocation API (Wi-Fi positioning) — fallback while the GPS has no fix.
+    google_geolocation_key: str = ""
+    geolocation_every_s: float = 90.0
     # Upload the camera frame when the backend reports a new alert (parents see who/what).
     send_snapshots: bool = True
     # opencv (USB webcam / laptop camera) | picamera2 (Raspberry Pi camera module on the ribbon cable)
@@ -79,6 +82,8 @@ class Config:
     # Automatic driver recognition: the parent account (e-mail) this car belongs to. Whoever sits
     # down is matched against that family's registered drivers (their face photos).
     family_email: str = ""
+    # Beep on this computer when the in-car alarm sounds (Windows; the Pi uses ALARM_CMD).
+    local_beep: bool = True
 
 
 def load_config(require_backend: bool = True) -> Config:
@@ -93,10 +98,12 @@ def load_config(require_backend: bool = True) -> Config:
         perclos_closure_ratio=env_float("PERCLOS_CLOSURE_RATIO", 0.7),
         show_window=env_str("SHOW_WINDOW", "1") != "0",
         eye_state=env_str("EYE_STATE", "shadow").lower(),
-        gps_source=env_str("GPS_SOURCE", "none").lower(),
+        gps_source=env_str("GPS_SOURCE", "auto").lower(),
         gps_fixed=env_str("GPS_FIXED"),
         gps_port=env_str("GPS_PORT"),
         gps_baud=env_int("GPS_BAUD", 9600),
+        google_geolocation_key=env_str("GOOGLE_GEOLOCATION_KEY").strip(),
+        geolocation_every_s=env_float("GEOLOCATION_EVERY_S", 90.0),
         send_snapshots=env_str("SEND_SNAPSHOTS", "1") != "0",
         camera_backend=env_str("CAMERA_BACKEND", "opencv").lower(),
         wearable=env_str("WEARABLE", "off").lower(),
@@ -114,6 +121,7 @@ def load_config(require_backend: bool = True) -> Config:
         nod_speed=env_float("NOD_SPEED", 25.0),
         model_sync=env_str("MODEL_SYNC", "1") != "0",
         family_email=env_str("FAMILY_EMAIL").strip().lower(),
+        local_beep=env_str("LOCAL_BEEP", "1") != "0",
     )
     missing = [k for k, v in (("INGEST_API_KEY", cfg.api_key),) if not v]
     if not cfg.driver_id and not cfg.family_email:

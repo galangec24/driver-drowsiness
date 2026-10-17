@@ -188,7 +188,9 @@ def test_perclos_tracker_times_continuous_closure() -> None:
         p.update(0.05, t)
         t += 0.1
     assert p.closed_for(t) == pytest.approx(t - start)
-    p.update(0.3, t)
+    for _ in range(4):  # eyes clearly open again for 0.3 s+ (a single noisy frame doesn't count)
+        p.update(0.3, t)
+        t += 0.1
     assert p.closed_for(t) == 0
 
 

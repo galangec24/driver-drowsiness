@@ -74,3 +74,13 @@ def test_nods_expire_and_face_loss_resets() -> None:
     t, n = run(det, t + 0.1, 0.3, lambda e: -25 + 20 * min(1, e / 0.2))
     assert n == 0
     assert det.count(t + 400) == 0
+
+
+def test_looking_down_at_a_phone_is_not_a_nod() -> None:
+    """Head drops fast to the phone, then the lids look closed (looking down) and it stays down."""
+    det = NodDetector(max_down_s=3)
+    t = upright(det)
+    t, a = run(det, t, 0.4, lambda e: -5 - 25 * e / 0.4)  # eyes open while the head goes down
+    t, b = run(det, t, 6, lambda _e: -30, closed=True)  # reading the phone: lids lowered
+    t, c = run(det, t, 1.5, lambda e: -30 + 25 * e / 1.5, closed=False)
+    assert a + b + c == 0

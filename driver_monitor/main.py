@@ -21,6 +21,8 @@ import cv2
 import numpy as np
 
 import config
+from detectors.blink import BlinkDetector
+from detectors.distraction import DistractionDetector
 from detectors.ear import average_ear
 from detectors.eye_state import EyeStateModel, crop_eye
 from detectors.face_detector import FaceBox
@@ -30,6 +32,7 @@ from detectors.landmarks import Points, pose_points
 from detectors.low_light import NightVision
 from detectors.mouth import YawnDetector, mouth_aspect_ratio
 from detectors.perclos import PerclosTracker
+from fusion.fuzzy import FatigueFuzzy, FuzzyResult
 from fusion.scorer import IntervalAggregator
 from fusion.watch_alerts import WatchAlerter
 from sensors.heart_rate import BreathingState, HeartRateState, pick_heart
@@ -38,6 +41,7 @@ from transport.gps import LocationSource, NoLocation, make_location_source
 from transport.ingest_client import IngestClient, build_payload, encode_snapshot
 from transport.model_sync import eye_model_path, fetch_device_config, local_eye_version, save_eye_model
 from transport.outbox import Outbox, StoreAndForward
+from ui import hud
 from utils.logger import get_logger
 from utils.recorder import SessionRecorder
 
@@ -65,6 +69,7 @@ class FrameResult:
     mar: float | None = None
     yawning: bool = False
     nodded: bool = False  # a head nod was counted on this frame
+    eyes_reliable: bool = False  # EAR usable for drowsiness (face fully in view, facing forward)
 
 
 @dataclass
@@ -86,6 +91,11 @@ class Monitor:
     location: LocationSource = field(default_factory=NoLocation)
     yawn: YawnDetector = field(default_factory=YawnDetector)
     nod: NodDetector = field(default_factory=NodDetector)
+    blink: BlinkDetector = field(default_factory=BlinkDetector)
+    # Fuzzy-logic fatigue over all the eye / mouth / head signs (fusion/fuzzy.py)
+    fuzzy: FatigueFuzzy = field(default_factory=FatigueFuzzy)
+    fatigue: FuzzyResult = field(default_factory=lambda: FuzzyResult(0.0))
+    distraction: DistractionDetector = field(default_factory=DistractionDetector)
     hearts: list[HeartRateState] = field(default_factory=list)  # BLE HR sources, priority order
     breathing: BreathingState | None = None  # dashboard radar
     wearable_status: Any = None  # callable -> dict for the payload's `wearable` field
@@ -115,19 +125,47 @@ class Monitor:
                 result.eye_closed_prob = self.eye_closed_prob(bgr, result.landmarks)
                 if result.eye_closed_prob is not None and self.eye_controls_perclos:
                     closed = result.eye_closed_prob >= self.eye_model.threshold
-            result.perclos = self.perclos.update(result.ear, t, closed)
             result.pose = estimate_head_pose(pose_points(result.landmarks), w, h)
             result.mar = mouth_aspect_ratio(result.landmarks)
+            self.distraction.update(result.pose, t)
+            # Face half out of the picture, just back in view, or turned far aside: EAR is not
+            # meaningful there (it reads as "closed"), so it must not count as drowsiness.
+            f = result.face
+            in_frame = (
+                f is not None and f.x > 2 and f.y > 2 and f.x + f.width < w - 2 and f.y + f.height < h - 2
+            )
+            result.eyes_reliable = in_frame and self.distraction.eyes_reliable(result.pose, t)
+            result.perclos = self.perclos.update(result.ear, t, closed, reliable=result.eyes_reliable)
+            calibrated = self.perclos.baseline is not None or closed is not None
+            self.blink.update(self.perclos.is_closed if result.eyes_reliable and calibrated else None, t)
         else:
             self.perclos.mark_no_face(t)
             result.perclos = self.perclos.value
+            self.distraction.update(None, t)
+            self.blink.update(None, t)
         result.nodded = self.nod.update(
-            result.pose.pitch if result.pose else None, self.perclos.closed_for(t) > 0, t
+            # Closed for a moment already (not one frame), so lids lowered to look down don't count.
+            result.pose.pitch if result.pose else None,
+            self.perclos.closed_for(t) >= 0.4,
+            t,
         )
         self.yawn.update(result.mar, t)
         result.yawning = self.yawn.yawning
+        face = result.landmarks is not None
+        self.fatigue = self.fuzzy.evaluate(
+            perclos=self.perclos.effective(t) if face else None,
+            closure_s=self.perclos.closed_for(t) if face else None,
+            blink_rate=self.blink.rate(t),
+            long_blinks=self.blink.long_blinks(t) if self.blink.observed_s() >= 10 else None,
+            yawns=self.yawn.recent(t, half_life_s=60.0),  # yawning is a slower trend than nods
+            nods=self.nod.recent(t),
+        )
 
-        self.aggregator.add(result.ear, result.face.score if result.face else 0.0, result.mar)
+        self.aggregator.add(
+            result.ear if result.eyes_reliable else None,
+            result.face.score if result.face else 0.0,
+            result.mar,
+        )
         self.last = result
         return result
 
@@ -142,6 +180,9 @@ class Monitor:
             close_threshold=y.close_threshold,
             min_duration_s=y.min_duration_s,
         )
+        self.distraction = DistractionDetector()
+        self.blink = BlinkDetector()
+        self.fatigue = FuzzyResult(0.0)
         self.aggregator = IntervalAggregator()
         self.last_response = None
 
@@ -168,7 +209,19 @@ class Monitor:
         """Build one interval's payload and schedule the next POST."""
         self._next_post = t + self.interval_s
         ear, face_conf = self.aggregator.flush()
-        extra: dict[str, Any] = {"yawnCount": self.yawn.count(t), "nodCount": self.nod.count(t)}
+        extra: dict[str, Any] = {
+            "yawnCount": self.yawn.count(t),
+            "nodCount": self.nod.count(t),
+            "distractionCount": self.distraction.count(t),
+            "longBlinkCount": self.blink.long_blinks(t),
+            "fuzzyScore": self.fatigue.score,
+        }
+        rate = self.blink.rate(t)
+        if rate is not None:
+            extra["blinkRate"] = round(rate, 1)
+        if self.perclos.baseline is not None:
+            # The server's EAR cut-off follows this driver's own open eyes (narrow eyes).
+            extra["earBaseline"] = round(self.perclos.baseline, 3)
         if self.aggregator.last_mar_max is not None:
             extra["mar"] = round(self.aggregator.last_mar_max, 3)
         if self.hearts:
@@ -309,9 +362,17 @@ def run(
             else None
         ),
     )
-    monitor.location = make_location_source(cfg.gps_source, cfg.gps_fixed, cfg.gps_port, cfg.gps_baud)
+    monitor.location = make_location_source(
+        cfg.gps_source,
+        cfg.gps_fixed,
+        cfg.gps_port,
+        cfg.gps_baud,
+        google_key=cfg.google_geolocation_key,
+        google_every_s=cfg.geolocation_every_s,
+    )
     if cfg.gps_source != "none":
-        log.info(f"Location source: {cfg.gps_source}")
+        fallback = " + Google Wi-Fi fallback" if cfg.google_geolocation_key else ""
+        log.info(f"Location source: {cfg.gps_source}{fallback}")
     # ---- Bluetooth wearable (heart rate in, vibration out) and in-car watch alerts
     from sensors.ble_wearable import BleWearable
 
@@ -338,9 +399,11 @@ def run(
     )
 
     def vibrate(level: int) -> None:
-        log.info(f"in-car alert level {level} ({alerter.last_reason or 'calm'})")
+        log.info(f"in-car alert level {level} ({alerter.reason_now or alerter.last_reason or 'calm'})")
         if wearable is not None:
             wearable.vibrate(level)
+        if level >= 1 and cfg.local_beep and not cfg.alarm_cmd:
+            beep(level)
         if level >= 2 and cfg.alarm_cmd:
             import shlex
             import subprocess
@@ -387,6 +450,7 @@ def run(
         log.info(f"Recording to {record} (hotkeys: 1 drowsy, 0 alert, 9 ignore, t/m/p/s confounders)")
 
     started = time.monotonic()
+    window_ready = False
     frame_no = 0
     thresholds_job: Future[dict[str, Any]] | None = None
     thresholds_at = -1e9
@@ -408,7 +472,19 @@ def run(
             result = monitor.process_frame(frame, t)
             now = time.monotonic()
             if alerter is not None:
-                alerter.on_frame(monitor.perclos.closed_for(t), monitor.perclos.value, now, result.nodded)
+                ds = monitor.distraction.state
+                alerter.on_frame(
+                    monitor.perclos.closed_for(t),
+                    monitor.perclos.effective(t),
+                    now,
+                    result.nodded,
+                    away_for_s=ds.away_for_s,
+                    restless=ds.restless,
+                    away_s=monitor.distraction.away_s,
+                    away_long_s=monitor.distraction.away_long_s,
+                    fatigue=monitor.fatigue.score,
+                    fatigue_reason=monitor.fatigue.reason,
+                )
             if result.nodded:
                 log.info(f"head nod detected ({monitor.nod.count(t)} in 5 min)")
 
@@ -522,43 +598,12 @@ def run(
                         log.warning("Previous POST still in flight; skipping this interval")
 
             if cfg.show_window:
-                hr = pick_heart(monitor.hearts) if monitor.hearts else None
-                light = monitor.night.lighting
-                extra_lines = [
-                    identity.label(),
-                    *(
-                        [f"NIGHT MODE{' (IR)' if light.infrared else ''}  light {light.luma:.0f}/255"]
-                        if light.night
-                        else []
-                    ),
-                    *(
-                        [f"OFFLINE: {sender.backlog} readings saved, sent when online"]
-                        if sender is not None and sender.backlog
-                        else []
-                    ),
-                    (
-                        f"MAR {result.mar:.2f}  yawns/5min {monitor.yawn.count(t)}"
-                        + ("  YAWN" if result.yawning else "")
-                        if result.mar is not None
-                        else f"MAR --  yawns/5min {monitor.yawn.count(t)}"
-                    ),
-                    f"Nods/5min {monitor.nod.count(t)}" + ("  HEAD DOWN" if monitor.nod.head_down else ""),
-                ]
-                if hr is not None:
-                    extra_lines.append(
-                        f"HR {hr['heartRate'] or '--'} bpm  HRV {hr.get('hrv', '--')}  "
-                        f"base {hr.get('hrBaseline', '..')}"
-                    )
-                if monitor.breathing is not None:
-                    br = monitor.breathing.snapshot()
-                    extra_lines.append(
-                        f"Breath {br.get('breathingRate', '--')}/min  "
-                        f"base {br.get('breathingBaseline', '..')}"
-                    )
-                draw_overlay(frame, result, monitor.last_response, monitor.perclos.baseline, extra_lines)
+                screen = hud.render(
+                    frame, hud_state(monitor, result, alerter, identity, client, sender, t, now), now
+                )
                 if recorder:
                     cv2.putText(
-                        frame,
+                        screen,
                         f"REC [{recorder.state}]",
                         (420, 30),
                         cv2.FONT_HERSHEY_SIMPLEX,
@@ -567,7 +612,12 @@ def run(
                         2,
                         cv2.LINE_AA,
                     )
-                cv2.imshow("Guardian Drive - driver monitor (q to quit)", frame)
+                if not window_ready:
+                    # Resizable; keeps the camera's aspect ratio when maximised.
+                    cv2.namedWindow(WINDOW_TITLE, cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
+                    cv2.resizeWindow(WINDOW_TITLE, screen.shape[1], screen.shape[0])
+                    window_ready = True
+                cv2.imshow(WINDOW_TITLE, screen)
                 key = cv2.waitKey(1) & 0xFF
                 if key == ord("q"):
                     break
@@ -599,6 +649,98 @@ def run(
         log.info("Driver monitor stopped.")
 
 
+WINDOW_TITLE = "Guardian Drive - driver monitor (q to quit)"
+
+
+def beep(level: int) -> None:
+    """Audible in-car alarm on the computer itself (Windows), never blocking the camera loop."""
+    if sys.platform != "win32":
+        return
+    import threading
+    import winsound
+
+    def play() -> None:
+        pattern = [(1800, 350), (1800, 350), (1800, 600)] if level >= 2 else [(1200, 250)]
+        for freq, ms in pattern:
+            winsound.Beep(freq, ms)
+
+    threading.Thread(target=play, daemon=True).start()
+
+
+def hud_state(
+    monitor: Monitor,
+    result: FrameResult,
+    alerter: WatchAlerter | None,
+    identity: DriverIdentity,
+    client: Any,
+    sender: Any,
+    t: float,
+    now: float,
+) -> hud.HudState:
+    """What the screen shows: the in-car alarm's decision (works offline) or the server's verdict."""
+    from detectors.landmarks import eye_points
+
+    level, reason = 0, ""
+    if alerter is not None and alerter.level > 0:
+        level, reason = alerter.level, alerter.reason_now or alerter.last_reason
+    backend = (monitor.last_response or {}).get("classification")
+    backend_level = {"drowsy": 2, "warning": 1}.get(backend or "", 0)
+    if backend_level > level:
+        level, reason = backend_level, f"server: {backend}"
+    if not reason and level == 0 and result.face is None:
+        reason = "No face: look at the camera"
+    ds = monitor.distraction.state
+    if level == 0 and ds.away_for_s >= 1.0:
+        reason = "Looking away..."
+
+    if client is None:
+        connection = "Local only: readings are not sent"
+        driver = identity.label() if not identity.automatic else "Driver recognition needs the server"
+    else:
+        driver = identity.label()
+        if sender is not None and sender.backlog:
+            connection = f"OFFLINE: {sender.backlog} readings saved"
+        elif monitor.last_response is not None:
+            connection = "Server: online, parent sees this live"
+        else:
+            connection = "Connecting to the server..."
+    light = monitor.night.lighting
+    hr = pick_heart(monitor.hearts) if monitor.hearts else None
+    extra = []
+    if hr is not None:
+        extra.append(f"Heart rate {hr['heartRate'] or '--'} bpm (base {hr.get('hrBaseline', '..')})")
+    if result.yawning:
+        extra.append("Yawning")
+    if monitor.nod.head_down:
+        extra.append("Head down")
+    return hud.HudState(
+        level=level,
+        reason=reason.capitalize() if reason else "",
+        driver=driver,
+        connection=connection,
+        ear=result.ear,
+        baseline=monitor.perclos.baseline,
+        perclos=monitor.perclos.value,
+        perclos_limit=alerter.perclos_threshold if alerter is not None else 0.4,
+        closed_for_s=monitor.perclos.closed_for(t),
+        movement=ds.speed,
+        movement_limit=monitor.distraction.restless_speed,
+        yawns=monitor.yawn.count(t),
+        nods=monitor.nod.count(t),
+        distractions=ds.count,
+        fatigue=monitor.fatigue.score,
+        fatigue_reason=monitor.fatigue.reason,
+        blink_rate=monitor.blink.rate(t),
+        long_blinks=monitor.blink.long_blinks(t),
+        face=(result.face.x, result.face.y, result.face.width, result.face.height) if result.face else None,
+        eyes=(
+            [np.array(e, dtype=np.float32) for e in eye_points(result.landmarks)] if result.landmarks else []
+        ),
+        night=f"NIGHT MODE{' (IR)' if light.infrared else ''}" if light.night else "",
+        extra=extra,
+    )
+
+
 class _Stored(Exception):
     """The reading was stored for later (offline), there is no backend response to show."""
 
@@ -609,6 +751,12 @@ def apply_device_config(
     """Thresholds for the in-car alarm, then (MODEL_SYNC) the admin-promoted yawn threshold / eye model."""
     if alerter is not None:
         alerter.apply_thresholds(conf["thresholds"])
+    th = conf.get("thresholds") or {}
+    monitor.fuzzy.set_limits(
+        float(th.get("perclosThreshold") or 0.4),
+        float(th.get("drowsyDurationMs") or 2000) / 1000.0,
+        int(th.get("yawnThreshold") or 3),
+    )
     if not cfg.model_sync:
         return
     yawn_mar = conf["device"].get("yawnMar")

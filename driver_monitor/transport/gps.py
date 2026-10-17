@@ -1,14 +1,23 @@
 """Vehicle location for the optional ingest "location" field.
 
-GPS_SOURCE=none   no location (default)
-GPS_SOURCE=fixed  GPS_FIXED=lat,lng, for a parked demo rig or testing the parent map
-GPS_SOURCE=nmea   USB/serial GPS receiver (GPS_PORT=COM5, GPS_BAUD=9600); needs `pip install pyserial`
+GPS_SOURCE=auto     Windows location on a Windows laptop, none elsewhere (default)
+GPS_SOURCE=windows  Windows location service (Wi-Fi / GPS chip; Settings > Privacy > Location must
+                    allow desktop apps). Polled every 30 s through PowerShell, no extra packages.
+GPS_SOURCE=none     no location
+GPS_SOURCE=fixed    GPS_FIXED=lat,lng, for a parked demo rig or testing the parent map
+GPS_SOURCE=nmea     USB/serial GPS receiver (GPS_PORT=COM5, GPS_BAUD=9600); needs `pip install pyserial`
+GPS_SOURCE=google   Wi-Fi positioning through the Google Geolocation API only (transport/wifi_geolocation.py)
+
+With GOOGLE_GEOLOCATION_KEY set, the Google Wi-Fi location is also a *fallback* for nmea / windows /
+auto: it is only asked while the main source has no fix, so a working GPS costs no requests.
 
 Only $..RMC sentences are used: they carry position, speed and course in one line.
 """
 
 from __future__ import annotations
 
+import subprocess
+import sys
 import threading
 import time
 from typing import Any, Protocol
@@ -123,6 +132,95 @@ class NmeaGps:
         self._serial.close()
 
 
+# Prints "lat,lng,accuracy_m" (invariant culture: never a decimal comma) or "unknown".
+_WINDOWS_FIX_PS = (
+    "Add-Type -AssemblyName System.Device;"
+    "$w=New-Object System.Device.Location.GeoCoordinateWatcher('High');"
+    "$null=$w.TryStart($false,[TimeSpan]::FromSeconds(15));"
+    "$i=0; while($w.Status -ne 'Ready' -and $i -lt 60){Start-Sleep -Milliseconds 250;$i++};"
+    "$c=$w.Position.Location; $w.Stop();"
+    "if($c.IsUnknown){'unknown'}else{[string]::Format([cultureinfo]::InvariantCulture,"
+    "'{0},{1},{2}',$c.Latitude,$c.Longitude,$c.HorizontalAccuracy)}"
+)
+
+
+def parse_windows_fix(text: str) -> dict[str, Any] | None:
+    """PowerShell output → {lat, lng, accuracy}; None for "unknown" / garbage."""
+    parts = text.strip().split(",")
+    if len(parts) != 3:
+        return None
+    try:
+        lat, lng, acc = (float(p) for p in parts)
+    except ValueError:
+        return None
+    if not (-90 <= lat <= 90 and -180 <= lng <= 180) or (lat == 0 and lng == 0):
+        return None
+    fix: dict[str, Any] = {"lat": round(lat, 6), "lng": round(lng, 6)}
+    if acc > 0:
+        fix["accuracy"] = round(acc, 1)
+    return fix
+
+
+class WindowsLocation:
+    """Windows location service, refreshed every `every_s` on a background thread."""
+
+    STALE_S = 120.0  # Wi-Fi positioning updates slowly; a fix this old is dropped
+
+    def __init__(self, every_s: float = 30.0) -> None:
+        self.every_s = every_s
+        self._fix: dict[str, Any] | None = None
+        self._at = 0.0
+        self._lock = threading.Lock()
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+
+    def _read_once(self) -> dict[str, Any] | None:
+        try:
+            out = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", _WINDOWS_FIX_PS],
+                capture_output=True,
+                text=True,
+                timeout=40,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            ).stdout
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return parse_windows_fix(out)
+
+    def _loop(self) -> None:
+        while not self._stop.is_set():
+            fix = self._read_once()
+            if fix:
+                with self._lock:
+                    self._fix, self._at = fix, time.monotonic()
+            self._stop.wait(self.every_s)
+
+    def current(self) -> dict[str, Any] | None:
+        with self._lock:
+            if self._fix is None or time.monotonic() - self._at > self.STALE_S:
+                return None
+            return dict(self._fix)
+
+    def close(self) -> None:
+        self._stop.set()
+
+
+class FallbackLocation:
+    """Main source when it has a fix, else the fallback (asked only while the main one has none)."""
+
+    def __init__(self, primary: LocationSource, fallback: LocationSource) -> None:
+        self.primary = primary
+        self.fallback = fallback
+
+    def current(self) -> dict[str, Any] | None:
+        return self.primary.current() or self.fallback.current()
+
+    def close(self) -> None:
+        self.primary.close()
+        self.fallback.close()
+
+
 def parse_latlng(text: str) -> tuple[float, float] | None:
     try:
         lat, lng = (float(x) for x in text.split(","))
@@ -131,8 +229,35 @@ def parse_latlng(text: str) -> tuple[float, float] | None:
     return (lat, lng) if -90 <= lat <= 90 and -180 <= lng <= 180 else None
 
 
-def make_location_source(source: str, fixed: str = "", port: str = "", baud: int = 9600) -> LocationSource:
+def make_location_source(
+    source: str,
+    fixed: str = "",
+    port: str = "",
+    baud: int = 9600,
+    google_key: str = "",
+    google_every_s: float = 90.0,
+) -> LocationSource:
     source = source.lower()
+    if source == "google" or (source == "auto" and google_key and sys.platform != "win32"):
+        if not google_key:
+            raise SystemExit("GPS_SOURCE=google needs GOOGLE_GEOLOCATION_KEY in driver_monitor/.env")
+        from transport.wifi_geolocation import GoogleWifiLocation
+
+        return GoogleWifiLocation(google_key, google_every_s)
+    main = _main_source(source, fixed, port, baud)
+    if google_key and source in ("auto", "windows", "nmea"):
+        from transport.wifi_geolocation import GoogleWifiLocation
+
+        wifi = GoogleWifiLocation(google_key, google_every_s, wanted=lambda: main.current() is None)
+        return FallbackLocation(main, wifi)
+    return main
+
+
+def _main_source(source: str, fixed: str, port: str, baud: int) -> LocationSource:
+    if source == "auto":
+        source = "windows" if sys.platform == "win32" else "none"
+    if source == "windows":
+        return WindowsLocation()
     if source == "fixed":
         latlng = parse_latlng(fixed)
         if latlng is None:

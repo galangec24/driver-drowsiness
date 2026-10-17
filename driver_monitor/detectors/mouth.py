@@ -74,6 +74,14 @@ class YawnDetector:
         self._expire(t)
         return len(self._events)
 
+    def recent(self, t: float, half_life_s: float = 30.0) -> float:
+        """Recency-weighted count: each event counts 1 now, ½ after `half_life_s`, ¼ after 2×...
+
+        The 5-minute count is what the parent sees; this is what decides how tired the driver is
+        *now*, so a driver who stopped yawning / nodding recovers within a minute or so."""
+        self._expire(t)
+        return sum(0.5 ** ((t - e) / half_life_s) for e in self._events)
+
     def _expire(self, t: float) -> None:
         while self._events and t - self._events[0] > self.window_s:
             self._events.popleft()

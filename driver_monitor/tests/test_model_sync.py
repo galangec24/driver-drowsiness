@@ -47,11 +47,12 @@ def test_eye_model_saved_with_version(tmp_path) -> None:
 
 def test_apply_device_config_updates_yawn_threshold_and_respects_model_sync() -> None:
     from detectors.mouth import YawnDetector
+    from fusion.fuzzy import FatigueFuzzy
     from main import apply_device_config
 
     logs: list[str] = []
     log = SimpleNamespace(info=logs.append)
-    monitor = SimpleNamespace(yawn=YawnDetector(), eye_model=None)
+    monitor = SimpleNamespace(yawn=YawnDetector(), eye_model=None, fuzzy=FatigueFuzzy())
     conf = {"thresholds": {}, "device": {"yawnMar": 0.46}, "eye": None}
     apply_device_config(conf, monitor, None, SimpleNamespace(model_sync=False, eye_state="shadow"), log)
     assert monitor.yawn.open_threshold == 0.5  # MODEL_SYNC=0 keeps the local value

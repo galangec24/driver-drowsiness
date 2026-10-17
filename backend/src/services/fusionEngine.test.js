@@ -139,3 +139,52 @@ describe('fusionEngine.computeDrowsinessScore — per-driver adaptive thresholds
     expect(computeDrowsinessScore(s, physioHeavy).classification).toBe('drowsy');
   });
 });
+
+describe('fusionEngine — narrow eyes (live open-eye baseline from the camera)', () => {
+  test('open narrow eyes are not evidence of drowsiness when the baseline is sent', () => {
+    const s = { ear: 0.16, perclos: 0 };
+    expect(computeDrowsinessScore(s, defaultDriver).components.visionScore).toBeGreaterThan(0.2);
+    const live = computeDrowsinessScore({ ...s, earBaseline: 0.17 }, defaultDriver);
+    expect(live.components.visionScore).toBe(0);
+    expect(live.classification).toBe('alert');
+  });
+
+  test('closed narrow eyes still count, and the cut-off stays within safe bounds', () => {
+    const closed = computeDrowsinessScore(
+      { ear: 0.06, perclos: 0.6, earBaseline: 0.17 },
+      defaultDriver,
+    );
+    expect(closed.components.visionScore).toBeGreaterThan(0.4);
+    expect(resolveThresholds(defaultDriver, { earBaseline: 0.1 }).earThreshold).toBe(0.12);
+    expect(resolveThresholds(defaultDriver, { earBaseline: 0.9 }).earThreshold).toBe(0.35);
+    expect(resolveThresholds(defaultDriver, {}).earThreshold).toBe(DEFAULT_THRESHOLDS.earThreshold);
+  });
+});
+
+describe('fusionEngine — fuzzy fatigue from the camera', () => {
+  test('a combination the weighted sum misses raises the verdict', () => {
+    const calm = { ear: 0.3, perclos: 0.1, yawnCount: 1 };
+    expect(computeDrowsinessScore(calm, defaultDriver).classification).toBe('alert');
+    const r = computeDrowsinessScore({ ...calm, fuzzyScore: 0.82 }, defaultDriver);
+    expect(r.classification).toBe('drowsy');
+    expect(r.components.fuzzyScore).toBe(0.82);
+  });
+
+  test('a low fuzzy score never lowers strong evidence', () => {
+    const r = computeDrowsinessScore(
+      { ear: 0.05, perclos: 0.9, heartRate: 50, fuzzyScore: 0 },
+      defaultDriver,
+    );
+    expect(r.classification).toBe('drowsy');
+  });
+});
+
+describe('fusionEngine — recovery when the driver is awake again', () => {
+  test('old nods / yawns in the 5-minute count no longer pin the status once the camera says awake', () => {
+    const old = { ear: 0.3, perclos: 0.05, nodCount: 2, yawnCount: 3 };
+    expect(computeDrowsinessScore(old, defaultDriver).classification).toBe('drowsy'); // older device
+    const r = computeDrowsinessScore({ ...old, fuzzyScore: 0.15 }, defaultDriver);
+    expect(r.classification).toBe('alert');
+    expect(r.components.nodEscalated).toBe(true); // still typed for the parent's nodding alert
+  });
+});

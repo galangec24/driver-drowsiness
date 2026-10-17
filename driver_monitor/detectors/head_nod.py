@@ -10,8 +10,12 @@ relative to the driver's own neutral pitch (rolling median), so camera mounting 
 A nod is counted when:
   1. pitch drops ≥ drop_deg below neutral, and
   2. the drop happened fast (≥ min_drop_speed °/s over the last ~0.5 s), and
-  3. while down, the eyes were closed at some point, OR the head snapped back up fast
-     (≥ min_recover_speed °/s) within max_down_s.
+  3. the eyes were already closed when the head started to fall (eyes close first, then the
+     head drops), OR the head snapped back up fast (≥ min_recover_speed °/s) within max_down_s.
+
+Looking down at a phone also makes the eyes look closed to the camera (lids lowered), but that
+happens *after* the head goes down, so it isn't counted as a nod; it is "eyes off the road"
+(detectors/distraction.py) instead.
 """
 
 from __future__ import annotations
@@ -92,8 +96,7 @@ class NodDetector:
                 self._state = NEUTRAL
             return False
 
-        # FALLING_DOWN
-        self._eyes_closed_while_down |= eyes_closed
+        # FALLING_DOWN (eyes closing only now = looking down at something, not falling asleep)
         if drop < self.drop_deg / 2:  # back up
             # A jerk back up is fast: measure over the last 0.3 s only, not across the dip.
             snapped = self._speed(0.3) >= self.min_recover_speed and t - self._down_at <= self.max_down_s
@@ -132,6 +135,14 @@ class NodDetector:
         self._events.append(t)
         self.last_nod_at = t
         return True
+
+    def recent(self, t: float, half_life_s: float = 30.0) -> float:
+        """Recency-weighted count: each event counts 1 now, ½ after `half_life_s`, ¼ after 2×...
+
+        The 5-minute count is what the parent sees; this is what decides how tired the driver is
+        *now*, so a driver who stopped yawning / nodding recovers within a minute or so."""
+        self._expire(t)
+        return sum(0.5 ** ((t - e) / half_life_s) for e in self._events)
 
     def _expire(self, t: float) -> None:
         while self._events and t - self._events[0] > self.window_s:

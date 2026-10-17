@@ -62,3 +62,43 @@ def test_mark_no_face_expires_window() -> None:
 def test_invalid_ratio() -> None:
     with pytest.raises(ValueError):
         PerclosTracker(closure_ratio=1.5)
+
+
+def test_narrow_eyes_noisy_frame_does_not_restart_closure() -> None:
+    """Narrow eyes: small open/closed gap, so landmark noise used to reset the microsleep timer."""
+    tr = PerclosTracker()
+    t = feed(tr, [0.17, 0.18, 0.16] * 30)  # narrow open eyes, ~0.17
+    start = t
+    # closed (~0.09) with one noisy frame that looks just above the cut-off (0.125)
+    t = feed(tr, [0.09] * 8 + [0.13] + [0.09] * 15, start=t)
+    assert tr.closed_for(t) == pytest.approx(t - start, abs=0.15)
+    # hysteresis: 0.13 is not "clearly open" for a 0.17 eye, so the closure goes on
+    t = feed(tr, [0.13] * 3 + [0.09] * 3, start=t)
+    assert tr.closed_for(t) >= 2.4
+    t = feed(tr, [0.17] * 5, start=t)  # really open
+    assert tr.closed_for(t) == 0
+
+
+def test_unreliable_frames_never_count_as_closed() -> None:
+    tr = PerclosTracker()
+    t = feed(tr, [0.30] * 100)
+    base = tr.baseline
+    for _ in range(30):  # face turning back into view: EAR reads low
+        tr.update(0.05, t, reliable=False)
+        t += 0.1
+    assert tr.closed_for(t) == 0 and tr.value == 0 and tr.baseline == base
+
+
+def test_lost_face_drops_the_turning_away_frames_and_needs_coverage() -> None:
+    tr = PerclosTracker(window_s=30)
+    t = feed(tr, [0.30] * 50)
+    t = feed(tr, [0.06] * 5, start=t)  # ducking out of view: last 0.5 s look closed
+    tr.mark_no_face(t)
+    tr.mark_no_face(t + 5)
+    assert tr.value == 0.0
+    # back after the window has gone by: 2 samples are not a PERCLOS
+    tr2 = PerclosTracker(window_s=5)
+    t = feed(tr2, [0.30] * 50)
+    tr2.mark_no_face(t + 20)
+    feed(tr2, [0.06, 0.06], start=t + 20)
+    assert tr2.value == 0.0

@@ -67,3 +67,23 @@ def test_snapshot_is_a_small_jpeg() -> None:
     assert jpeg[:2] == b"\xff\xd8"
     decoded = cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR)
     assert decoded.shape[1] == 640 and decoded.shape[0] == 360
+
+
+def test_windows_location_output_is_parsed() -> None:
+    from transport.gps import parse_windows_fix
+
+    assert parse_windows_fix("14.554729,121.024445,92\r\n") == {
+        "lat": 14.554729,
+        "lng": 121.024445,
+        "accuracy": 92.0,
+    }
+    assert parse_windows_fix("unknown") is None
+    assert parse_windows_fix("0,0,0") is None  # no fix yet
+    assert parse_windows_fix("14,5547;121,02") is None  # never a decimal comma
+
+
+def test_auto_source_off_windows_is_none(monkeypatch) -> None:
+    import transport.gps as gps
+
+    monkeypatch.setattr(gps.sys, "platform", "linux")
+    assert isinstance(gps.make_location_source("auto"), gps.NoLocation)

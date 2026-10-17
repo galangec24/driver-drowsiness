@@ -38,6 +38,8 @@ const ingestSchema = z
     signals: z
       .object({
         ear: finite.optional(),
+        // The camera's live open-eye EAR for this driver (the EAR cut-off follows it).
+        earBaseline: finite.min(0).max(1).optional(),
         perclos: finite.optional(),
         heartRate: finite.optional(),
         faceConfidence: finite.optional(),
@@ -48,6 +50,12 @@ const ingestSchema = z
         hrvBaseline: finite.min(0).max(1000).optional(),
         yawnCount: z.number().int().min(0).max(100).optional(),
         nodCount: z.number().int().min(0).max(100).optional(),
+        // Eyes-off-the-road / restless-movement episodes in the last 5 minutes (in-car camera).
+        distractionCount: z.number().int().min(0).max(100).optional(),
+        // Blinks per minute, slow blinks in the last minute, and the camera's fuzzy fatigue 0..1.
+        blinkRate: finite.min(0).max(300).optional(),
+        longBlinkCount: z.number().int().min(0).max(200).optional(),
+        fuzzyScore: finite.min(0).max(1).optional(),
         mar: finite.min(0).max(5).optional(),
         breathingRate: finite.min(0).max(60).optional(),
         breathingBaseline: finite.min(0).max(60).optional(),
