@@ -14,6 +14,8 @@ class SocketService {
   onAcknowledged;
   void Function(String alertId, bool falseAlarm)? onFeedback;
   void Function(String alertId, String? snapshotUrl)? onAlertUpdated;
+  void Function(List<String> alertIds, bool read)? onRead;
+  void Function(List<String> alertIds)? onRemoved;
   void Function(DriverLive status)? onStatus;
 
   bool get connected => _socket?.connected ?? false;
@@ -65,6 +67,19 @@ class SocketService {
             data['alertId'] as String,
             data['snapshotUrl'] as String?,
           );
+        }
+      })
+      ..on('alert:read', (data) {
+        if (data is Map) {
+          onRead?.call(
+            (data['alertIds'] as List).cast<String>(),
+            data['read'] == true,
+          );
+        }
+      })
+      ..on('alert:removed', (data) {
+        if (data is Map) {
+          onRemoved?.call((data['alertIds'] as List).cast<String>());
         }
       })
       ..on('driver:status', (data) {

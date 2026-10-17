@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { listAlerts, type AlertFilters } from '../api/alerts';
+import { listAlerts, type AlertFilters, type AlertStatus } from '../api/alerts';
 import { listDrivers } from '../api/drivers';
 import { errorMessage } from '../api/client';
 import type { AlertType } from '../api/types';
@@ -9,8 +9,11 @@ import { AlertFeed } from '../components/alert/AlertFeed';
 import { GlassCard } from '../components/ui/GlassCard';
 import { OrbitLoader } from '../components/ui/OrbitLoader';
 import { ALERT_LABEL } from '../lib/format';
+import { DepthButton } from '../components/ui/DepthButton';
+import { Icon } from '../components/ui/Icon';
+import { useRemoveAlerts } from '../hooks/useAcknowledge';
 
-type StatusFilter = 'all' | 'open' | 'acknowledged';
+type StatusFilter = 'all' | AlertStatus;
 type RangeFilter = 'all' | '1h' | '24h' | '7d';
 
 const RANGE_MS: Record<Exclude<RangeFilter, 'all'>, number> = {
@@ -38,21 +41,43 @@ export function AlertsPage() {
     limit: 50,
     ...(driverId && { driverId }),
     ...(type && { type }),
-    ...(status !== 'all' && { acknowledged: status === 'acknowledged' }),
+    ...(status !== 'all' && { status }),
     ...(from && { from }),
   };
 
   const drivers = useQuery({ queryKey: ['drivers'], queryFn: listDrivers });
   const alerts = useQuery({ queryKey: ['alerts', filters], queryFn: () => listAlerts(filters), refetchInterval });
+  const remove = useRemoveAlerts();
+  const expiredCount = alerts.data?.expired ?? 0;
 
   return (
     <div className="flex flex-col gap-6">
       <header>
         <h1 className="page-title">Alerts</h1>
         <p className="text-sm text-ink-muted">
-          {alerts.data ? `${alerts.data.unacknowledged} unacknowledged across all drivers.` : 'Chronological feed.'}{' '}
-          Acknowledging here clears it on every device.
+          {alerts.data ? `${alerts.data.unacknowledged} to acknowledge today.` : 'Chronological feed.'} Acknowledging
+          here clears it on every device. Alerts can only be acknowledged on the day they happen; after that they are
+          kept as unacknowledged and can be removed.
         </p>
+        {expiredCount > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <span className="text-sm text-ink-muted">{expiredCount} unacknowledged from previous days</span>
+            <DepthButton
+              size="sm"
+              variant="secondary"
+              icon={<Icon name="trash" size={16} />}
+              loading={remove.isPending}
+              onClick={() => {
+                if (window.confirm(`Remove all ${expiredCount} unacknowledged alerts from previous days?`)) {
+                  remove.mutate({ expired: true });
+                }
+              }}
+              data-testid="remove-expired"
+            >
+              Remove them
+            </DepthButton>
+          </div>
+        )}
       </header>
 
       <GlassCard interactive={false} className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -104,10 +129,13 @@ export function AlertsPage() {
               All
             </option>
             <option value="open" className="bg-ink-900">
-              Unacknowledged
+              To acknowledge (today)
             </option>
             <option value="acknowledged" className="bg-ink-900">
               Acknowledged
+            </option>
+            <option value="expired" className="bg-ink-900">
+              Unacknowledged (previous days)
             </option>
           </select>
         </label>

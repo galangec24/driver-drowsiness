@@ -8,10 +8,15 @@ Inputs (None = not measured yet; conditions on it are left out of the rule):
   perclos       share of the last 30 s with eyes closed (0..1), sets relative to the driver's
                 own PERCLOS limit (adaptive, from the server)
   closure_s     how long the eyes are closed right now
-  blink_rate    blinks per minute watched                  (detectors/blink.py)
-  long_blinks   slow blinks (0.5-2 s) in the last minute   (detectors/blink.py)
-  yawns         yawns in the last 5 minutes                (detectors/mouth.py)
-  nods          head nods in the last 5 minutes            (detectors/head_nod.py)
+  blink_rate    blinks per minute, averaged over 3 min     (detectors/blink.py)
+  long_blinks   slow blinks (0.5-2 s) in the last 2 min    (detectors/blink.py)
+  yawns         yawns in the last 10 min, fading 2 min after the latest (detectors/mouth.py)
+  nods          head nods, recency-weighted                (detectors/head_nod.py)
+
+Real-world reading (single events are normal, only repeated signs over a realistic span count):
+  1 yawn = nothing · 2 yawns in 10 min = a sign · 3+ in 10 min = fatigue
+  blinking 25+/min for 3 minutes = unusual · 3+ slow blinks in 2 min = a sign, 6+ = fatigue
+  eyes closed ≥ 2 s = microsleep · 2 nods = falling asleep
 
 Output: fatigue 0..1 (centroid), banded like the server: > 0.7 drowsy, > 0.4 warning.
 Rule strength: AND = min, NOT = 1 - μ; aggregation = max; defuzzification = centroid.
@@ -77,20 +82,20 @@ def rule(out: str, label: str, *conds: str) -> Rule:
 RULES: tuple[Rule, ...] = (
     # Strong signs on their own
     rule("high", "eyes closed much of the time", "perclos is high"),
-    rule("high", "eyes closed too long", "closure_s is long"),
+    rule("high", "eyes closed too long (microsleep)", "closure_s is long"),
     rule("high", "repeated head nods", "nods is many"),
     # Combinations
-    rule("high", "slow blinks and yawning", "long_blinks is many", "yawns is some"),
+    rule("high", "slow blinks and repeated yawning", "long_blinks is many", "yawns is some"),
     rule("high", "slow blinks, eyes closing more", "long_blinks is many", "perclos is medium"),
-    rule("high", "yawning, eyes closing more", "yawns is many", "perclos is medium"),
-    rule("high", "frequent blinking and repeated yawning", "blink_rate is high", "yawns is many"),
-    rule("medium", "many slow blinks", "long_blinks is many"),
-    rule("medium", "repeated yawning", "yawns is many"),
+    rule("high", "repeated yawning, eyes closing more", "yawns is many", "perclos is medium"),
+    rule("high", "unusual blinking and repeated yawning", "blink_rate is high", "yawns is many"),
+    rule("medium", "many slow blinks (6+ in 2 min)", "long_blinks is many"),
+    rule("medium", "repeated yawning (3+ in 10 min)", "yawns is many"),
     rule("medium", "eyes closing more often", "perclos is medium"),
     rule("medium", "head nod", "nods is some"),
-    rule("medium", "frequent, slow blinking", "blink_rate is high", "long_blinks is some"),
-    rule("medium", "frequent blinking and yawning", "blink_rate is high", "yawns is some"),
-    rule("medium", "slow blinks and a yawn", "long_blinks is some", "yawns is some"),
+    rule("medium", "unusual, slow blinking", "blink_rate is high", "long_blinks is some"),
+    rule("medium", "unusual blinking and yawning", "blink_rate is high", "yawns is some"),
+    rule("medium", "slow blinks and yawning", "long_blinks is some", "yawns is some"),
     # Everything calm
     rule(
         "low",
@@ -118,10 +123,16 @@ def input_sets(
         },
         "closure_s": {"short": (0, 0, 0.3 * D, 0.6 * D), "long": (0.4 * D, D, big, big)},
         "blink_rate": {"normal": (0, 0, 20, 28), "high": (20, 28, big, big)},
-        "long_blinks": {"few": (0, 0, 0, 2), "some": (1, 2, 3, 4), "many": (3, 5, big, big)},
-        "yawns": {"none": (0, 0, 0, 1), "some": (0, 1, Y - 1, Y), "many": (Y - 1, Y, big, big)},
+        # per 2 minutes: 1-2 slow blinks are normal, 3-4 a sign, 6+ fatigue
+        "long_blinks": {"few": (0, 0, 1, 3), "some": (2, 3, 4, 6), "many": (4, 6, big, big)},
+        # per 10 minutes: one yawn is nothing, two a sign, Y (3) or more fatigue
+        "yawns": {"none": (0, 0, 1, 2), "some": (1, 2, Y - 1, Y), "many": (Y - 1, Y, big, big)},
         "nods": {"none": (0, 0, 0, 1), "some": (0, 1, 1, 2), "many": (1, 2, big, big)},
     }
+
+
+CATEGORY = {0: "Alert", 1: "Fatigue signs", 2: "Drowsy"}
+ADVICE = {0: "", 1: "consider a break soon", 2: "stop and rest now"}
 
 
 @dataclass
@@ -133,6 +144,11 @@ class FuzzyResult:
     def level(self) -> int:
         """0 awake, 1 warning, 2 drowsy (same bands as the server)."""
         return 2 if self.score > DROWSY_BAND else 1 if self.score > WARNING_BAND else 0
+
+    @property
+    def category(self) -> str:
+        """Alert / Fatigue signs / Drowsy (what the family and the driver are told)."""
+        return CATEGORY[self.level]
 
     @property
     def reason(self) -> str:

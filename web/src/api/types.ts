@@ -73,8 +73,15 @@ export interface Signals {
   /** BLE wearable: HRV (RMSSD, ms) and the driver's personal HR baseline. */
   hrv?: number;
   hrBaseline?: number;
-  /** Yawns in the last 5 minutes (camera). */
+  /** Yawns in the last 10 minutes (camera). */
   yawnCount?: number;
+  /** Camera fatigue: blinks per minute (3-min average), slow blinks (2 min), fuzzy score 0..1. */
+  blinkRate?: number;
+  longBlinkCount?: number;
+  fuzzyScore?: number;
+  /** Why the camera judged fatigue, e.g. "Fatigue signs: repeated yawning (3+ in 10 min)". */
+  fatigueReason?: string;
+  distractionCount?: number;
   /** Head nods (falling forward) in the last 5 minutes (camera). */
   nodCount?: number;
   mar?: number;
@@ -130,13 +137,23 @@ export interface Alert {
   acknowledgedBy?: AckSource;
   /** Parent feedback: true = false alarm, false = real, null = not labelled. */
   falseAlarm?: boolean | null;
+  /** Not acknowledged on the day it happened: can no longer be acknowledged, only removed. */
+  expired?: boolean;
+  /** Notification read by the parent (separate from acknowledging). */
+  read?: boolean;
+  readAt?: string | null;
   createdAt: string;
   driverName?: string | null;
 }
 
 export interface AlertsResponse {
   alerts: Alert[];
+  /** Today's alerts still to acknowledge. */
   unacknowledged: number;
+  /** Unread notifications. */
+  unread?: number;
+  /** Previous days' alerts that were never acknowledged. */
+  expired?: number;
 }
 
 export interface SensorLogPoint {

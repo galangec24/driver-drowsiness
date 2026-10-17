@@ -44,6 +44,8 @@ def test_calm_driver_is_awake() -> None:
         {"blink_rate": 35},  # talking / dry eyes: blinking a lot on its own is not fatigue
         {"yawns": 1},  # one yawn
         {"long_blinks": 1},  # one slow blink
+        {"long_blinks": 2, "yawns": 1},  # a couple of slow blinks and one yawn: still normal
+        {"blink_rate": 32, "yawns": 1},  # lots of blinking and a single yawn: not fatigue
     ],
 )
 def test_one_mild_sign_alone_is_not_an_alarm(signs: dict[str, Any]) -> None:
@@ -53,13 +55,14 @@ def test_one_mild_sign_alone_is_not_an_alarm(signs: dict[str, Any]) -> None:
 @pytest.mark.parametrize(
     ("signs", "level", "reason"),
     [
-        ({"blink_rate": 32, "yawns": 3}, 2, "frequent blinking and repeated yawning"),
-        ({"long_blinks": 5, "yawns": 1}, 2, "slow blinks and yawning"),
-        ({"yawns": 3, "perclos": 0.3}, 2, "yawning, eyes closing more"),
-        ({"blink_rate": 32, "yawns": 1}, 1, "frequent blinking and yawning"),
-        ({"long_blinks": 2, "yawns": 1}, 1, "slow blinks and a yawn"),
-        ({"long_blinks": 6}, 1, "many slow blinks"),
-        ({"yawns": 4}, 1, "repeated yawning"),
+        # 3 yawns in 10 min + blinking 25+/min for 3 min
+        ({"blink_rate": 32, "yawns": 3}, 2, "unusual blinking and repeated yawning"),
+        ({"long_blinks": 7, "yawns": 2}, 2, "slow blinks and repeated yawning"),
+        ({"yawns": 3, "perclos": 0.3}, 2, "repeated yawning, eyes closing more"),
+        ({"blink_rate": 32, "yawns": 2}, 1, "unusual blinking and yawning"),
+        ({"long_blinks": 3, "yawns": 2}, 1, "slow blinks and yawning"),
+        ({"long_blinks": 6}, 1, "many slow blinks (6+ in 2 min)"),
+        ({"yawns": 3}, 1, "repeated yawning (3+ in 10 min)"),
     ],
 )
 def test_combinations_of_signs(signs: dict[str, Any], level: int, reason: str) -> None:
@@ -110,7 +113,7 @@ def feed(
 def test_blink_rate_and_slow_blinks() -> None:
     det = BlinkDetector()
     t = 0.0
-    for _ in range(10):  # 10 normal blinks (0.2 s) in 30 s
+    for _ in range(45):  # 45 normal blinks (0.2 s) in 2.25 min = 20 per minute
         t = feed(det, [(False, 2.8), (True, 0.2)], t)
     assert det.rate(t) == pytest.approx(20, rel=0.1)
     assert det.long_blinks(t) == 0
@@ -125,11 +128,26 @@ def test_blink_rate_and_slow_blinks() -> None:
 
 def test_no_rate_until_enough_is_watched_and_gaps_dont_count() -> None:
     det = BlinkDetector()
-    t = feed(det, [(False, 5), (True, 0.2), (False, 5)])
-    assert det.rate(t) is None  # 10 s watched < 20 s
+    t = feed(det, [(False, 50), (True, 0.2), (False, 50)])
+    assert det.rate(t) is None  # a burst over 100 s is not a 3-minute average yet
     # a closure cut by the face disappearing is not counted as a blink
-    t = feed(det, [(True, 0.3), (None, 3), (False, 15)], t)
-    assert det.rate(t) == pytest.approx(60 / 25.3, rel=0.15)
+    t = feed(det, [(True, 0.3), (None, 3), (False, 30)], t)
+    assert det.rate(t) == pytest.approx(60 / 130.5, rel=0.15)
+
+
+def test_yawning_is_judged_over_ten_minutes_and_fades_after() -> None:
+    from detectors.mouth import YawnDetector
+
+    y = YawnDetector()
+    y._events.extend([60.0, 240.0, 480.0])  # 3 yawns in 7 minutes
+    assert y.count(500.0) == 3
+    assert y.sustained(500.0) == 3  # fatigue: 3+ in 10 min
+    assert FatigueFuzzy().evaluate(**{**CALM, "yawns": y.sustained(500.0)}).level == 1
+    assert y.sustained(480.0 + 120 + 60) == pytest.approx(2.0)  # fading after the latest yawn
+    assert y.sustained(480.0 + 300) == 0  # 5 min after the last yawn: back to normal
+    one = YawnDetector()
+    one._events.append(10.0)
+    assert FatigueFuzzy().evaluate(**{**CALM, "yawns": one.sustained(20.0)}).level == 0
 
 
 # ----------------------------------------------------------------------------- Google Wi-Fi location

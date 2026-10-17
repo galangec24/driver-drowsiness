@@ -388,12 +388,13 @@ class ApiService {
   // ---- alerts ----
   Future<
     ({
-      ({List<DriverAlert> alerts, int unacknowledged}) data,
+      ({List<DriverAlert> alerts, int unacknowledged, int unread, int expired})
+      data,
       DateTime? cachedAt,
     })
   >
   alerts(AlertFilters f) => _cached(
-    'alerts_${f.driverId ?? '*'}_${f.type?.wire ?? '*'}_${f.acknowledged ?? '*'}',
+    f.cacheKey,
     () async => (await _dio.get<Map<String, dynamic>>(
       '/alerts',
       queryParameters: f.toQuery(),
@@ -405,9 +406,41 @@ class ApiService {
             .map((e) => DriverAlert.fromJson(e as Map<String, dynamic>))
             .toList(),
         unacknowledged: (m['unacknowledged'] as num?)?.toInt() ?? 0,
+        unread: (m['unread'] as num?)?.toInt() ?? 0,
+        expired: (m['expired'] as num?)?.toInt() ?? 0,
       );
     },
   );
+
+  /// Notifications: mark one read (or unread again), or all read.
+  Future<DriverAlert> markRead(String id, {bool read = true}) =>
+      _call(() async {
+        final r = await _dio.patch<Map<String, dynamic>>(
+          '/alerts/$id/read',
+          data: {'read': read},
+        );
+        return DriverAlert.fromJson(r.data!['alert'] as Map<String, dynamic>);
+      });
+
+  Future<int> markAllRead() => _call(() async {
+    final r = await _dio.post<Map<String, dynamic>>(
+      '/alerts/read-all',
+      data: {},
+    );
+    return (r.data!['updated'] as num).toInt();
+  });
+
+  /// Remove alerts from every list: one id, or every expired one.
+  Future<List<String>> removeAlerts({String? id, bool expired = false}) =>
+      _call(() async {
+        final r = id != null
+            ? await _dio.delete<Map<String, dynamic>>('/alerts/$id')
+            : await _dio.post<Map<String, dynamic>>(
+                '/alerts/remove',
+                data: {'expired': expired},
+              );
+        return (r.data!['alertIds'] as List).cast<String>();
+      });
 
   Future<({DriverAlert alert, bool alreadyAcknowledged})> acknowledge(
     String id, {

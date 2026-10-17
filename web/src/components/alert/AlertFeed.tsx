@@ -1,7 +1,7 @@
 import { AnimatePresence } from 'framer-motion';
 import type { Alert } from '../../api/types';
 import { AlertCard } from './AlertCard';
-import { useAcknowledge, useFeedback } from '../../hooks/useAcknowledge';
+import { useAcknowledge, useFeedback, useRemoveAlerts } from '../../hooks/useAcknowledge';
 import { Icon } from '../ui/Icon';
 
 export function AlertFeed({
@@ -15,6 +15,7 @@ export function AlertFeed({
 }) {
   const ack = useAcknowledge();
   const feedback = useFeedback();
+  const remove = useRemoveAlerts();
 
   if (!alerts.length) {
     return (
@@ -36,10 +37,16 @@ export function AlertFeed({
             onAcknowledge={(id) => ack.mutate({ id })}
             onFalseAlarm={(id) => ack.mutate({ id, falseAlarm: true })}
             onFeedback={(id, falseAlarm) => feedback.mutate({ id, falseAlarm })}
+            onRemove={(id) => remove.mutate({ ids: [id] })}
+            removing={remove.isPending && removingId(remove.variables) === a.id}
             acknowledging={ack.isPending && ack.variables?.id === a.id}
           />
         ))}
       </AnimatePresence>
     </div>
   );
+}
+
+function removingId(v: { ids: string[] } | { expired: true } | undefined): string | undefined {
+  return v && 'ids' in v ? v.ids[0] : undefined;
 }

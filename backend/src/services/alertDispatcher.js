@@ -65,6 +65,15 @@ function dispatchFeedback(parentId, alertId, falseAlarm) {
   emitToParent(parentId, 'alert:feedback', { alertId, falseAlarm });
 }
 
+/** Notifications marked read / unread on one device: update the others. */
+function dispatchRead(parentId, alertIds, read) {
+  emitToParent(parentId, 'alert:read', { alertIds, read });
+}
+
+function dispatchRemoved(parentId, alertIds) {
+  emitToParent(parentId, 'alert:removed', { alertIds });
+}
+
 /** Additive event: fields of an existing alert changed (e.g. the driver snapshot arrived). */
 function dispatchAlertUpdated(parentId, alertId, changes) {
   emitToParent(parentId, 'alert:updated', { alertId, ...changes });
@@ -84,6 +93,8 @@ module.exports = {
   dispatchNewAlert,
   dispatchAcknowledged,
   dispatchFeedback,
+  dispatchRead,
+  dispatchRemoved,
   dispatchAlertUpdated,
   dispatchDriverStatus,
 };

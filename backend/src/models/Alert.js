@@ -38,6 +38,8 @@ const alertSchema = new mongoose.Schema(
       blinkRate: Number,
       longBlinkCount: Number,
       fuzzyScore: Number,
+      // Why the camera judged fatigue, e.g. "repeated yawning (3+ in 10 min)".
+      fatigueReason: String,
       breathingRate: Number,
       timestamp: Date,
     },
@@ -48,6 +50,10 @@ const alertSchema = new mongoose.Schema(
     // Recorded while the device had no internet and delivered this many seconds later.
     delayedS: { type: Number },
     acknowledged: { type: Boolean, default: false },
+    // Notification state for the parent (unread / read), separate from acknowledging.
+    readAt: Date,
+    // Removed by the parent: hidden from every list (kept for the sensitivity tuner / ML labels).
+    removedAt: Date,
     acknowledgedAt: Date,
     acknowledgedBy: { type: String, enum: ['apk', 'web', 'unknown'] },
     // Parent feedback — labels for retraining the false-positive verifier (ml/).
@@ -64,8 +70,11 @@ const alertSchema = new mongoose.Schema(
 
 alertSchema.index({ driverId: 1, createdAt: -1 });
 alertSchema.index({ parentId: 1, acknowledged: 1 });
+alertSchema.index({ parentId: 1, removedAt: 1, createdAt: -1 });
 
 alertSchema.methods.toPublic = function toPublic(extra = {}) {
+  // Lazy: alertDay → env; keeps the model importable on its own.
+  const { isExpired } = require('../utils/alertDay');
   return {
     id: this._id.toString(),
     driverId: this.driverId.toString(),
@@ -79,6 +88,10 @@ alertSchema.methods.toPublic = function toPublic(extra = {}) {
     acknowledged: this.acknowledged,
     acknowledgedAt: this.acknowledgedAt,
     acknowledgedBy: this.acknowledgedBy,
+    // Not acknowledged on the day it happened: can no longer be acknowledged, only removed.
+    expired: isExpired(this),
+    read: Boolean(this.readAt),
+    readAt: this.readAt || null,
     falseAlarm: this.feedback ? (this.feedback.falseAlarm ?? null) : null,
     createdAt: this.createdAt,
     ...extra,

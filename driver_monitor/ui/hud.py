@@ -4,7 +4,8 @@ Camera on the left (scaled to the window), a status panel on the right:
   - big status: AWAKE / WARNING / DROWSY with the reason ("Eyes closed 2.4 s"),
   - gauges: eye openness vs the driver's own baseline, PERCLOS vs the limit, head movement,
     and the fuzzy-logic fatigue score (fusion/fuzzy.py) with its warning / drowsy bands,
-  - counters: blinks per minute, slow blinks (last minute), yawns, nods, distractions (5 min),
+  - counters: blinks per minute (3-min average), slow blinks (2 min), yawns (10 min), nods and
+    distractions (5 min),
   - who is driving, and the connection state.
 Pure drawing (OpenCV), no camera or network, so it can be tested with a still frame.
 """
@@ -52,7 +53,7 @@ class HudState:
     distractions: int = 0
     fatigue: float = 0.0  # fuzzy-logic fatigue 0..1
     fatigue_reason: str = ""
-    blink_rate: float | None = None  # per minute (None until ~20 s watched)
+    blink_rate: float | None = None  # per minute, 3-min average (None until 2 min watched)
     long_blinks: int = 0
     face: tuple[int, int, int, int] | None = None  # x, y, w, h in camera pixels
     eyes: list[np.ndarray] = field(default_factory=list)
@@ -200,14 +201,14 @@ def render(frame: np.ndarray, s: HudState, t: float) -> np.ndarray:
     y += 34
 
     # Counters (last 5 minutes)
-    _text(panel, "BLINKS /MIN, SLOW (1 MIN) - LAST 5 MIN", (x, y), 0.4, MUTED)
+    _text(panel, "BLINK/MIN (3 MIN) - SLOW (2 MIN) - YAWNS (10 MIN)", (x, y), 0.38, MUTED)
     y += 12
     gap = 6
     box_w = (pw - 4 * gap) // 5
     blink = "--" if s.blink_rate is None else f"{s.blink_rate:.0f}"
     counters = (
         ("Blinks", blink, s.blink_rate is not None and s.blink_rate >= 28),
-        ("Slow", str(s.long_blinks), s.long_blinks >= 3),
+        ("Slow", str(s.long_blinks), s.long_blinks >= 6),
         ("Yawns", str(s.yawns), s.yawns >= 3),
         ("Nods", str(s.nods), s.nods >= 2),
         ("Distract", str(s.distractions), s.distractions >= 2),

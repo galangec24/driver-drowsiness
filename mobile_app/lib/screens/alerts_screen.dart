@@ -22,18 +22,16 @@ class AlertsScreen extends StatefulWidget {
 class _AlertsScreenState extends State<AlertsScreen> {
   String? _driverId;
   AlertType? _type;
-  bool? _acknowledged;
+  AlertStatus? _status;
+  int _seenVersion = 0;
   List<DriverAlert> _alerts = [];
   bool _loading = true;
   String? _error;
   DateTime? _cachedAt;
   final Set<String> _acking = {};
 
-  AlertFilters get _filters => AlertFilters(
-    driverId: _driverId,
-    type: _type,
-    acknowledged: _acknowledged,
-  );
+  AlertFilters get _filters =>
+      AlertFilters(driverId: _driverId, type: _type, status: _status);
 
   @override
   void initState() {
@@ -121,6 +119,47 @@ class _AlertsScreenState extends State<AlertsScreen> {
     }
   }
 
+  Future<void> _remove(String? id) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final n = await context.read<DataController>().removeAlerts(id: id);
+      if (!mounted) return;
+      setState(() {
+        _alerts = id == null
+            ? _alerts.where((a) => statusOf(a) != AlertStatus.expired).toList()
+            : _alerts.where((a) => a.id != id).toList();
+      });
+      messenger.showSnackBar(
+        SnackBar(content: Text(n == 1 ? 'Alert removed' : '$n alerts removed')),
+      );
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _removeExpired(int count) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text('Remove $count unacknowledged alerts?'),
+        content: const Text(
+          'These are from previous days and can no longer be acknowledged.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Keep'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) await _remove(null);
+  }
+
   Widget _chip<T>(
     String label,
     T? value,
@@ -152,6 +191,15 @@ class _AlertsScreenState extends State<AlertsScreen> {
   @override
   Widget build(BuildContext context) {
     final data = context.watch<DataController>();
+    if (data.alertsVersion != _seenVersion) {
+      // read / removed on another device: drop removed ones from this screen's list
+      _seenVersion = data.alertsVersion;
+      final known = {for (final a in data.alerts) a.id};
+      _alerts = [
+        for (final a in _alerts)
+          if (known.contains(a.id) || data.alerts.length >= 50) a,
+      ];
+    }
     final alerts = _visible(data);
 
     return RefreshIndicator(
@@ -161,8 +209,36 @@ class _AlertsScreenState extends State<AlertsScreen> {
         children: [
           PageHeader(
             title: 'Alerts',
-            subtitle: '${data.unacknowledged} unacknowledged',
+            subtitle: '${data.unacknowledged} to acknowledge today',
           ),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Alerts can only be acknowledged on the day they happen. After that they stay '
+              'unacknowledged and can be removed.',
+              style: TextStyle(color: AppColors.muted, fontSize: 12),
+            ),
+          ),
+          if (data.expired > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${data.expired} unacknowledged from previous days',
+                      style: const TextStyle(color: AppColors.muted),
+                    ),
+                  ),
+                  TextButton.icon(
+                    key: const ValueKey('remove-expired'),
+                    onPressed: () => _removeExpired(data.expired),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    label: const Text('Remove them'),
+                  ),
+                ],
+              ),
+            ),
           OfflineBanner(connected: data.connected, cachedAt: _cachedAt),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -189,23 +265,29 @@ class _AlertsScreenState extends State<AlertsScreen> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _chip<bool>(
+                _chip<AlertStatus>(
                   'All',
                   null,
-                  _acknowledged,
-                  (v) => setState(() => _acknowledged = v),
+                  _status,
+                  (v) => setState(() => _status = v),
                 ),
-                _chip<bool>(
-                  'Open',
-                  false,
-                  _acknowledged,
-                  (v) => setState(() => _acknowledged = v),
+                _chip<AlertStatus>(
+                  'To acknowledge',
+                  AlertStatus.open,
+                  _status,
+                  (v) => setState(() => _status = v),
                 ),
-                _chip<bool>(
+                _chip<AlertStatus>(
                   'Acknowledged',
-                  true,
-                  _acknowledged,
-                  (v) => setState(() => _acknowledged = v),
+                  AlertStatus.acknowledged,
+                  _status,
+                  (v) => setState(() => _status = v),
+                ),
+                _chip<AlertStatus>(
+                  'Unacknowledged (previous days)',
+                  AlertStatus.expired,
+                  _status,
+                  (v) => setState(() => _status = v),
                 ),
                 const SizedBox(width: 8),
                 _chip<AlertType>(
@@ -256,6 +338,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                     a.snapshotUrl,
                   ),
                   onDetails: () => AlertDetailSheet.show(context, a),
+                  onRemove: () => _remove(a.id),
                 ),
               ),
         ],

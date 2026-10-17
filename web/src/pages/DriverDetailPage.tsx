@@ -14,7 +14,6 @@ import { LineChart } from '../components/ui/LineChart';
 import { Icon } from '../components/ui/Icon';
 import { OrbitLoader } from '../components/ui/OrbitLoader';
 import { useToast } from '../components/ui/Toast';
-import { AutoSensitivityCard } from '../components/driver/AutoSensitivityCard';
 import { CameraCapture } from '../components/driver/CameraCapture';
 import { AlertFeed } from '../components/alert/AlertFeed';
 import { LocationMap } from '../components/map/LocationMap';
@@ -184,8 +183,6 @@ export function DriverDetailPage() {
             </h2>
             <LocationMap location={current?.location ?? d.lastLocation} mode="live" label={d.name} height={320} />
           </GlassCard>
-
-          <AutoSensitivityCard name={d.name} tuning={d.tuning} />
 
           <GlassCard interactive={false} className="flex flex-col gap-3">
             <h2 className="text-lg font-bold text-white">Verify face</h2>

@@ -9,6 +9,8 @@ export interface ServerToClientEvents {
   'alert:acknowledged': (payload: { alertId: string; acknowledgedBy: AckSource; falseAlarm?: boolean }) => void;
   'alert:feedback': (payload: { alertId: string; falseAlarm: boolean }) => void;
   'alert:updated': (payload: { alertId: string; snapshotUrl?: string }) => void;
+  'alert:read': (payload: { alertIds: string[]; read: boolean }) => void;
+  'alert:removed': (payload: { alertIds: string[] }) => void;
   'driver:status': (status: DriverLiveStatus) => void;
   /** Admins only: training worker job status and log output. */
   'training:job': (job: TrainingJob) => void;

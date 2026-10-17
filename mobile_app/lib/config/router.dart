@@ -8,6 +8,7 @@ import '../screens/drivers_screen.dart';
 import '../screens/feedback_screen.dart';
 import '../screens/home_shell.dart';
 import '../screens/login_screen.dart';
+import '../screens/notifications_screen.dart';
 import '../screens/register_driver_screen.dart';
 import '../screens/settings_screen.dart';
 import '../state/auth_controller.dart';
@@ -78,6 +79,10 @@ GoRouter buildRouter(AuthController auth) => GoRouter(
     GoRoute(
       path: '/feedback',
       pageBuilder: (_, s) => _page(s, const FeedbackScreen()),
+    ),
+    GoRoute(
+      path: '/notifications',
+      pageBuilder: (_, s) => _page(s, const NotificationsScreen()),
     ),
     GoRoute(
       path: '/drivers/new',

@@ -27,6 +27,8 @@ const env = {
   corsOrigins: list(process.env.CORS_ORIGIN),
   // Minimum gap between two alerts of the same type for the same driver.
   alertCooldownMs: Number(process.env.ALERT_COOLDOWN_MS) || 15000,
+  // The family's day for "acknowledge by the end of the day" (src/utils/alertDay.js).
+  alertTimezone: process.env.ALERT_TIMEZONE || 'Asia/Manila',
   publicBaseUrl: process.env.PUBLIC_BASE_URL || '',
   // False-positive verifier (src/ml/fp-verifier.json). FP_VERIFIER=off disables it;
   // FP_VERIFIER_THRESHOLD overrides the threshold chosen at training time.

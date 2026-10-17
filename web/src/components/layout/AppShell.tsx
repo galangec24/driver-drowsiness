@@ -7,6 +7,7 @@ import { InstallBanner, OfflineBanner } from './Banners';
 import { listAlerts } from '../../api/alerts';
 import { usePollingFallback } from '../../hooks/useRealtime';
 import { Copyright } from '../legal/Copyright';
+import { NotificationBell } from '../notifications/NotificationBell';
 
 /**
  * Responsive shell: side rail ≥640 px (labels ≥1024 px), bottom nav < 640 px,
@@ -17,8 +18,8 @@ export function AppShell() {
   const outlet = useOutlet();
   const refetchInterval = usePollingFallback();
   const { data } = useQuery({
-    queryKey: ['alerts', { acknowledged: false, limit: 50 }],
-    queryFn: () => listAlerts({ acknowledged: false, limit: 50 }),
+    queryKey: ['alerts', { status: 'open', limit: 50 }],
+    queryFn: () => listAlerts({ status: 'open', limit: 50 }),
     refetchInterval,
   });
   const unacknowledged = data?.unacknowledged ?? 0;
@@ -27,6 +28,7 @@ export function AppShell() {
     <div data-testid="app-shell" className="relative min-h-screen min-h-dvh">
       <div className="mesh-bg animate-mesh" aria-hidden="true" />
       <SideRail unacknowledged={unacknowledged} />
+      <NotificationBell />
       <main className="pb-28 pt-5 sm:pb-10 sm:pl-28 lg:pl-[17rem]">
         <div className="mx-auto w-full max-w-content px-4 sm:px-6">
           <OfflineBanner />

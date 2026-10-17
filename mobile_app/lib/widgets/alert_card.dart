@@ -20,6 +20,7 @@ class AlertCard extends StatelessWidget {
     this.animateIn = true,
     this.snapshotUrl,
     this.onDetails,
+    this.onRemove,
   });
 
   final DriverAlert alert;
@@ -40,6 +41,33 @@ class AlertCard extends StatelessWidget {
   /// Opens the snapshot + map sheet (shown when there is a snapshot or a location).
   final VoidCallback? onDetails;
 
+  /// Remove from every list (any alert; the only option once it has expired). Asks first.
+  final VoidCallback? onRemove;
+
+  Future<void> _confirmRemove(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Remove this alert?'),
+        content: const Text(
+          'It disappears from your alerts and notifications.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Keep'),
+          ),
+          TextButton(
+            key: const ValueKey('confirm-remove'),
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) onRemove?.call();
+  }
+
   static const _ackBy = {
     'apk': 'Android app',
     'web': 'Web',
@@ -49,7 +77,8 @@ class AlertCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final severe = alert.type.severe;
-    final active = !alert.acknowledged;
+    final active = alert.open;
+    final expired = !alert.acknowledged && alert.expired;
     final edge = severe
         ? AppColors.danger
         : alert.type == AlertType.warning
@@ -172,6 +201,18 @@ class AlertCard extends StatelessWidget {
                                 ),
                               ],
                             ),
+                            if (alert.fatigueReason != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  alert.fatigueReason!,
+                                  key: const ValueKey('fatigue-reason'),
+                                  style: const TextStyle(
+                                    color: Color(0xFFFDE68A),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
                             if (!compact) ...[
                               const SizedBox(height: 8),
                               Row(
@@ -211,7 +252,27 @@ class AlertCard extends StatelessWidget {
                                   onPressed: onDetails,
                                 ),
                               ),
-                            if (active && onAcknowledge != null)
+                            if (expired)
+                              Container(
+                                key: const ValueKey('expired-label'),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Text(
+                                  'Unacknowledged · from a previous day',
+                                  style: TextStyle(
+                                    color: AppColors.muted,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              )
+                            else if (active && onAcknowledge != null)
                               Wrap(
                                 spacing: 8,
                                 runSpacing: 8,
@@ -239,7 +300,7 @@ class AlertCard extends StatelessWidget {
                                     ),
                                 ],
                               )
-                            else if (!active)
+                            else if (alert.acknowledged)
                               Row(
                                 children: [
                                   const Icon(
@@ -260,7 +321,7 @@ class AlertCard extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                            if (!active && alert.falseAlarm == true)
+                            if (alert.acknowledged && alert.falseAlarm == true)
                               const Padding(
                                 padding: EdgeInsets.only(top: 4),
                                 child: Text(
@@ -272,7 +333,7 @@ class AlertCard extends StatelessWidget {
                                   ),
                                 ),
                               )
-                            else if (!active &&
+                            else if (alert.acknowledged &&
                                 alert.falseAlarm == null &&
                                 onReportFalseAlarm != null)
                               TextButton(
@@ -287,6 +348,32 @@ class AlertCard extends StatelessWidget {
                                   style: TextStyle(
                                     color: AppColors.glow,
                                     fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            if (onRemove != null)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton.icon(
+                                  key: const ValueKey('remove-alert'),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    minimumSize: const Size(0, 32),
+                                  ),
+                                  onPressed: () => _confirmRemove(context),
+                                  icon: const Icon(
+                                    Icons.delete_outline_rounded,
+                                    size: 16,
+                                    color: AppColors.muted,
+                                  ),
+                                  label: const Text(
+                                    'Remove',
+                                    style: TextStyle(
+                                      color: AppColors.muted,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
                               ),

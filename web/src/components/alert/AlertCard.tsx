@@ -15,6 +15,9 @@ export interface AlertCardProps {
   /** Label an already-acknowledged alert. */
   onFeedback?: (id: string, falseAlarm: boolean) => void;
   acknowledging?: boolean;
+  /** Remove from every list (any alert; the only option once an alert has expired). */
+  onRemove?: (id: string) => void;
+  removing?: boolean;
   compact?: boolean;
 }
 
@@ -24,9 +27,20 @@ const ACK_BY: Record<string, string> = { apk: 'Android app', web: 'Web', unknown
  * Drowsy/microsleep: red glow + slow pulse + red gradient leading edge (until acknowledged).
  * Appears with slide-x + glow, 400 ms.
  */
-export function AlertCard({ alert, onAcknowledge, onFalseAlarm, onFeedback, acknowledging, compact }: AlertCardProps) {
+export function AlertCard({
+  alert,
+  onAcknowledge,
+  onFalseAlarm,
+  onFeedback,
+  acknowledging,
+  onRemove,
+  removing,
+  compact,
+}: AlertCardProps) {
   const severe = isSevere(alert.type);
-  const active = !alert.acknowledged;
+  const expired = !alert.acknowledged && Boolean(alert.expired);
+  const active = !alert.acknowledged && !expired;
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const tone = severe ? 'danger' : alert.type === 'warning' ? 'warn' : 'info';
   const [detailOpen, setDetailOpen] = useState(false);
   const snapshot = assetUrl(alert.snapshotUrl);
@@ -105,6 +119,12 @@ export function AlertCard({ alert, onAcknowledge, onFalseAlarm, onFeedback, ackn
               </p>
             ) : null}
 
+            {alert.sensorSnapshot?.fatigueReason && (
+              <p className="mt-1 text-sm text-amber-100/90" data-testid="fatigue-reason">
+                {alert.sensorSnapshot.fatigueReason}
+              </p>
+            )}
+
             {!compact && (
               <dl className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(70px,1fr))] gap-2 text-xs">
                 <div>
@@ -127,7 +147,7 @@ export function AlertCard({ alert, onAcknowledge, onFalseAlarm, onFeedback, ackn
                 )}
                 {typeof alert.sensorSnapshot?.yawnCount === 'number' && alert.sensorSnapshot.yawnCount > 0 && (
                   <div>
-                    <dt className="text-ink-muted">Yawns / 5 min</dt>
+                    <dt className="text-ink-muted">Yawns / 10 min</dt>
                     <dd className="font-semibold text-white">{alert.sensorSnapshot.yawnCount}</dd>
                   </div>
                 )}
@@ -152,7 +172,15 @@ export function AlertCard({ alert, onAcknowledge, onFalseAlarm, onFeedback, ackn
                   {snapshot && alert.location ? 'Snapshot & map' : alert.location ? 'Map' : 'Snapshot'}
                 </DepthButton>
               )}
-              {active ? (
+              {expired ? (
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-ink-muted"
+                  data-testid="expired-label"
+                  title="Alerts can only be acknowledged on the day they happen"
+                >
+                  Unacknowledged · from a previous day
+                </span>
+              ) : active ? (
                 <>
                   {onAcknowledge && (
                     <DepthButton
@@ -202,6 +230,28 @@ export function AlertCard({ alert, onAcknowledge, onFalseAlarm, onFeedback, ackn
                   )}
                 </>
               )}
+              {onRemove &&
+                (confirmRemove ? (
+                  <span className="ml-auto inline-flex items-center gap-2 text-xs" data-testid="remove-confirm">
+                    <span className="text-ink-muted">Remove this alert?</span>
+                    <DepthButton size="sm" variant="danger" loading={removing} onClick={() => onRemove(alert.id)}>
+                      Remove
+                    </DepthButton>
+                    <DepthButton size="sm" variant="ghost" onClick={() => setConfirmRemove(false)}>
+                      Keep
+                    </DepthButton>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmRemove(true)}
+                    className="ml-auto inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-muted hover:bg-white/10 hover:text-white"
+                    aria-label="Remove alert"
+                    data-testid="remove-alert"
+                  >
+                    <Icon name="trash" size={14} /> Remove
+                  </button>
+                ))}
             </div>
           </div>
         </div>

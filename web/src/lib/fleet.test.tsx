@@ -4,7 +4,6 @@ import type { Driver, DriverLiveStatus } from '../api/types';
 import { fleet, mappable, needsAttention } from './fleet';
 import { copyrightYears } from './brand';
 import { AttentionPanel } from '../components/dashboard/AttentionPanel';
-import { AutoSensitivityCard } from '../components/driver/AutoSensitivityCard';
 
 const NOW = Date.parse('2026-10-15T12:00:00Z');
 const ago = (s: number) => new Date(NOW - s * 1000).toISOString();
@@ -55,22 +54,6 @@ describe('several drivers at the same time', () => {
     expect(panel).toHaveTextContent('Ben');
     expect(panel).toHaveTextContent('Ana');
     expect(screen.getAllByRole('link', { name: /directions/i })).toHaveLength(2);
-  });
-});
-
-describe('automatic sensitivity card', () => {
-  test('explains what was learned in plain words (no numbers to edit)', () => {
-    render(
-      <AutoSensitivityCard
-        name="Ana"
-        tuning={{ mode: 'reduced', eyeSamples: 4200, falseAlarms: 3, realAlarms: 1, updatedAt: ago(600) }}
-      />,
-    );
-    const card = screen.getByTestId('auto-sensitivity');
-    expect(card).toHaveTextContent('Automatic · Fewer false alarms');
-    expect(card).toHaveTextContent("4,200 readings of Ana's eyes");
-    expect(card).toHaveTextContent('1 real, 3 false alarms');
-    expect(card.querySelector('input')).toBeNull();
   });
 });
 

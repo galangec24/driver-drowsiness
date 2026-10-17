@@ -20,7 +20,6 @@ import '../widgets/location_map.dart';
 import '../widgets/mesh_background.dart';
 import '../widgets/signal_chart.dart';
 import '../widgets/status_pill.dart';
-import '../widgets/auto_sensitivity_card.dart';
 
 /// Threshold sliders, EAR/HR/score charts, face verify, delete.
 class DriverDetailScreen extends StatefulWidget {
@@ -266,8 +265,6 @@ class _DriverDetailScreenState extends State<DriverDetailScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    AutoSensitivityCard(name: d.name, tuning: d.tuning),
                     const SizedBox(height: 16),
                     _verifyCard(d),
                     const SizedBox(height: 16),

@@ -156,8 +156,8 @@ class Monitor:
             perclos=self.perclos.effective(t) if face else None,
             closure_s=self.perclos.closed_for(t) if face else None,
             blink_rate=self.blink.rate(t),
-            long_blinks=self.blink.long_blinks(t) if self.blink.observed_s() >= 10 else None,
-            yawns=self.yawn.recent(t, half_life_s=60.0),  # yawning is a slower trend than nods
+            long_blinks=self.blink.long_blinks(t) if self.blink.observed_s() >= 60 else None,
+            yawns=self.yawn.sustained(t),  # 10-minute span, fades 2 min after the latest yawn
             nods=self.nod.recent(t),
         )
 
@@ -216,6 +216,9 @@ class Monitor:
             "longBlinkCount": self.blink.long_blinks(t),
             "fuzzyScore": self.fatigue.score,
         }
+        if self.fatigue.level > 0 and self.fatigue.reason:
+            # Shown to the family on the alert: "Fatigue signs: repeated yawning (3+ in 10 min)"
+            extra["fatigueReason"] = f"{self.fatigue.category}: {self.fatigue.reason}"[:120]
         rate = self.blink.rate(t)
         if rate is not None:
             extra["blinkRate"] = round(rate, 1)

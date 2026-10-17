@@ -43,6 +43,9 @@ class DriverAlert {
     this.snapshotUrl,
     this.yawnCount,
     this.delayedS,
+    this.expired = false,
+    this.read = false,
+    this.fatigueReason,
   });
 
   factory DriverAlert.fromJson(Map<String, dynamic> j) {
@@ -70,6 +73,9 @@ class DriverAlert {
       snapshotUrl: j['snapshotUrl'] as String?,
       yawnCount: (s['yawnCount'] as num?)?.toInt(),
       delayedS: (j['delayedS'] as num?)?.toInt(),
+      expired: j['expired'] == true,
+      read: j['read'] == true,
+      fatigueReason: s['fatigueReason'] as String?,
     );
   }
 
@@ -98,8 +104,20 @@ class DriverAlert {
   /// Recorded while the car had no internet and delivered this many seconds later.
   final int? delayedS;
 
-  /// Yawns in the 5 minutes before the alert.
+  /// Yawns in the 10 minutes before the alert.
   final int? yawnCount;
+
+  /// Not acknowledged on the day it happened: can no longer be acknowledged, only removed.
+  final bool expired;
+
+  /// Notification read by the parent (separate from acknowledging).
+  final bool read;
+
+  /// Why the camera judged fatigue, e.g. "Fatigue signs: repeated yawning (3+ in 10 min)".
+  final String? fatigueReason;
+
+  /// Still waiting for an acknowledgement today.
+  bool get open => !acknowledged && !expired;
 
   DriverAlert copyWith({
     bool? acknowledged,
@@ -107,6 +125,7 @@ class DriverAlert {
     DateTime? acknowledgedAt,
     bool? falseAlarm,
     String? snapshotUrl,
+    bool? read,
   }) => DriverAlert(
     id: id,
     driverId: driverId,
@@ -125,9 +144,13 @@ class DriverAlert {
     snapshotUrl: snapshotUrl ?? this.snapshotUrl,
     yawnCount: yawnCount,
     delayedS: delayedS,
+    expired: expired,
+    read: read ?? this.read,
+    fatigueReason: fatigueReason,
   );
 
   DriverAlert acknowledge(String by, {bool? falseAlarm}) => copyWith(
+    read: true,
     acknowledged: true,
     acknowledgedBy: by,
     acknowledgedAt: DateTime.now(),
@@ -137,28 +160,51 @@ class DriverAlert {
   DriverAlert withFeedback(bool value) => copyWith(falseAlarm: value);
 }
 
+/// open = to acknowledge today · acknowledged · expired = never acknowledged on its day.
+enum AlertStatus { open, acknowledged, expired }
+
+AlertStatus statusOf(DriverAlert a) => a.acknowledged
+    ? AlertStatus.acknowledged
+    : a.expired
+    ? AlertStatus.expired
+    : AlertStatus.open;
+
 class AlertFilters {
   const AlertFilters({
     this.driverId,
     this.type,
     this.acknowledged,
+    this.status,
+    this.read,
     this.limit = 50,
   });
 
   final String? driverId;
   final AlertType? type;
   final bool? acknowledged;
+  final AlertStatus? status;
+
+  /// Notifications: false = unread, true = read.
+  final bool? read;
   final int limit;
+
+  String get cacheKey =>
+      'alerts_${driverId ?? '*'}_${type?.wire ?? '*'}_${acknowledged ?? '*'}'
+      '_${status?.name ?? '*'}_${read ?? '*'}';
 
   Map<String, dynamic> toQuery() => {
     'limit': limit,
     if (driverId != null) 'driverId': driverId,
     if (type != null) 'type': type!.wire,
     if (acknowledged != null) 'acknowledged': '$acknowledged',
+    if (status != null) 'status': status!.name,
+    if (read != null) 'read': '$read',
   };
 
   bool matches(DriverAlert a) =>
       (driverId == null || a.driverId == driverId) &&
       (type == null || a.type == type) &&
-      (acknowledged == null || a.acknowledged == acknowledged);
+      (acknowledged == null || a.acknowledged == acknowledged) &&
+      (status == null || statusOf(a) == status) &&
+      (read == null || a.read == read);
 }

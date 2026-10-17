@@ -37,7 +37,8 @@ class YawnDetector:
         open_threshold: float = 0.5,
         close_threshold: float = 0.35,
         min_duration_s: float = 1.5,
-        window_s: float = 300.0,
+        # Yawning is judged over 10 minutes: one yawn is normal, 3+ in 10 min is fatigue.
+        window_s: float = 600.0,
     ) -> None:
         if close_threshold >= open_threshold:
             raise ValueError("close_threshold must be below open_threshold")
@@ -81,6 +82,18 @@ class YawnDetector:
         *now*, so a driver who stopped yawning / nodding recovers within a minute or so."""
         self._expire(t)
         return sum(0.5 ** ((t - e) / half_life_s) for e in self._events)
+
+    def sustained(self, t: float, hold_s: float = 120.0, fade_s: float = 180.0) -> float:
+        """Yawns in the last 10 minutes, as evidence of fatigue *now*.
+
+        Counts fully for `hold_s` after the latest yawn, then fades out over `fade_s`: a driver who
+        yawned 3 times and then stopped is back to normal within ~5 minutes, not after 10."""
+        self._expire(t)
+        if not self._events:
+            return 0.0
+        since = t - self._events[-1]
+        weight = 1.0 if since <= hold_s else max(0.0, 1.0 - (since - hold_s) / fade_s)
+        return len(self._events) * weight
 
     def _expire(self, t: float) -> None:
         while self._events and t - self._events[0] > self.window_s:

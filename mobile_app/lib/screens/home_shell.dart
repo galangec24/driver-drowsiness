@@ -9,6 +9,7 @@ import '../models/alert.dart';
 import '../services/update_service.dart';
 import '../state/data_controller.dart';
 import '../widgets/mesh_background.dart';
+import 'notifications_screen.dart';
 
 /// Bottom-nav shell (parity with the web's mobile BottomNav). Shows an in-app banner for new alerts.
 class HomeShell extends StatefulWidget {
@@ -124,7 +125,17 @@ class _HomeShellState extends State<HomeShell> {
     final unack = context.select<DataController, int>((d) => d.unacknowledged);
     return Scaffold(
       extendBody: true,
-      body: MeshBackground(child: SafeArea(bottom: false, child: widget.child)),
+      body: MeshBackground(
+        child: SafeArea(
+          bottom: false,
+          child: Stack(
+            children: [
+              widget.child,
+              const Positioned(top: 8, right: 12, child: NotificationBell()),
+            ],
+          ),
+        ),
+      ),
       bottomNavigationBar: SafeArea(
         child: Container(
           margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),

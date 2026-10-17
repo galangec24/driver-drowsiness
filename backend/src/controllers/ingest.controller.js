@@ -56,6 +56,8 @@ const ingestSchema = z
         blinkRate: finite.min(0).max(300).optional(),
         longBlinkCount: z.number().int().min(0).max(200).optional(),
         fuzzyScore: finite.min(0).max(1).optional(),
+        // The camera's explanation, e.g. "repeated yawning (3+ in 10 min)".
+        fatigueReason: z.string().max(120).optional(),
         mar: finite.min(0).max(5).optional(),
         breathingRate: finite.min(0).max(60).optional(),
         breathingBaseline: finite.min(0).max(60).optional(),

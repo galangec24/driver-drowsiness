@@ -19,6 +19,8 @@ class DataController extends ChangeNotifier {
       ..onAcknowledged = _onAcknowledged
       ..onFeedback = _onFeedback
       ..onAlertUpdated = _onAlertUpdated
+      ..onRead = _onRead
+      ..onRemoved = _onRemoved
       ..onStatus = _onStatus;
   }
 
@@ -30,6 +32,13 @@ class DataController extends ChangeNotifier {
   List<Driver> drivers = [];
   List<DriverAlert> alerts = [];
   int unacknowledged = 0;
+
+  /// Unread notifications (badge on the bell) and previous days' unacknowledged alerts.
+  int unread = 0;
+  int expired = 0;
+
+  /// Bumped whenever alerts are read / removed, so screens holding their own lists refresh.
+  int alertsVersion = 0;
   final Map<String, DriverLive> live = {};
   final Set<String> pulsing = {};
   bool connected = false;
@@ -83,6 +92,8 @@ class DataController extends ChangeNotifier {
       drivers = d.data;
       alerts = a.data.alerts;
       unacknowledged = a.data.unacknowledged;
+      unread = a.data.unread;
+      expired = a.data.expired;
       cachedAt = d.cachedAt ?? a.cachedAt;
     } on ApiException catch (e) {
       error = e.message;
@@ -114,6 +125,8 @@ class DataController extends ChangeNotifier {
     if (alerts.any((a) => a.id == alert.id)) return;
     alerts = [alert, ...alerts].take(50).toList();
     if (!alert.acknowledged) unacknowledged += 1;
+    if (!alert.read) unread += 1;
+    alertsVersion++;
     pulsing.add(alert.driverId);
     Timer(const Duration(seconds: 6), () {
       pulsing.remove(alert.driverId);
@@ -130,6 +143,7 @@ class DataController extends ChangeNotifier {
     final i = alerts.indexWhere((a) => a.id == alertId);
     if (i >= 0) {
       if (alerts[i].acknowledged) return;
+      if (!alerts[i].read && unread > 0) unread -= 1;
       alerts = List.of(alerts)
         ..[i] = alerts[i].acknowledge(by, falseAlarm: falseAlarm);
     }
@@ -162,6 +176,58 @@ class DataController extends ChangeNotifier {
     alerts = List.of(alerts)
       ..[i] = alerts[i].copyWith(snapshotUrl: snapshotUrl);
     notifyListeners();
+  }
+
+  /// Notifications read / unread on any device.
+  void _onRead(List<String> ids, bool read) {
+    final set = ids.toSet();
+    alerts = [
+      for (final a in alerts) set.contains(a.id) ? a.copyWith(read: read) : a,
+    ];
+    alertsVersion++;
+    // The shared list holds only the latest 50: refresh the counts from the server.
+    unawaited(_refreshCounts());
+    notifyListeners();
+  }
+
+  void _onRemoved(List<String> ids) {
+    final set = ids.toSet();
+    alerts = alerts.where((a) => !set.contains(a.id)).toList();
+    alertsVersion++;
+    unawaited(_refreshCounts());
+    notifyListeners();
+  }
+
+  Future<void> _refreshCounts() async {
+    try {
+      final a = await api.alerts(const AlertFilters(limit: 1));
+      unacknowledged = a.data.unacknowledged;
+      unread = a.data.unread;
+      expired = a.data.expired;
+      notifyListeners();
+    } catch (_) {
+      // offline: counts update on the next refresh
+    }
+  }
+
+  Future<void> markRead(String id, {bool read = true}) async {
+    await api.markRead(id, read: read);
+    _onRead([id], read);
+  }
+
+  Future<void> markAllRead() async {
+    await api.markAllRead();
+    alerts = [for (final a in alerts) a.read ? a : a.copyWith(read: true)];
+    unread = 0;
+    alertsVersion++;
+    notifyListeners();
+  }
+
+  /// Remove one alert, or every expired one ([id] null).
+  Future<int> removeAlerts({String? id}) async {
+    final ids = await api.removeAlerts(id: id, expired: id == null);
+    _onRemoved(ids);
+    return ids.length;
   }
 
   /// Latest known position: live socket fix, else the one stored on the driver.

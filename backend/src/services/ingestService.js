@@ -161,12 +161,14 @@ function extraSignals(signals) {
     'blinkRate',
     'longBlinkCount',
     'fuzzyScore',
+    'fatigueReason',
     'mar',
     'breathingRate',
     'breathingBaseline',
   ];
   for (const k of keys) {
-    if (typeof signals[k] === 'number') out[k] = signals[k];
+    const v = signals[k];
+    if (typeof v === 'number' || (typeof v === 'string' && v)) out[k] = v;
   }
   return out;
 }
@@ -213,6 +215,8 @@ async function createAlert(
       ...(typeof signals.blinkRate === 'number' && { blinkRate: signals.blinkRate }),
       ...(typeof signals.longBlinkCount === 'number' && { longBlinkCount: signals.longBlinkCount }),
       ...(typeof signals.fuzzyScore === 'number' && { fuzzyScore: signals.fuzzyScore }),
+      ...(typeof signals.fatigueReason === 'string' &&
+        signals.fatigueReason && { fatigueReason: signals.fatigueReason }),
       ...(typeof signals.breathingRate === 'number' && { breathingRate: signals.breathingRate }),
       timestamp,
     },

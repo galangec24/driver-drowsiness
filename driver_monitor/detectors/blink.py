@@ -3,6 +3,10 @@
 Built on the per-frame open/closed decision of detectors/perclos.py (relative to the driver's own
 open eyes, with hysteresis), so it works for narrow eyes too.
 
+Real-world time spans: a burst of blinking (dust, talking, bright light) is normal, so the
+blink rate is the average over 3 minutes and needs 2 minutes actually watched; slow blinks are
+counted over 2 minutes.
+
 - Blink: eyes closed < `long_s` (normally 0.1-0.4 s).
 - Long blink: closed `long_s` .. `microsleep_s` (0.5-2 s). Slow, heavy blinks are one of the
   earliest signs of fatigue, well before PERCLOS rises.
@@ -23,14 +27,16 @@ class BlinkDetector:
         self,
         long_s: float = 0.5,
         microsleep_s: float = 2.0,
-        window_s: float = 60.0,
-        min_observed_s: float = 20.0,
+        window_s: float = 180.0,
+        min_observed_s: float = 120.0,
+        long_window_s: float = 120.0,
         max_gap_s: float = 0.5,
     ) -> None:
         self.long_s = long_s
         self.microsleep_s = microsleep_s
         self.window_s = window_s
         self.min_observed_s = min_observed_s
+        self.long_window_s = long_window_s
         self.max_gap_s = max_gap_s
         self._closed_at: float | None = None
         self._last_t: float | None = None
@@ -71,9 +77,9 @@ class BlinkDetector:
         return (len(self._blinks) + len(self._long)) * 60.0 / watched
 
     def long_blinks(self, t: float) -> int:
-        """Slow blinks in the last `window_s` seconds."""
+        """Slow blinks in the last `long_window_s` seconds (2 minutes)."""
         self._expire(t)
-        return len(self._long)
+        return sum(1 for e in self._long if t - e <= self.long_window_s)
 
     def _expire(self, t: float) -> None:
         for q in (self._blinks, self._long):

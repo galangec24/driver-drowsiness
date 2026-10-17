@@ -32,8 +32,44 @@ function prependAlert(qc: QueryClient, alert: Alert) {
     if (!matchesFilters(alert, filters) || data.alerts.some((a) => a.id === alert.id)) continue;
     const limit = filters.limit ?? 50;
     qc.setQueryData<AlertsResponse>(key, {
+      ...data,
       alerts: [alert, ...data.alerts].slice(0, limit),
       unacknowledged: data.unacknowledged + (alert.acknowledged ? 0 : 1),
+      unread: (data.unread ?? 0) + (alert.read ? 0 : 1),
+    });
+  }
+}
+
+/** Notifications read / unread on any device: move them between the Unread and Read lists. */
+export function applyRead(qc: QueryClient, alertIds: string[], read: boolean) {
+  const ids = new Set(alertIds);
+  for (const [key, data] of qc.getQueriesData<AlertsResponse>({ queryKey: ['alerts'] })) {
+    if (!data) continue;
+    const filters = (key[1] ?? {}) as AlertFilters;
+    const changed = data.alerts.filter((a) => ids.has(a.id) && Boolean(a.read) !== read).length;
+    const alerts = data.alerts
+      .map((a) => (ids.has(a.id) ? { ...a, read, readAt: read ? new Date().toISOString() : null } : a))
+      .filter((a) => filters.read === undefined || Boolean(a.read) === filters.read);
+    // Lists that don't hold the alert still get the right unread count from the server later.
+    const unread = Math.max(0, (data.unread ?? 0) + (read ? -changed : changed));
+    qc.setQueryData<AlertsResponse>(key, { ...data, alerts, unread });
+  }
+  // A read-list may not have the newly read items: refetch those lists.
+  void qc.invalidateQueries({ queryKey: ['alerts', { read: !read }], exact: false });
+}
+
+/** Removed alerts disappear from every list on every device. */
+export function applyRemoved(qc: QueryClient, alertIds: string[]) {
+  const ids = new Set(alertIds);
+  for (const [key, data] of qc.getQueriesData<AlertsResponse>({ queryKey: ['alerts'] })) {
+    if (!data || !data.alerts.some((a) => ids.has(a.id))) continue;
+    const gone = data.alerts.filter((a) => ids.has(a.id));
+    qc.setQueryData<AlertsResponse>(key, {
+      ...data,
+      alerts: data.alerts.filter((a) => !ids.has(a.id)),
+      unacknowledged: Math.max(0, data.unacknowledged - gone.filter((a) => !a.acknowledged && !a.expired).length),
+      unread: Math.max(0, (data.unread ?? 0) - gone.filter((a) => !a.read).length),
+      expired: Math.max(0, (data.expired ?? 0) - gone.filter((a) => !a.acknowledged && a.expired).length),
     });
   }
 }
@@ -51,18 +87,21 @@ export function applyAcknowledged(
     const filters = (key[1] ?? {}) as AlertFilters;
     const updated = {
       ...target,
+      read: true,
       acknowledged: true,
       acknowledgedBy,
       acknowledgedAt: new Date().toISOString(),
       ...(falseAlarm !== undefined && { falseAlarm }),
     };
     qc.setQueryData<AlertsResponse>(key, {
-      // An "unacknowledged only" list drops it; others update in place.
+      ...data,
+      // An "unacknowledged only" or "unread" list drops it; others update in place.
       alerts:
-        filters.acknowledged === false
+        filters.acknowledged === false || filters.status === 'open' || filters.read === false
           ? data.alerts.filter((a) => a.id !== alertId)
           : data.alerts.map((a) => (a.id === alertId ? updated : a)),
       unacknowledged: Math.max(0, data.unacknowledged - 1),
+      unread: Math.max(0, (data.unread ?? 0) - (target.read ? 0 : 1)),
     });
   }
 }
@@ -154,6 +193,10 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     s.on('alert:feedback', ({ alertId, falseAlarm }) => applyFeedback(qc, alertId, falseAlarm));
 
     s.on('alert:updated', ({ alertId, ...changes }) => applyAlertUpdated(qc, alertId, changes));
+
+    s.on('alert:read', ({ alertIds, read }) => applyRead(qc, alertIds, read));
+
+    s.on('alert:removed', ({ alertIds }) => applyRemoved(qc, alertIds));
 
     s.on('feedback:updated', (fb) => {
       void qc.invalidateQueries({ queryKey: ['feedback', 'mine'] });
