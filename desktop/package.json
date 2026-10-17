@@ -1,7 +1,7 @@
 {
   "name": "guardian-drive-desktop",
   "productName": "Guardian Drive",
-  "version": "1.0.5",
+  "version": "1.0.8",
   "description": "Guardian Drive for Windows: the parent dashboard in its own window.",
   "author": "Emmanuel Christian",
   "main": "main.js",
