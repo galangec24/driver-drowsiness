@@ -40,6 +40,9 @@ class WatchAlerter:
     _seen: dict[int, float] = field(default_factory=dict)  # level → last frame it had a reason
     _backend_at: float | None = None
     _backend_level: int = NONE
+    # Fuzzy fatigue with a buffer zone: a level starts above 0.4 / 0.7 but ends only below
+    # 0.3 / 0.6, so a score hovering at the line (a single blink) doesn't flip it on and off.
+    _fuzzy_level: int = NONE
     last_reason: str = ""
     # Why the current frame is (or isn't) alarming, for the on-screen status (updated every frame).
     reason_now: str = ""
@@ -85,7 +88,10 @@ class WatchAlerter:
             level, reason = MILD, "eyes off the road"
         elif restless:
             level, reason = MILD, "restless: too much movement"
-        fuzzy_level = HIGH if fatigue > 0.7 else MILD if fatigue > 0.4 else NONE
+        enter = HIGH if fatigue > 0.7 else MILD if fatigue > 0.4 else NONE
+        stay = HIGH if fatigue > 0.6 else MILD if fatigue > 0.3 else NONE
+        self._fuzzy_level = max(enter, min(self._fuzzy_level, stay))
+        fuzzy_level = self._fuzzy_level
         if fuzzy_level > level:
             level, reason = fuzzy_level, f"fatigue: {fatigue_reason or 'several signs'}"
         backend_fresh = self._backend_at is not None and now - self._backend_at <= self.offline_after_s

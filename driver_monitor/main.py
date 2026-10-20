@@ -139,7 +139,7 @@ class Monitor:
             result.eyes_reliable = in_frame and self.distraction.eyes_reliable(result.pose, t)
             result.perclos = self.perclos.update(result.ear, t, closed, reliable=result.eyes_reliable)
             calibrated = self.perclos.baseline is not None or closed is not None
-            self.blink.update(self.perclos.is_closed if result.eyes_reliable and calibrated else None, t)
+            self.blink.update(self.perclos.raw_closed if result.eyes_reliable and calibrated else None, t)
         else:
             self.perclos.mark_no_face(t)
             result.perclos = self.perclos.value
@@ -158,7 +158,7 @@ class Monitor:
             perclos=self.perclos.effective(t) if face else None,
             closure_s=self.perclos.closed_for(t) if face else None,
             blink_rate=self.blink.rate(t),
-            long_blinks=self.blink.long_blinks(t) if self.blink.observed_s() >= 60 else None,
+            long_blinks=self.blink.sustained_long(t) if self.blink.observed_s() >= 60 else None,
             yawns=self.yawn.sustained(t),  # 10-minute span, fades 2 min after the latest yawn
             nods=self.nod.recent(t),
         )

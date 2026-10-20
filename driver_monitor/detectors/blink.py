@@ -81,6 +81,18 @@ class BlinkDetector:
         self._expire(t)
         return sum(1 for e in self._long if t - e <= self.long_window_s)
 
+    def sustained_long(self, t: float, hold_s: float = 30.0, fade_s: float = 60.0) -> int | float:
+        """Slow blinks in the last 2 minutes as evidence of fatigue *now*: full weight for `hold_s`
+        after the latest slow blink, fading over `fade_s`, so a driver who is awake again returns
+        to normal within about a minute instead of two."""
+        n = self.long_blinks(t)
+        recent = [e for e in self._long if t - e <= self.long_window_s]
+        if not n or not recent:
+            return 0
+        since = t - recent[-1]
+        weight = 1.0 if since <= hold_s else max(0.0, 1.0 - (since - hold_s) / fade_s)
+        return n * weight
+
     def _expire(self, t: float) -> None:
         for q in (self._blinks, self._long):
             while q and t - q[0] > self.window_s:

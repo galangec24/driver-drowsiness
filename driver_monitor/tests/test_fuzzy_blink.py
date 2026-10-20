@@ -259,3 +259,42 @@ def test_old_yawns_and_nods_fade() -> None:
     assert n.recent(61.0) < 0.6  # but a minute later they barely count
     calm_again = FatigueFuzzy().evaluate(**{**CALM, "nods": n.recent(61.0)})
     assert calm_again.level == 0
+
+
+def test_fatigue_level_has_a_buffer_zone() -> None:
+    """A score hovering at 0.4 must not flip the warning on and off with every blink."""
+    sent: list[int] = []
+    a = WatchAlerter(send=sent.append)
+    assert a.on_frame(0, 0, 0.0, fatigue=0.45) == MILD
+    for i, f in enumerate([0.38, 0.41, 0.36, 0.39, 0.42]):  # wobbling around the line
+        a.on_frame(0, 0, 0.5 + i * 0.5, fatigue=f)
+    assert sent == [MILD]  # no off / on / off
+    assert a.on_frame(0, 0, 4.0, fatigue=0.2) == MILD  # clearly calm: held only for calm_s
+    assert a.on_frame(0, 0, 8.0, fatigue=0.2) == NONE
+
+
+def test_blink_length_ignores_the_narrow_eye_hysteresis() -> None:
+    from detectors.perclos import PerclosTracker
+
+    p = PerclosTracker()
+    t = feed_ear(p, [0.30] * 60)  # open baseline ~0.30, closed below 0.21
+    p.update(0.12, t)  # closed
+    assert p.raw_closed and p.is_closed
+    p.update(0.23, t + 0.1)  # reopening: above the plain threshold, below "clearly open" (0.24)
+    assert p.is_closed  # hysteresis still says closed (for microsleep timing)
+    assert not p.raw_closed  # but the blink already ended (for blink timing)
+
+
+def test_slow_blinks_fade_once_the_driver_is_awake() -> None:
+    det = BlinkDetector()
+    det._long.extend([0.0, 10.0, 20.0, 30.0, 40.0, 50.0])  # 6 slow blinks in under a minute
+    assert det.sustained_long(55.0) == 6
+    assert det.sustained_long(50.0 + 30 + 30) == pytest.approx(3.0)  # fading after 30 s
+    assert det.sustained_long(50.0 + 30 + 60) == 0  # back to normal ~90 s after the last one
+
+
+def feed_ear(p, ears, t: float = 0.0, dt: float = 0.1) -> float:
+    for e in ears:
+        p.update(e, t)
+        t += dt
+    return t

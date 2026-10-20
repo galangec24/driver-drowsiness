@@ -69,6 +69,10 @@ class VoiceGuide:
     _driving_since: float | None = None
     _last_break_note: float | None = None
     greeted: str | None = None
+    # After "Thank you" (awake again), mild fatigue reminders wait this long: one blink or a
+    # leftover sign must not start the voice again. Drowsy alarms and eyes-off-road still speak.
+    settle_s: float = 60.0
+    _recovered_at: float = -1e9
 
     def _say(self, text: str, now: float, urgent: bool = False, repeat_ok: bool = False) -> bool:
         """urgent: skip the gap between sentences; repeat_ok: may repeat the same sentence at once."""
@@ -87,8 +91,12 @@ class VoiceGuide:
         """Call when the in-car alarm level changes (WatchAlerter send callback)."""
         previous, self._level = self._level, level
         if level == NONE:
-            if previous >= MILD:
-                self._say("Thank you. Stay alert and drive safely.", now)
+            if previous >= MILD and self._say("Thank you. Stay alert and drive safely.", now):
+                self._recovered_at = now
+            return
+        r = (reason or "").lower()
+        fatigue_only = level == MILD and not ("eyes off the road" in r or "restless" in r)
+        if fatigue_only and now - self._recovered_at < self.settle_s:
             return
         # A more serious level speaks at once; only a drowsy alarm may repeat its sentence at once.
         self._say(

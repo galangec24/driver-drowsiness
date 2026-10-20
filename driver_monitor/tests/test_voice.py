@@ -58,3 +58,17 @@ def test_text_is_sanitised_and_off_engine_is_silent() -> None:
     assert _clean("Ana's car $(whoami) `id`") == "Anas car whoami id"
     off = make_speaker("off")
     off("anything")  # no engine, no error
+
+
+def test_one_blink_after_recovery_does_not_restart_the_fatigue_voice() -> None:
+    """Reported bug: after a fatigue test and "Thank you", a single blink said "fatigue" again."""
+    g, said = guide()
+    g.on_alert(MILD, "fatigue: many slow blinks (6+ in 2 min)", 0.0)
+    g.on_alert(NONE, "", 20.0)  # awake again: "Thank you"
+    g.on_alert(MILD, "fatigue: slow blinks and yawning", 35.0)  # a blink nudges the score back up
+    assert said[-1].startswith("Thank you") and len(said) == 2
+    g.on_alert(NONE, "", 40.0)
+    g.on_alert(MILD, "eyes off the road", 50.0)  # but a real new problem still speaks
+    assert said[-1] == "Please keep your eyes on the road."
+    g.on_alert(HIGH, "eyes closed 2.2s", 55.0)  # and a drowsy alarm always does
+    assert "pull over" in said[-1]

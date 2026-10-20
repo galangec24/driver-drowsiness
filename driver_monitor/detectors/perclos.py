@@ -65,12 +65,18 @@ class PerclosTracker:
         self._lost = False
         if not reliable:
             self._closed_since, self._open_since, self._is_closed = None, None, False
+            self._raw_closed = False
             return self.value
         self._ears.append((t, ear))
         while self._ears and t - self._ears[0][0] > self.baseline_window_s:
             self._ears.popleft()
 
         base = self.baseline
+        # Plain threshold (no hysteresis): what blink *durations* are measured on, so the
+        # narrow-eye hysteresis doesn't make a quick blink look slow.
+        self._raw_closed = (
+            closed if closed is not None else (base is not None and ear < base * self.closure_ratio)
+        )
         if closed is None:
             if base is None:
                 closed = False
@@ -91,6 +97,11 @@ class PerclosTracker:
         while self._closed and t - self._closed[0][0] > self.window_s:
             self._closed.popleft()
         return self.value
+
+    @property
+    def raw_closed(self) -> bool:
+        """This frame's eyes-closed reading without hysteresis (for blink timing)."""
+        return getattr(self, "_raw_closed", False)
 
     @property
     def is_closed(self) -> bool:
@@ -122,7 +133,7 @@ class PerclosTracker:
             return 0.0
         return sum(pts) / len(pts)
 
-    def effective(self, t: float, span_s: float = 10.0) -> float:
+    def effective(self, t: float, span_s: float = 6.0) -> float:
         """PERCLOS for alarms: the 30 s value, but only while the eyes are *still* closing often.
 
         A driver who has kept their eyes open for the last `span_s` is back to normal now, not in
