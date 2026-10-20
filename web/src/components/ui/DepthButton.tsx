@@ -15,10 +15,10 @@ export interface DepthButtonProps extends ButtonHTMLAttributes<HTMLButtonElement
 
 const variants: Record<Variant, string> = {
   primary:
-    'bg-gradient-to-b from-accent-glow to-accent-primary text-white border-white/20 hover:shadow-glow',
-  secondary: 'bg-glass-light text-slate-100 border-glass-border hover:bg-glass-hover hover:shadow-depth-2',
+    'bg-gradient-to-b from-accent-glow to-accent-primary text-onaccent border-white/20 hover:shadow-glow',
+  secondary: 'bg-glass-light text-white border-glass-border hover:bg-glass-hover hover:shadow-depth-2',
   danger:
-    'bg-gradient-to-b from-red-400 to-accent-danger text-white border-white/20 hover:shadow-glow-danger',
+    'bg-gradient-to-b from-red-400 to-accent-danger text-onaccent border-white/20 hover:shadow-glow-danger',
   ghost: 'bg-transparent text-ink-muted border-transparent shadow-none hover:bg-glass-light hover:text-white',
 };
 

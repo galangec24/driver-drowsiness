@@ -93,11 +93,11 @@ export function ColumnChart({ points, label }: { points: { day: string; count: n
             </g>
           );
         })}
-        <text x={pad} y={H + 16} fill="#9aa0c3" fontSize="12">
+        <text x={pad} y={H + 16} className="fill-ink-muted" fontSize="12">
           {first.day}
         </text>
         {points.length > 1 && (
-          <text x={W - pad} y={H + 16} fill="#9aa0c3" fontSize="12" textAnchor="end">
+          <text x={W - pad} y={H + 16} className="fill-ink-muted" fontSize="12" textAnchor="end">
             {last.day}
           </text>
         )}

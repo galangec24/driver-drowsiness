@@ -37,7 +37,7 @@ function MyFeedbackItem({ f }: { f: Feedback }) {
         </span>
         <span className="ml-auto text-xs text-ink-muted">{timeAgo(f.createdAt)}</span>
       </div>
-      <p className="mt-2 whitespace-pre-wrap text-sm text-slate-200">{f.message}</p>
+      <p className="mt-2 whitespace-pre-wrap text-sm text-white/90">{f.message}</p>
       {f.attachments.length > 0 && (
         <p className="mt-2 text-xs text-ink-muted">
           {f.attachments.length} attachment{f.attachments.length === 1 ? '' : 's'}

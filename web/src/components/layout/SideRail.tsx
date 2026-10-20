@@ -42,7 +42,7 @@ export function SideRail({ unacknowledged = 0 }: { unacknowledged?: number }) {
                 <Icon name={item.icon} />
                 <span className="hidden lg:inline">{item.label}</span>
                 {item.to === '/alerts' && unacknowledged > 0 && (
-                  <span className="absolute right-1.5 top-1.5 rounded-full bg-accent-danger px-1.5 text-[10px] font-bold text-white shadow-glow-danger lg:static lg:ml-auto lg:text-xs">
+                  <span className="absolute right-1.5 top-1.5 rounded-full bg-accent-danger px-1.5 text-[10px] font-bold text-onaccent shadow-glow-danger lg:static lg:ml-auto lg:text-xs">
                     {unacknowledged > 99 ? '99+' : unacknowledged}
                   </span>
                 )}

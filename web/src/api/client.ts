@@ -26,6 +26,11 @@ api.interceptors.response.use(
   (error: AxiosError) => {
     const isAuthCall = error.config?.url?.startsWith('/auth/');
     if (error.response?.status === 401 && !isAuthCall) notifyUnauthorized();
+    // Server in maintenance: the whole app shows the maintenance page (App.tsx).
+    const body = error.response?.data as { maintenance?: boolean; error?: string } | undefined;
+    if (error.response?.status === 503 && body?.maintenance) {
+      window.dispatchEvent(new CustomEvent('gd:maintenance', { detail: body.error ?? '' }));
+    }
     return Promise.reject(error);
   },
 );

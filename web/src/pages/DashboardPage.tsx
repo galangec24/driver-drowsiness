@@ -84,7 +84,7 @@ export function DashboardPage() {
             <h2 className="text-lg font-bold text-white">Where everyone is</h2>
             <span className="text-xs text-ink-muted">
               <span className="text-emerald-300">● awake</span> · <span className="text-amber-300">● tired</span> ·{' '}
-              <span className="text-red-300">● drowsy</span> · <span className="text-slate-400">● last known</span>
+              <span className="text-red-300">● drowsy</span> · <span className="text-ink-muted">● last known</span>
             </span>
           </div>
           <FleetMap entries={onMap} />

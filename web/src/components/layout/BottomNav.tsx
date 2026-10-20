@@ -26,7 +26,7 @@ export function BottomNav({ unacknowledged = 0 }: { unacknowledged?: number }) {
           <Icon name={item.icon} size={20} />
           {item.label}
           {item.to === '/alerts' && unacknowledged > 0 && (
-            <span className="absolute right-2 top-0.5 rounded-full bg-accent-danger px-1.5 text-[10px] font-bold text-white">
+            <span className="absolute right-2 top-0.5 rounded-full bg-accent-danger px-1.5 text-[10px] font-bold text-onaccent">
               {unacknowledged > 9 ? '9+' : unacknowledged}
             </span>
           )}

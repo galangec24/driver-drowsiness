@@ -46,7 +46,7 @@ function Item({ f }: { f: Feedback }) {
           {timeAgo(f.createdAt)}
         </span>
       </div>
-      <p className="whitespace-pre-wrap text-sm text-slate-100">{f.message}</p>
+      <p className="whitespace-pre-wrap text-sm text-white">{f.message}</p>
       <p className="text-xs text-ink-muted">
         {[f.context.platform, f.context.appVersion && `v${f.context.appVersion}`, f.context.page]
           .filter(Boolean)

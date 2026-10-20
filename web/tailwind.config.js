@@ -4,11 +4,17 @@ export default {
   theme: {
     extend: {
       // Design tokens — web/CLAUDE.md § 3.1 (mirrored in mobile_app/lib/config/theme.dart)
+      // Light / dark theme: these follow CSS variables (src/styles/index.css). "white" is the main
+      // text / foreground colour and "black" the opposite, so text-white, bg-white/5 and bg-black/20
+      // adapt to the theme. Text on solid accent backgrounds uses "onaccent" (always white).
       colors: {
+        white: 'rgb(var(--c-fg) / <alpha-value>)',
+        black: 'rgb(var(--c-contrast) / <alpha-value>)',
+        onaccent: '#ffffff',
         glass: {
-          light: 'rgba(255,255,255,0.08)',
-          border: 'rgba(255,255,255,0.15)',
-          hover: 'rgba(255,255,255,0.12)',
+          light: 'var(--glass-light)',
+          border: 'var(--glass-border)',
+          hover: 'var(--glass-hover)',
         },
         accent: {
           primary: '#6366f1',
@@ -18,10 +24,10 @@ export default {
           ok: '#10b981',
         },
         ink: {
-          950: '#05060f',
-          900: '#0b0d1f',
-          800: '#141735',
-          muted: '#9aa0c3',
+          950: 'rgb(var(--c-ink-950) / <alpha-value>)',
+          900: 'rgb(var(--c-ink-900) / <alpha-value>)',
+          800: 'rgb(var(--c-ink-800) / <alpha-value>)',
+          muted: 'rgb(var(--c-muted) / <alpha-value>)',
         },
       },
       boxShadow: {

@@ -99,7 +99,7 @@ function ReportModal({ id, onClose }: { id: string; onClose: () => void }) {
           </div>
         ) : (
           <pre
-            className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-slate-200"
+            className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-white/90"
             data-testid="model-report"
           >
             {q.data?.report || 'No report saved for this model.'}

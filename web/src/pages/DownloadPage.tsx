@@ -110,7 +110,7 @@ function OptionCard({
       className={['glass relative flex flex-col p-6', recommended ? 'border-accent-glow/60 shadow-glow' : ''].join(' ')}
     >
       {recommended && (
-        <span className="absolute -top-3 left-6 rounded-full bg-gradient-to-r from-accent-glow to-accent-primary px-3 py-1 text-xs font-bold text-white shadow-glow">
+        <span className="absolute -top-3 left-6 rounded-full bg-gradient-to-r from-accent-glow to-accent-primary px-3 py-1 text-xs font-bold text-onaccent shadow-glow">
           Recommended for this device
         </span>
       )}

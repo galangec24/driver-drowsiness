@@ -2,7 +2,10 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import { App } from './App';
+import { applyTheme, getThemePref } from './lib/theme';
 import './styles/index.css';
+
+applyTheme(getThemePref());
 
 // Service worker: app shell + static assets + last API responses (see vite.config.ts).
 // autoUpdate: a newly deployed version activates and reloads the page; tabs and installed apps

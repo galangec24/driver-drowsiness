@@ -78,9 +78,26 @@ function createApp() {
     app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/api/health' } }));
   }
 
+  // Maintenance (MAINTENANCE_MODE=on on Render): the apps show their maintenance page. The cars
+  // keep sending readings (/api/ingest) so nothing is lost and parents' alerts still record.
+  const maintenance = () => (process.env.MAINTENANCE_MODE || '').toLowerCase() === 'on';
   app.get('/api/health', (_req, res) =>
-    res.json({ status: 'ok', time: new Date().toISOString(), ...buildInfo }),
+    res.json({
+      status: 'ok',
+      time: new Date().toISOString(),
+      ...buildInfo,
+      ...(maintenance() && { maintenance: true }),
+    }),
   );
+  app.use('/api', (req, res, next) => {
+    if (!maintenance() || req.path.startsWith('/ingest')) return next();
+    return res.status(503).json({
+      maintenance: true,
+      error:
+        process.env.MAINTENANCE_MESSAGE ||
+        'Guardian Drive is being updated. Please try again in a few minutes.',
+    });
+  });
   // The bare address is the API itself (no web page here): say so instead of a 404.
   app.get('/', (_req, res) =>
     res.json({

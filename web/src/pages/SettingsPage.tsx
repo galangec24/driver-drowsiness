@@ -15,6 +15,7 @@ import { markFarewell } from '../lib/farewell';
 import { UpdatesCard } from '../components/settings/UpdatesCard';
 import { AboutCard } from '../components/settings/AboutCard';
 import { RateAppCard } from '../components/settings/RateAppCard';
+import { AppearanceCard } from '../components/ui/ThemeToggle';
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -111,6 +112,8 @@ export function SettingsPage() {
         </GlassCard>
 
         <UpdatesCard />
+
+        <AppearanceCard />
 
         <RateAppCard />
 

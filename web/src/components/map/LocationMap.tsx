@@ -130,7 +130,7 @@ export function LocationMap({
           href={directionsUrl(location)}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/20 bg-gradient-to-b from-accent-glow to-accent-primary text-sm font-semibold text-white shadow-depth-1 transition-all hover:shadow-glow active:translate-y-px"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/20 bg-gradient-to-b from-accent-glow to-accent-primary text-sm font-semibold text-onaccent shadow-depth-1 transition-all hover:shadow-glow active:translate-y-px"
         >
           <Icon name="directions" size={16} /> Directions
         </a>
@@ -138,7 +138,7 @@ export function LocationMap({
           href={mapsUrl(location)}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-glass-border bg-glass-light text-sm font-semibold text-slate-100 shadow-depth-1 transition-all hover:bg-glass-hover active:translate-y-px"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-glass-border bg-glass-light text-sm font-semibold text-white shadow-depth-1 transition-all hover:bg-glass-hover active:translate-y-px"
         >
           <Icon name="map" size={16} /> Google Maps
         </a>

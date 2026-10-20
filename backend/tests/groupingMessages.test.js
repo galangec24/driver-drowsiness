@@ -176,3 +176,23 @@ describe('messages from the parent to the car', () => {
       .expect(404);
   });
 });
+
+describe('maintenance mode', () => {
+  afterEach(() => {
+    delete process.env.MAINTENANCE_MODE;
+    delete process.env.MAINTENANCE_MESSAGE;
+  });
+
+  test('apps get a maintenance answer; health says so; cars keep sending readings', async () => {
+    const parent = await registerParent(stack.app);
+    const driver = await createDriver(parent.user.id);
+    process.env.MAINTENANCE_MODE = 'on';
+    process.env.MAINTENANCE_MESSAGE = 'Back at 10 pm';
+    const r = await request(stack.app).get('/api/drivers').set(auth(parent.token)).expect(503);
+    expect(r.body).toEqual({ maintenance: true, error: 'Back at 10 pm' });
+    expect((await request(stack.app).get('/api/health').expect(200)).body.maintenance).toBe(true);
+    await ingest(driver._id, WARNING_SIGNALS).expect(200);
+    delete process.env.MAINTENANCE_MODE;
+    await request(stack.app).get('/api/drivers').set(auth(parent.token)).expect(200);
+  });
+});

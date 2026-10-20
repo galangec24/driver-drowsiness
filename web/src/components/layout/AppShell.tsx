@@ -8,6 +8,7 @@ import { listAlerts } from '../../api/alerts';
 import { usePollingFallback } from '../../hooks/useRealtime';
 import { Copyright } from '../legal/Copyright';
 import { NotificationBell } from '../notifications/NotificationBell';
+import { ThemeToggle } from '../ui/ThemeToggle';
 
 /**
  * Responsive shell: side rail ≥640 px (labels ≥1024 px), bottom nav < 640 px,
@@ -28,6 +29,7 @@ export function AppShell() {
     <div data-testid="app-shell" className="relative min-h-screen min-h-dvh">
       <div className="mesh-bg animate-mesh" aria-hidden="true" />
       <SideRail unacknowledged={unacknowledged} />
+      <ThemeToggle className="fixed right-[4.25rem] top-4 z-40 sm:right-[4.75rem]" />
       <NotificationBell />
       <main className="pb-28 pt-5 sm:pb-10 sm:pl-28 lg:pl-[17rem]">
         <div className="mx-auto w-full max-w-content px-4 sm:px-6">

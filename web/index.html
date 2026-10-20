@@ -15,6 +15,18 @@
       rel="stylesheet"
     />
     <title>Guardian Drive</title>
+    <script>
+      // Light / dark before the first paint (saved choice, else the system setting).
+      (function () {
+        try {
+          var p = localStorage.getItem('gd:theme') || 'system';
+          var dark = p === 'dark' || (p === 'system' && !matchMedia('(prefers-color-scheme: light)').matches);
+          document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        } catch (e) {
+          document.documentElement.dataset.theme = 'dark';
+        }
+      })();
+    </script>
   </head>
   <body>
     <!-- Startup loader: visible instantly while the app's JavaScript downloads; React replaces it. -->

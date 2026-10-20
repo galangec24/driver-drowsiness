@@ -219,7 +219,7 @@ export function Map3D({ location, height, label, mode = 'live', allowMyLocation 
       {you && (
         <span
           data-testid="map-distance"
-          className="pointer-events-none absolute left-2 top-2 max-w-[70%] rounded-lg bg-accent-primary/90 px-3 py-1.5 text-xs font-bold text-white shadow-glow"
+          className="pointer-events-none absolute left-2 top-2 max-w-[70%] rounded-lg bg-accent-primary/90 px-3 py-1.5 text-xs font-bold text-onaccent shadow-glow"
         >
           {label ?? 'Driver'} is {distanceLabel(you, location)} (straight line)
         </span>

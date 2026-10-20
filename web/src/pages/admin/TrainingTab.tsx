@@ -37,7 +37,7 @@ function JobLog({ id }: { id: string }) {
     <pre
       ref={ref}
       data-testid="job-log"
-      className="max-h-80 overflow-auto whitespace-pre-wrap rounded-xl bg-black/50 p-3 font-mono text-xs leading-relaxed text-slate-200"
+      className="max-h-80 overflow-auto whitespace-pre-wrap rounded-xl bg-black/50 p-3 font-mono text-xs leading-relaxed text-white/90"
     >
       {log || 'Waiting for output…'}
     </pre>
@@ -85,12 +85,12 @@ export function TrainingTab() {
                 Learns which alerts are real from 30-second signal windows: synthetic drives + your data.
               </p>
             </div>
-            <label className="flex items-center gap-2 text-sm text-slate-200">
+            <label className="flex items-center gap-2 text-sm text-white/90">
               <input type="checkbox" checked={includeFeedback} onChange={(e) => setIncludeFeedback(e.target.checked)} />
               Include parent feedback ({datasets.data?.feedback.labelled ?? 0} labelled alerts)
             </label>
             {(datasets.data?.recordings ?? []).map((r) => (
-              <label key={r.name} className="flex items-center gap-2 text-sm text-slate-200">
+              <label key={r.name} className="flex items-center gap-2 text-sm text-white/90">
                 <input
                   type="checkbox"
                   checked={recordings.includes(r.name)}
@@ -120,7 +120,7 @@ export function TrainingTab() {
             </div>
             {eyeReady.length ? (
               eyeReady.map((d) => (
-                <label key={d.id} className="flex items-center gap-2 text-sm text-slate-200">
+                <label key={d.id} className="flex items-center gap-2 text-sm text-white/90">
                   <input
                     type="checkbox"
                     checked={eyeSets.includes(d.id)}

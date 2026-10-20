@@ -15,6 +15,7 @@ import { EmbedMapPage } from './pages/EmbedMapPage';
 import { AdminPage } from './pages/admin/AdminPage';
 import { FeedbackPage } from './pages/FeedbackPage';
 import { SurveysPage } from './pages/SurveysPage';
+import { NotFoundPage } from './pages/StatusPages';
 
 /** "/" is the parent dashboard; admins have their own console. */
 function HomePage() {
@@ -63,5 +64,5 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  { path: '*', element: <Navigate to="/" replace /> },
+  { path: '*', element: <NotFoundPage /> },
 ]);

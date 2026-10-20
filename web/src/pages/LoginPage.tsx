@@ -142,7 +142,7 @@ export function LoginPage() {
                 initial={{ opacity: 0, x: -16 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 + i * 0.12 }}
-                className="flex items-center gap-3 text-slate-200"
+                className="flex items-center gap-3 text-white/90"
               >
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-accent-primary/25 text-accent-glow shadow-glow">
                   <Icon name={f.icon} size={18} />

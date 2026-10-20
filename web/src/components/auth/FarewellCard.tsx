@@ -24,7 +24,7 @@ export function FarewellCard({ name, onSignInAgain }: { name: string; onSignInAg
           initial={{ rotate: -20, scale: 0.6 }}
           animate={{ rotate: 0, scale: 1 }}
           transition={{ type: 'spring', stiffness: 200, damping: 12, delay: 0.1 }}
-          className="relative flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-accent-primary to-accent-ok text-white shadow-glow"
+          className="relative flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-accent-primary to-accent-ok text-onaccent shadow-glow"
         >
           <Icon name="shield" size={40} />
         </motion.span>
