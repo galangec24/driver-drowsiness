@@ -1,3 +1,4 @@
+import type { RatingSummary } from '../api/ratings';
 import { io, type Socket } from 'socket.io-client';
 import { API_URL } from '../api/client';
 import type { Alert, AckSource, DriverLiveStatus } from '../api/types';
@@ -18,10 +19,23 @@ export interface ServerToClientEvents {
   /** Admins: a user sent feedback / it was updated. The sender: the team replied or changed its status. */
   'feedback:new': (feedback: Feedback) => void;
   'feedback:updated': (feedback: Feedback) => void;
+  /** An admin published a survey / the app rating summary changed. */
+  'survey:new': (payload: { id: string; title: string }) => void;
+  'ratings:updated': (summary: RatingSummary) => void;
+  /** Voice calls to the car (hooks/useCall.ts). */
+  'call:accepted': (payload: { callId: string }) => void;
+  'call:signal': (payload: { callId: string; data: { type: RTCSdpType; sdp: string } }) => void;
+  'call:ended': (payload: { callId: string; reason: string }) => void;
 }
 
 export interface ClientToServerEvents {
   'subscribe:driver': (payload: { driverId: string }, ack?: (res: { ok: boolean; error?: string }) => void) => void;
+  'call:start': (
+    payload: { driverId: string },
+    ack: (res: { ok: boolean; error?: string; callId?: string; iceServers?: RTCIceServer[] }) => void,
+  ) => void;
+  'call:signal': (payload: { callId: string; data: { type: RTCSdpType; sdp: string } }) => void;
+  'call:end': (payload: { callId: string }) => void;
 }
 
 export type GuardianSocket = Socket<ServerToClientEvents, ClientToServerEvents>;

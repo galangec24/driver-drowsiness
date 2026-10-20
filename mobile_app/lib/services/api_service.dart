@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../models/alert.dart';
 import '../models/driver.dart';
+import '../models/engagement.dart';
 import '../models/feedback.dart';
 import '../models/user.dart';
 import 'storage_service.dart';
@@ -464,4 +465,60 @@ class ApiService {
     );
     return DriverAlert.fromJson(r.data!['alert'] as Map<String, dynamic>);
   });
+
+  // ---- app rating ----
+  Future<RatingSummary> ratingSummary() => _call(() async {
+    final r = await _dio.get<Map<String, dynamic>>('/ratings/summary');
+    return RatingSummary.fromJson(r.data!);
+  });
+
+  Future<MyRating?> myRating() => _call(() async {
+    final r = await _dio.get<Map<String, dynamic>>('/ratings/mine');
+    final m = r.data!['rating'] as Map<String, dynamic>?;
+    return m == null
+        ? null
+        : MyRating((m['stars'] as num).toInt(), (m['comment'] ?? '') as String);
+  });
+
+  Future<RatingSummary> rate(int stars, String comment, String version) =>
+      _call(() async {
+        final r = await _dio.put<Map<String, dynamic>>(
+          '/ratings/mine',
+          data: {
+            'stars': stars,
+            'comment': comment,
+            'platform': 'android',
+            'appVersion': version,
+          },
+        );
+        return RatingSummary.fromJson(
+          r.data!['summary'] as Map<String, dynamic>,
+        );
+      });
+
+  Future<RatingSummary> removeRating() => _call(() async {
+    final r = await _dio.delete<Map<String, dynamic>>('/ratings/mine');
+    return RatingSummary.fromJson(r.data!['summary'] as Map<String, dynamic>);
+  });
+
+  // ---- surveys ----
+  Future<List<Survey>> openSurveys() => _call(() async {
+    final r = await _dio.get<Map<String, dynamic>>('/surveys');
+    return (r.data!['surveys'] as List)
+        .map((e) => Survey.fromJson(e as Map<String, dynamic>))
+        .toList();
+  });
+
+  Future<void> answerSurvey(String id, Map<String, Object> answers) =>
+      _call(() async {
+        await _dio.post<Map<String, dynamic>>(
+          '/surveys/$id/responses',
+          data: {
+            'answers': [
+              for (final e in answers.entries) {'qid': e.key, 'value': e.value},
+            ],
+            'platform': 'android',
+          },
+        );
+      });
 }

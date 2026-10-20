@@ -16,6 +16,7 @@ import '../state/data_controller.dart';
 import '../widgets/depth_button.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/page_header.dart';
+import '../widgets/rate_app_card.dart';
 
 /// Notification prefs, account, server, APK info.
 class SettingsScreen extends StatefulWidget {
@@ -223,6 +224,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const _Row('Distribution', 'Sideloaded APK'),
+          ],
+        ),
+        const SizedBox(height: 16),
+        const RateAppCard(),
+        const SizedBox(height: 16),
+        _Section(
+          title: 'Surveys',
+          children: [
+            const Text(
+              'Answer short surveys from the Guardian Drive team.',
+              style: TextStyle(color: AppColors.muted),
+            ),
+            const SizedBox(height: 10),
+            DepthButton(
+              key: const ValueKey('open-surveys'),
+              label: 'Open surveys',
+              icon: Icons.poll_rounded,
+              variant: DepthVariant.secondary,
+              onPressed: () => context.push('/surveys'),
+            ),
           ],
         ),
         const SizedBox(height: 16),

@@ -198,6 +198,18 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
 
     s.on('alert:removed', ({ alertIds }) => applyRemoved(qc, alertIds));
 
+    s.on('survey:new', ({ title }) => {
+      void qc.invalidateQueries({ queryKey: ['surveys', 'open'] });
+      toastRef.current.show({
+        title: 'New survey from the Guardian Drive team',
+        body: title,
+        tone: 'info',
+        durationMs: 6000,
+      });
+    });
+
+    s.on('ratings:updated', (summary) => qc.setQueryData(['ratings', 'summary'], summary));
+
     s.on('feedback:updated', (fb) => {
       void qc.invalidateQueries({ queryKey: ['feedback', 'mine'] });
       if (fb.adminReply && fb.userId === userIdRef.current) {

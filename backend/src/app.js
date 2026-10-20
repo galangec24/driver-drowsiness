@@ -14,6 +14,8 @@ const alertsRoutes = require('./routes/alerts.routes');
 const pushRoutes = require('./routes/push.routes');
 const adminRoutes = require('./routes/admin.routes');
 const feedbackRoutes = require('./routes/feedback.routes');
+const ratingsRoutes = require('./routes/ratings.routes');
+const surveysRoutes = require('./routes/surveys.routes');
 
 /**
  * Which code is running (shown in the apps' Settings → About, so it updates by itself on deploy):
@@ -98,6 +100,8 @@ function createApp() {
   app.use('/api/push', pushRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api/feedback', feedbackRoutes);
+  app.use('/api/ratings', ratingsRoutes);
+  app.use('/api/surveys', surveysRoutes);
 
   app.use(notFound);
   app.use(errorHandler);

@@ -84,6 +84,14 @@ class Config:
     family_email: str = ""
     # Beep on this computer when the in-car alarm sounds (Windows; the Pi uses ALARM_CMD).
     local_beep: bool = True
+    # Spoken guidance (ui/voice.py): auto | sapi | piper | espeak | off
+    voice_engine: str = "auto"
+    voice_model: str = ""  # Piper .onnx voice (Raspberry Pi "AI voice")
+    voice_rate: int = 0  # -5 (slower) .. 5 (faster)
+    break_reminder_min: float = 120.0
+    # Parent -> car voice calls (transport/calls.py), answered hands-free after this many seconds
+    calls: bool = True
+    call_auto_answer_s: float = 3.0
 
 
 def load_config(require_backend: bool = True) -> Config:
@@ -122,6 +130,12 @@ def load_config(require_backend: bool = True) -> Config:
         model_sync=env_str("MODEL_SYNC", "1") != "0",
         family_email=env_str("FAMILY_EMAIL").strip().lower(),
         local_beep=env_str("LOCAL_BEEP", "1") != "0",
+        voice_engine="off" if env_str("VOICE", "1") == "0" else env_str("VOICE_ENGINE", "auto").lower(),
+        voice_model=env_str("VOICE_MODEL").strip(),
+        voice_rate=env_int("VOICE_RATE", 0),
+        break_reminder_min=env_float("BREAK_REMINDER_MIN", 120.0),
+        calls=env_str("CALLS", "1") != "0",
+        call_auto_answer_s=env_float("CALL_AUTO_ANSWER_S", 3.0),
     )
     missing = [k for k, v in (("INGEST_API_KEY", cfg.api_key),) if not v]
     if not cfg.driver_id and not cfg.family_email:

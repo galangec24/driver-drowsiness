@@ -80,12 +80,20 @@ the Windows app, with the car's location on a 3D map.
 - **In-car alarm that works offline.** It escalates (warning → drowsy) and returns to normal
   within seconds once the driver is awake again.
 - **Night mode.** Dark frames are averaged and contrast-stretched; IR cameras are supported.
+- **Voice guidance.** Short spoken instructions ("Please pull over safely and rest", "Eyes on the road"),
+  a greeting, and a break reminder every 2 hours. Offline: Windows voice on a laptop, Piper AI voice on the Pi.
+- **Hands-free calls.** The car rings when a parent calls and answers by itself after 3 seconds.
 
 ### For the family (web, Android, Windows)
 - **Live dashboard.** Every driver's status, signals and last update, pushed in real time.
 - **Alerts.** Drowsy, microsleep, head nodding, yawning, distraction (eyes off the road / restless)
   and unknown-driver alerts, each with its confidence, sensor snapshot and location.
 - **3D live map.** The car's position with buildings, distance from you, and directions.
+- **Call the car.** One button; the in-car device answers hands-free (WebRTC audio).
+- **Notifications.** Separate Unread / Read lists; alerts can be removed. Alerts must be acknowledged on the
+  day they happen; after that they stay "Unacknowledged" and can only be removed.
+- **Surveys and app rating.** Admins create surveys (or import Word / PDF / Excel), results appear as
+  charts and export to Excel; everyone can optionally rate the app and read others' reviews.
 - **Driver registration with guided photos.** Auto-capture once position and lighting are right.
   Every photo is checked to be the same person, and duplicate faces are caught (with a "they're
   twins" confirmation).
@@ -367,6 +375,7 @@ Manual test scenarios: [docs/TESTING.md](docs/TESTING.md), [docs/NIGHT_VISION_TE
 
 | Document | Topic |
 |---|---|
+| [docs/VOICE_AND_CALLS.md](docs/VOICE_AND_CALLS.md) | Voice guidance (Piper on the Pi) and parent-to-car calls (TURN) |
 | [docs/OFFLINE_MODE.md](docs/OFFLINE_MODE.md) | Store-and-forward when the car has no internet |
 | [docs/NIGHT_VISION_TESTS.md](docs/NIGHT_VISION_TESTS.md) | Night / IR test scenarios |
 | [docs/WEARABLE.md](docs/WEARABLE.md) | Radar and wrist unit: parts, wiring, firmware |

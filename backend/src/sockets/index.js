@@ -6,6 +6,7 @@ const alertDispatcher = require('../services/alertDispatcher');
 const statusStore = require('../services/statusStore');
 const Driver = require('../models/Driver');
 const { isAdmin } = require('../middleware/admin.middleware');
+const calls = require('../services/callSignaling');
 
 function initSockets(httpServer) {
   const io = new Server(httpServer, {
@@ -18,7 +19,15 @@ function initSockets(httpServer) {
   });
 
   // JWT handshake: auth.token (preferred) or Authorization header.
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
+    // In-car device (calls): the ingest key + its driver, instead of a parent's JWT.
+    const auth = socket.handshake.auth || {};
+    if (auth.deviceKey) {
+      const device = await calls.authenticateDevice(auth);
+      if (!device) return next(new Error('unauthorized'));
+      socket.data.device = device;
+      return next();
+    }
     const fromAuth = socket.handshake.auth && socket.handshake.auth.token;
     const header = socket.handshake.headers.authorization || '';
     const token = fromAuth || (header.startsWith('Bearer ') ? header.slice(7) : null);
@@ -32,7 +41,13 @@ function initSockets(httpServer) {
   });
 
   io.on('connection', async (socket) => {
+    if (socket.data.device) {
+      calls.attachDevice(io, socket);
+      logger.debug({ driverId: socket.data.device.driverId }, 'in-car device connected');
+      return;
+    }
     const { parentId } = socket.data.user;
+    calls.attachParent(io, socket);
     socket.join(alertDispatcher.parentRoom(parentId));
     // Admins also receive training-job events (role checked in the DB, not trusted from the JWT).
     isAdmin(parentId)

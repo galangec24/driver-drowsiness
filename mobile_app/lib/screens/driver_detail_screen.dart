@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../config/format.dart';
+import '../config/links.dart';
 import '../config/theme.dart';
 import '../models/alert.dart';
 import '../models/driver.dart';
@@ -261,6 +263,39 @@ class _DriverDetailScreenState extends State<DriverDetailScreen> {
                                     .lastLocation,
                             label: d.name,
                             height: 280,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    GlassCard(
+                      interactive: false,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Text(
+                            'Call the car',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'The in-car device rings and answers by itself, so the '
+                            'driver never touches a screen. Opens the call in your browser.',
+                            style: TextStyle(color: AppColors.muted),
+                          ),
+                          const SizedBox(height: 10),
+                          DepthButton(
+                            key: const ValueKey('call-car'),
+                            label: 'Call ${d.name.split(' ').first}',
+                            icon: Icons.call_rounded,
+                            onPressed: () => launchUrl(
+                              Uri.parse('$webAppUrl/drivers/${d.id}?call=1'),
+                              mode: LaunchMode.externalApplication,
+                            ),
                           ),
                         ],
                       ),

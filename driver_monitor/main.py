@@ -36,12 +36,14 @@ from fusion.fuzzy import FatigueFuzzy, FuzzyResult
 from fusion.scorer import IntervalAggregator
 from fusion.watch_alerts import WatchAlerter
 from sensors.heart_rate import BreathingState, HeartRateState, pick_heart
+from transport.calls import start_calls
 from transport.driver_identity import DriverIdentity
 from transport.gps import LocationSource, NoLocation, make_location_source
 from transport.ingest_client import IngestClient, build_payload, encode_snapshot
 from transport.model_sync import eye_model_path, fetch_device_config, local_eye_version, save_eye_model
 from transport.outbox import Outbox, StoreAndForward
 from ui import hud
+from ui.voice import VoiceGuide, make_speaker
 from utils.logger import get_logger
 from utils.recorder import SessionRecorder
 
@@ -401,8 +403,20 @@ def run(
         open_threshold=cfg.yawn_mar, close_threshold=cfg.yawn_mar * 0.7, min_duration_s=cfg.yawn_min_s
     )
 
+    speaker = make_speaker(cfg.voice_engine, cfg.voice_model, cfg.voice_rate)
+    voice = VoiceGuide(speaker, break_every_s=cfg.break_reminder_min * 60)
+    # The parent can call the car once the driver is known (needs the server; off with --offline).
+    caller = (
+        start_calls(
+            cfg.api_url, cfg.api_key, lambda: monitor.driver_id or None, speaker, cfg.call_auto_answer_s
+        )
+        if client is not None and cfg.calls
+        else None
+    )
+
     def vibrate(level: int) -> None:
         log.info(f"in-car alert level {level} ({alerter.reason_now or alerter.last_reason or 'calm'})")
+        voice.on_alert(level, alerter.reason_now or alerter.last_reason, time.monotonic())
         if wearable is not None:
             wearable.vibrate(level)
         if level >= 1 and cfg.local_beep and not cfg.alarm_cmd:
@@ -474,6 +488,9 @@ def run(
             t = frame_no / video_fps if video_fps else time.monotonic()
             result = monitor.process_frame(frame, t)
             now = time.monotonic()
+            voice.tick(now, driving=result.face is not None)
+            if not identity.automatic and voice.greeted is None and result.face is not None:
+                voice.greet(None, now)
             if alerter is not None:
                 ds = monitor.distraction.state
                 alerter.on_frame(
@@ -507,6 +524,7 @@ def run(
                         monitor.switch_driver(identity.driver_id)
                         thresholds_at = -1e9  # fetch this driver's thresholds now
                         log.info(f"driver recognised: {identity.name} ({identity.confidence * 100:.0f}%)")
+                        voice.greet(identity.name, now)
                     elif not identity.driver_id:
                         log.info(f"no match yet ({res.get('reason')}): {identity.label()}")
                 except Exception as exc:  # noqa: BLE001 - keep trying; never kill the camera loop
@@ -642,6 +660,8 @@ def run(
         if radar is not None:
             radar.close()
         monitor.location.close()
+        if caller is not None:
+            caller.stop()
         if client is not None:
             client.close()
         if recorder:

@@ -11,11 +11,15 @@ import { DatasetsTab } from './DatasetsTab';
 import { TrainingTab } from './TrainingTab';
 import { ModelsTab } from './ModelsTab';
 import { FeedbackTab } from './FeedbackTab';
+import { SurveysTab } from './SurveysTab';
+import { RatingsTab } from './RatingsTab';
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'parents', label: 'Parents' },
   { id: 'feedback', label: 'Feedback' },
+  { id: 'surveys', label: 'Surveys' },
+  { id: 'ratings', label: 'Ratings' },
   { id: 'datasets', label: 'Datasets' },
   { id: 'training', label: 'Training' },
   { id: 'models', label: 'Models' },
@@ -104,6 +108,8 @@ export function AdminPage() {
       {tab === 'overview' && <OverviewTab onNavigate={go} />}
       {tab === 'parents' && <ParentsTab />}
       {tab === 'feedback' && <FeedbackTab />}
+      {tab === 'surveys' && <SurveysTab />}
+      {tab === 'ratings' && <RatingsTab />}
       {tab === 'datasets' && <DatasetsTab />}
       {tab === 'training' && <TrainingTab />}
       {tab === 'models' && <ModelsTab />}

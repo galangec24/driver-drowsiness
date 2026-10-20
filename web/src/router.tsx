@@ -14,6 +14,7 @@ import { AppLoginPage } from './pages/AppLoginPage';
 import { EmbedMapPage } from './pages/EmbedMapPage';
 import { AdminPage } from './pages/admin/AdminPage';
 import { FeedbackPage } from './pages/FeedbackPage';
+import { SurveysPage } from './pages/SurveysPage';
 
 /** "/" is the parent dashboard; admins have their own console. */
 function HomePage() {
@@ -55,6 +56,7 @@ export const router = createBrowserRouter([
           { path: 'alerts', element: <AlertsPage /> },
           { path: 'settings', element: <SettingsPage /> },
           { path: 'feedback', element: <FeedbackPage /> },
+          { path: 'surveys', element: <SurveysPage /> },
           { path: 'admin', element: <AdminPage /> },
           { path: 'admin/:tab', element: <AdminPage /> },
         ],

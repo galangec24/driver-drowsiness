@@ -19,6 +19,12 @@ function emitToAdmins(event, payload) {
   io.to(ADMIN_ROOM).emit(event, payload);
 }
 
+/** Every signed-in client (e.g. the app rating summary changed). */
+function emitToAll(event, payload) {
+  if (!io) return;
+  io.emit(event, payload);
+}
+
 function emitToParent(parentId, event, payload) {
   if (!io) return;
   io.to(parentRoom(parentId)).emit(event, payload);
@@ -94,6 +100,7 @@ module.exports = {
   dispatchAcknowledged,
   dispatchFeedback,
   dispatchRead,
+  emitToAll,
   dispatchRemoved,
   dispatchAlertUpdated,
   dispatchDriverStatus,

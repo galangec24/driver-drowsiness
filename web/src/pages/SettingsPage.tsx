@@ -14,6 +14,7 @@ import { disableNotifications, enableNotifications, notificationsEnabled, notifi
 import { markFarewell } from '../lib/farewell';
 import { UpdatesCard } from '../components/settings/UpdatesCard';
 import { AboutCard } from '../components/settings/AboutCard';
+import { RateAppCard } from '../components/settings/RateAppCard';
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -110,6 +111,16 @@ export function SettingsPage() {
         </GlassCard>
 
         <UpdatesCard />
+
+        <RateAppCard />
+
+        <GlassCard interactive={false} data-testid="surveys-card">
+          <h2 className="mb-2 text-lg font-bold text-white">Surveys</h2>
+          <p className="mb-4 text-sm text-ink-muted">Answer short surveys from the Guardian Drive team.</p>
+          <Link to="/surveys">
+            <DepthButton variant="secondary">Open surveys</DepthButton>
+          </Link>
+        </GlassCard>
 
         <GlassCard interactive={false} data-testid="feedback-card">
           <h2 className="mb-2 text-lg font-bold text-white">Feedback</h2>

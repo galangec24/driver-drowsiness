@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { deleteDriver, driverLogs, getDriver, verifyDriver } from '../api/drivers';
 import { listAlerts } from '../api/alerts';
@@ -8,6 +8,7 @@ import type { SensorLogPoint } from '../api/types';
 import { usePollingFallback, useRealtime } from '../hooks/useRealtime';
 import { GlassCard } from '../components/ui/GlassCard';
 import { DepthButton } from '../components/ui/DepthButton';
+import { CallButton } from '../components/call/CallButton';
 import { Avatar } from '../components/ui/Avatar';
 import { StatusPill } from '../components/ui/StatusPill';
 import { LineChart } from '../components/ui/LineChart';
@@ -22,6 +23,8 @@ import { loadImage, toJpegDataUrl } from '../lib/imageQuality';
 
 export function DriverDetailPage() {
   const { id = '' } = useParams();
+  const [search] = useSearchParams();
+  const autoCall = search.get('call') === '1';
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
@@ -128,6 +131,9 @@ export function DriverDetailPage() {
             <span className="capitalize">{d.relationship || 'Driver'}</span> ·{' '}
             {d.faceEnrolled ? `face enrolled (${d.enrollment?.photoCount ?? 0} photos)` : 'no face enrolled'}
           </p>
+          <div className="mt-3">
+            <CallButton driverId={d.id} driverName={d.name} autoStart={autoCall} />
+          </div>
           <p className="mt-1 text-xs text-ink-muted">
             Last update {timeAgo(lastUpdate)}
             {d.lastTunedAt && ` · thresholds auto-tuned ${formatTime(d.lastTunedAt)}`}

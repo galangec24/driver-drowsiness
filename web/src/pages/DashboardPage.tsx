@@ -16,6 +16,7 @@ import { useNow } from '../hooks/useNow';
 import { fleet, mappable, needsAttention } from '../lib/fleet';
 import { AttentionPanel } from '../components/dashboard/AttentionPanel';
 import { FleetMap } from '../components/map/FleetMap';
+import { openSurveys } from '../api/surveys';
 
 function Stat({ label, value, tone }: { label: string; value: string | number; tone: string }) {
   return (
@@ -59,6 +60,7 @@ export function DashboardPage() {
       </header>
 
       <AttentionPanel entries={attention} />
+      <SurveyBanner />
 
       <motion.section
         className="grid grid-cols-2 gap-4 lg:grid-cols-4"
@@ -126,5 +128,23 @@ export function DashboardPage() {
         </section>
       </div>
     </div>
+  );
+}
+
+/** A new survey from the team that this parent hasn't answered yet. */
+function SurveyBanner() {
+  const q = useQuery({ queryKey: ['surveys', 'open'], queryFn: openSurveys, staleTime: 60_000 });
+  const pending = (q.data ?? []).filter((s) => !s.answered);
+  if (!pending.length) return null;
+  return (
+    <GlassCard interactive={false} className="flex flex-wrap items-center gap-3" data-testid="survey-banner">
+      <p className="min-w-0 flex-1 text-sm text-white">
+        <span className="font-semibold">New survey:</span> {pending[0]?.title}
+        {pending.length > 1 ? ` and ${pending.length - 1} more` : ''}
+      </p>
+      <Link to="/surveys">
+        <DepthButton size="sm">Answer</DepthButton>
+      </Link>
+    </GlassCard>
   );
 }

@@ -5,3 +5,8 @@ requests>=2.32
 python-dotenv>=1.0
 loguru>=0.7
 bleak>=0.22
+# Parent -> car voice calls (optional: without them calls are off)
+aiortc>=1.9
+sounddevice>=0.4
+python-socketio[asyncio_client]>=5.11
+aiohttp>=3.9
