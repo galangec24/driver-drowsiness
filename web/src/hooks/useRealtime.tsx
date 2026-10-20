@@ -16,6 +16,8 @@ interface RealtimeState {
   /** driverIds that just raised an alert (cards pulse briefly). */
   pulsing: Set<string>;
   socket: GuardianSocket | null;
+  /** Alert that was just detected again: its card scrolls into view and glows. */
+  highlighted: string | null;
 }
 
 const RealtimeContext = createContext<RealtimeState>({
@@ -23,6 +25,7 @@ const RealtimeContext = createContext<RealtimeState>({
   live: {},
   pulsing: new Set(),
   socket: null,
+  highlighted: null,
 });
 
 function prependAlert(qc: QueryClient, alert: Alert) {
@@ -36,6 +39,22 @@ function prependAlert(qc: QueryClient, alert: Alert) {
       alerts: [alert, ...data.alerts].slice(0, limit),
       unacknowledged: data.unacknowledged + (alert.acknowledged ? 0 : 1),
       unread: (data.unread ?? 0) + (alert.read ? 0 : 1),
+    });
+  }
+}
+
+/** Detected again: replace the alert in every list and move it to the top (unread again). */
+export function applyRepeated(qc: QueryClient, alert: Alert) {
+  for (const [key, data] of qc.getQueriesData<AlertsResponse>({ queryKey: ['alerts'] })) {
+    if (!data) continue;
+    const filters = (key[1] ?? {}) as AlertFilters;
+    const had = data.alerts.find((a) => a.id === alert.id);
+    const rest = data.alerts.filter((a) => a.id !== alert.id);
+    const fits = matchesFilters(alert, filters);
+    qc.setQueryData<AlertsResponse>(key, {
+      ...data,
+      alerts: fits ? [alert, ...rest].slice(0, filters.limit ?? 50) : rest,
+      unread: Math.max(0, (data.unread ?? 0) + (had && had.read && !alert.read ? 1 : had ? 0 : 1)),
     });
   }
 }
@@ -148,6 +167,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false);
   const [live, setLive] = useState<Record<string, DriverLiveStatus>>({});
   const [pulsing, setPulsing] = useState<Set<string>>(new Set());
+  const [highlighted, setHighlighted] = useState<string | null>(null);
   const toastRef = useRef(toast);
   toastRef.current = toast;
 
@@ -196,6 +216,22 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
 
     s.on('alert:read', ({ alertIds, read }) => applyRead(qc, alertIds, read));
 
+    s.on('alert:repeated', ({ escalated, ...alert }) => {
+      applyRepeated(qc, alert);
+      setHighlighted(alert.id);
+      window.setTimeout(() => setHighlighted((h) => (h === alert.id ? null : h)), 4000);
+      const title = escalated ? alertTitle(alert) : `${alert.driverName || 'Driver'}: detected again`;
+      toastRef.current.show({
+        title,
+        body: `${alertTitle(alert)} · ${alert.repeatCount ?? 2} times`,
+        tone: escalated ? 'danger' : 'warn',
+        durationMs: 5000,
+      });
+      if (escalated) notifyBrowser(title, `Detected ${alert.repeatCount ?? 2} times`, alert.id);
+    });
+
+    s.on('message:delivered', ({ driverId }) => void qc.invalidateQueries({ queryKey: ['messages', driverId] }));
+
     s.on('alert:removed', ({ alertIds }) => applyRemoved(qc, alertIds));
 
     s.on('survey:new', ({ title }) => {
@@ -235,7 +271,10 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     };
   }, [token, qc]);
 
-  const value = useMemo(() => ({ connected, live, pulsing, socket }), [connected, live, pulsing, socket]);
+  const value = useMemo(
+    () => ({ connected, live, pulsing, socket, highlighted }),
+    [connected, live, pulsing, socket, highlighted],
+  );
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;
 }
 

@@ -182,8 +182,10 @@ class CallClient:
         driver_id: Callable[[], str | None],
         say: Callable[[str], None],
         auto_answer_s: float = 3.0,
+        on_message: Callable[[str, str], None] | None = None,
     ) -> None:
         self.api_url = api_url.rstrip("/")
+        self.on_message = on_message
         self.device_key = device_key
         self.driver_id = driver_id
         self.say = say
@@ -283,6 +285,20 @@ class CallClient:
                 await sio.emit("call:signal", {"callId": data["callId"], "data": answer})
                 log.info("call connected")
 
+        @sio.on("driver:message")
+        async def message(data: dict) -> None:
+            """A parent's message or reminder: read aloud, shown on screen, confirmed."""
+            who = (data.get("fromName") or "your family").split(" ")[0]
+            text = str(data.get("text") or "").strip()
+            if not text:
+                return
+            label = "Reminder" if data.get("kind") == "reminder" else "Message"
+            self.say(f"{label} from {who}. {text}")
+            log.info(f"{label.lower()} from {data.get('fromName')}: {text}")
+            if self.on_message:
+                self.on_message(f"{label} from {who}", text)
+            await sio.emit("message:delivered", {"id": data.get("id")})
+
         @sio.on("call:ended")
         async def ended(data: dict) -> None:
             if data.get("callId") == session.get("id"):
@@ -299,12 +315,13 @@ def start_calls(
     driver_id: Callable[[], str | None],
     say: Callable[[str], None],
     auto_answer_s: float,
+    on_message: Callable[[str, str], None] | None = None,
 ) -> CallClient | None:
     missing = available()
     if missing:
         log.info(f"calls off: {missing}")
         return None
-    return CallClient(api_url, device_key, driver_id, say, auto_answer_s).start()
+    return CallClient(api_url, device_key, driver_id, say, auto_answer_s, on_message).start()
 
 
 __all__ = ["CallClient", "CallSession", "available", "start_calls", "time"]

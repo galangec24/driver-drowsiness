@@ -21,6 +21,11 @@ class DataController extends ChangeNotifier {
       ..onAlertUpdated = _onAlertUpdated
       ..onRead = _onRead
       ..onRemoved = _onRemoved
+      ..onRepeated = _onRepeated
+      ..onMessageDelivered = (() {
+        alertsVersion++;
+        notifyListeners();
+      })
       ..onStatus = _onStatus;
   }
 
@@ -175,6 +180,28 @@ class DataController extends ChangeNotifier {
     if (i < 0 || snapshotUrl == null) return;
     alerts = List.of(alerts)
       ..[i] = alerts[i].copyWith(snapshotUrl: snapshotUrl);
+    notifyListeners();
+  }
+
+  /// Alert detected again: just highlighted (scrolls into view on the alert lists).
+  String? highlighted;
+
+  void _onRepeated(DriverAlert alert, bool escalated) {
+    final had = alerts.where((a) => a.id == alert.id).firstOrNull;
+    alerts = [
+      alert,
+      ...alerts.where((a) => a.id != alert.id),
+    ].take(50).toList();
+    if (had == null || had.read) unread += 1;
+    highlighted = alert.id;
+    alertsVersion++;
+    if (escalated) unawaited(_notifications.showAlert(alert));
+    Timer(const Duration(seconds: 4), () {
+      if (highlighted == alert.id) {
+        highlighted = null;
+        notifyListeners();
+      }
+    });
     notifyListeners();
   }
 

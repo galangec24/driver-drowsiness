@@ -59,6 +59,8 @@ class HudState:
     eyes: list[np.ndarray] = field(default_factory=list)
     night: str = ""
     extra: list[str] = field(default_factory=list)
+    # (title, text) of a parent's message, shown in a highlighted box for a few seconds
+    message: tuple[str, str] | None = None
 
 
 def _text(
@@ -221,6 +223,16 @@ def render(frame: np.ndarray, s: HudState, t: float) -> np.ndarray:
         (nw, _), _ = cv2.getTextSize(name, FONT, 0.38, 1)
         _text(panel, name, (bx + (box_w - nw) // 2, y + 54), 0.38, MUTED)
     y += 86
+
+    if s.message:
+        title, text = s.message
+        cv2.rectangle(panel, (x, y - 4), (x + pw, y + 58), (120, 70, 40), -1)
+        cv2.rectangle(panel, (x, y - 4), (x + pw, y + 58), (248, 140, 129), 1)
+        _text(panel, title[:40], (x + 10, y + 16), 0.5, (255, 255, 255), 1)
+        _text(panel, text[:42], (x + 10, y + 38), 0.48, WHITE)
+        if len(text) > 42:
+            _text(panel, text[42:84], (x + 10, y + 54), 0.48, WHITE)
+        y += 70
 
     for line in s.extra[:3]:
         _text(panel, line[:44], (x, y), 0.48, MUTED)

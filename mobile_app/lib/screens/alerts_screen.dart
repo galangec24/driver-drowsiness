@@ -330,6 +330,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                 child: AlertCard(
                   key: ValueKey(a.id),
                   alert: a,
+                  highlighted: data.highlighted == a.id,
                   acknowledging: _acking.contains(a.id),
                   onAcknowledge: () => _ack(a.id),
                   onFalseAlarm: () => _ack(a.id, falseAlarm: true),

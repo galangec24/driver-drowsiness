@@ -97,3 +97,37 @@ def test_audio_flows_both_ways_through_a_real_webrtc_call() -> None:
     car_heard, parent_heard = asyncio.run(scenario())
     assert car_heard > 10, "the car did not receive the parent's voice"
     assert parent_heard > 10, "the parent did not receive the car's microphone"
+
+
+def test_a_parent_message_is_spoken_shown_and_confirmed() -> None:
+    from transport.calls import CallClient
+
+    said: list[str] = []
+    shown: list[tuple[str, str]] = []
+    client = CallClient(
+        "http://x", "key", lambda: "d1", said.append, on_message=lambda a, b: shown.append((a, b))
+    )
+    sio = client._client({}, lambda reason="": None)
+    sent: list[tuple[str, dict]] = []
+
+    async def fake_emit(event: str, data: dict) -> None:
+        sent.append((event, data))
+
+    sio.emit = fake_emit
+    handler = sio.handlers["/"]["driver:message"]
+    asyncio.run(
+        handler({"id": "m1", "text": "Please take a break", "kind": "reminder", "fromName": "Maria Galang"})
+    )
+    assert said == ["Reminder from Maria. Please take a break"]
+    assert shown == [("Reminder from Maria", "Please take a break")]
+    assert sent == [("message:delivered", {"id": "m1"})]
+
+
+def test_the_screen_shows_the_message() -> None:
+    from ui import hud
+
+    frame = np.full((480, 640, 3), 90, np.uint8)
+    plain = hud.render(frame, hud.HudState(), 0.0)
+    with_msg = hud.render(frame, hud.HudState(message=("Message from Maria", "Call me when you arrive")), 0.0)
+    assert plain.shape == with_msg.shape
+    assert (plain != with_msg).any()

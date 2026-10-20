@@ -46,6 +46,8 @@ class DriverAlert {
     this.expired = false,
     this.read = false,
     this.fatigueReason,
+    this.repeatCount = 1,
+    this.lastDetectedAt,
   });
 
   factory DriverAlert.fromJson(Map<String, dynamic> j) {
@@ -76,6 +78,9 @@ class DriverAlert {
       expired: j['expired'] == true,
       read: j['read'] == true,
       fatigueReason: s['fatigueReason'] as String?,
+      repeatCount: (j['repeatCount'] as num?)?.toInt() ?? 1,
+      lastDetectedAt: DateTime.tryParse((j['lastDetectedAt'] ?? '') as String)
+          ?.toLocal(),
     );
   }
 
@@ -116,6 +121,10 @@ class DriverAlert {
   /// Why the camera judged fatigue, e.g. "Fatigue signs: repeated yawning (3+ in 10 min)".
   final String? fatigueReason;
 
+  /// Detections grouped into this alert ("detected again"), and the latest one.
+  final int repeatCount;
+  final DateTime? lastDetectedAt;
+
   /// Still waiting for an acknowledgement today.
   bool get open => !acknowledged && !expired;
 
@@ -147,6 +156,8 @@ class DriverAlert {
     expired: expired,
     read: read ?? this.read,
     fatigueReason: fatigueReason,
+    repeatCount: repeatCount,
+    lastDetectedAt: lastDetectedAt,
   );
 
   DriverAlert acknowledge(String by, {bool? falseAlarm}) => copyWith(

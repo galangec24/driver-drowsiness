@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRealtime } from '../../hooks/useRealtime';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Alert } from '../../api/types';
 import { assetUrl } from '../../api/client';
@@ -41,17 +42,26 @@ export function AlertCard({
   const expired = !alert.acknowledged && Boolean(alert.expired);
   const active = !alert.acknowledged && !expired;
   const [confirmRemove, setConfirmRemove] = useState(false);
+  // Detected again: scroll this card into view and let it glow for a moment.
+  const { highlighted } = useRealtime();
+  const isHighlighted = highlighted === alert.id;
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (isHighlighted) ref.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  }, [isHighlighted]);
+  const repeats = alert.repeatCount ?? 1;
   const tone = severe ? 'danger' : alert.type === 'warning' ? 'warn' : 'info';
   const [detailOpen, setDetailOpen] = useState(false);
   const snapshot = assetUrl(alert.snapshotUrl);
   const hasDetail = Boolean(snapshot || alert.location);
 
   // Delivered late (car was offline): show when it happened, not when it arrived.
-  const happenedAt = (alert.delayedS && alert.sensorSnapshot?.timestamp) || alert.createdAt;
+  const happenedAt = (alert.delayedS && alert.sensorSnapshot?.timestamp) || alert.lastDetectedAt || alert.createdAt;
 
   return (
     <>
       <motion.article
+        ref={ref}
         layout
         data-testid="alert-card"
         data-severity={tone}
@@ -67,7 +77,9 @@ export function AlertCard({
           severe && active ? 'edge-danger shadow-glow-danger' : '',
           !severe && active && tone === 'warn' ? 'edge-warn' : '',
           !active ? 'opacity-70' : '',
+          isHighlighted ? 'ring-2 ring-amber-300 ring-offset-2 ring-offset-transparent' : '',
         ].join(' ')}
+        data-highlighted={isHighlighted || undefined}
       >
         {severe && active && (
           <span
@@ -119,6 +131,15 @@ export function AlertCard({
               </p>
             ) : null}
 
+            {repeats > 1 && (
+              <p
+                data-testid="alert-repeats"
+                className="mt-1 inline-flex rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-semibold text-amber-100"
+                title={`First detected ${formatTime(alert.createdAt)}`}
+              >
+                Detected {repeats} times · last {timeAgo(happenedAt)}
+              </p>
+            )}
             {alert.sensorSnapshot?.fatigueReason && (
               <p className="mt-1 text-sm text-amber-100/90" data-testid="fatigue-reason">
                 {alert.sensorSnapshot.fatigueReason}

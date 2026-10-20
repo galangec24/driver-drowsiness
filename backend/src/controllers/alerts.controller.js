@@ -75,7 +75,7 @@ async function list(req, res) {
   if (Object.keys(range).length) filter.createdAt = range;
 
   const [alerts, names, unacknowledged, unread, expired] = await Promise.all([
-    Alert.find(filter).sort({ createdAt: -1 }).limit(q.limit),
+    Alert.find(filter).sort({ lastDetectedAt: -1, createdAt: -1 }).limit(q.limit),
     driverNames(req.user.parentId),
     // Still to acknowledge (today's): the badge on "Alerts".
     Alert.countDocuments({ ...mine, acknowledged: false, createdAt: { $gte: today } }),

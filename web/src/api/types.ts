@@ -142,6 +142,9 @@ export interface Alert {
   /** Notification read by the parent (separate from acknowledging). */
   read?: boolean;
   readAt?: string | null;
+  /** Detections grouped into this alert, and the latest one. */
+  repeatCount?: number;
+  lastDetectedAt?: string;
   createdAt: string;
   driverName?: string | null;
 }

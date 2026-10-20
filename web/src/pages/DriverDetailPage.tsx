@@ -9,6 +9,7 @@ import { usePollingFallback, useRealtime } from '../hooks/useRealtime';
 import { GlassCard } from '../components/ui/GlassCard';
 import { DepthButton } from '../components/ui/DepthButton';
 import { CallButton } from '../components/call/CallButton';
+import { MessagePanel } from '../components/driver/MessagePanel';
 import { Avatar } from '../components/ui/Avatar';
 import { StatusPill } from '../components/ui/StatusPill';
 import { LineChart } from '../components/ui/LineChart';
@@ -183,6 +184,8 @@ export function DriverDetailPage() {
         </div>
 
         <div className="flex flex-col gap-6">
+          <MessagePanel driverId={d.id} driverName={d.name} />
+
           <GlassCard interactive={false} data-testid="live-location">
             <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-white">
               <Icon name="pin" size={20} className="text-accent-glow" /> Live location

@@ -8,6 +8,29 @@ const statusStore = require('./statusStore');
 const signalWindow = require('./signalWindow');
 const fpVerifier = require('./fpVerifier');
 const { computeFeatures, MIN_TICKS } = require('./fpFeatures');
+const { startOfLocalDay } = require('../utils/alertDay');
+
+// Alerts of the same group are merged while the parent hasn't acknowledged them yet.
+const ALERT_GROUP = {
+  warning: 'fatigue',
+  yawning: 'fatigue',
+  nodding: 'fatigue',
+  drowsy: 'fatigue',
+  microsleep: 'fatigue',
+  distraction: 'distraction',
+  face_match: 'face_match',
+};
+const SEVERITY = {
+  warning: 1,
+  yawning: 1,
+  distraction: 1,
+  face_match: 1,
+  nodding: 2,
+  drowsy: 3,
+  microsleep: 4,
+};
+const groupTypes = (type) =>
+  Object.keys(ALERT_GROUP).filter((t) => ALERT_GROUP[t] === ALERT_GROUP[type]);
 
 // Last alert time per `${driverId}:${type}` — stops a 1 Hz feed from creating 1 alert/second.
 const lastAlertAt = new Map();
@@ -197,29 +220,57 @@ async function createAlert(
   location,
   delayedS,
 ) {
+  const sensorSnapshot = {
+    ear: signals.ear,
+    perclos: signals.perclos,
+    heartRate: signals.heartRate,
+    ...(typeof signals.hrv === 'number' && { hrv: signals.hrv }),
+    ...(typeof signals.yawnCount === 'number' && { yawnCount: signals.yawnCount }),
+    ...(typeof signals.nodCount === 'number' && { nodCount: signals.nodCount }),
+    ...(typeof signals.distractionCount === 'number' && {
+      distractionCount: signals.distractionCount,
+    }),
+    ...(typeof signals.blinkRate === 'number' && { blinkRate: signals.blinkRate }),
+    ...(typeof signals.longBlinkCount === 'number' && { longBlinkCount: signals.longBlinkCount }),
+    ...(typeof signals.fuzzyScore === 'number' && { fuzzyScore: signals.fuzzyScore }),
+    ...(typeof signals.fatigueReason === 'string' &&
+      signals.fatigueReason && { fatigueReason: signals.fatigueReason }),
+    ...(typeof signals.breathingRate === 'number' && { breathingRate: signals.breathingRate }),
+    timestamp,
+  };
+  const conf = round(Math.min(1, Math.max(0, confidence)), 3);
+
+  // Detected again while the parent hasn't acknowledged: update that alert instead of a new one.
+  const open = await Alert.findOne({
+    driverId: driver._id,
+    removedAt: null,
+    acknowledged: false,
+    type: { $in: groupTypes(type) },
+    lastDetectedAt: { $gte: new Date(timestamp.getTime() - env.alertGroupMs) },
+    createdAt: { $gte: startOfLocalDay(timestamp) },
+  }).sort({ lastDetectedAt: -1 });
+  if (open) {
+    const escalated = (SEVERITY[type] || 0) > (SEVERITY[open.type] || 0);
+    open.repeatCount = (open.repeatCount || 1) + 1;
+    open.lastDetectedAt = timestamp;
+    open.sensorSnapshot = sensorSnapshot;
+    open.confidence = Math.max(open.confidence || 0, conf);
+    if (escalated) open.type = type;
+    if (location) open.location = location;
+    open.readAt = undefined; // the notification resurfaces as unread
+    await open.save();
+    const pub = open.toPublic({ driverName: driver.name });
+    alertDispatcher.dispatchAlertRepeated(pub, escalated);
+    return pub;
+  }
+
   const alert = await Alert.create({
     driverId: driver._id,
     parentId: driver.parentId,
     type,
-    confidence: round(Math.min(1, Math.max(0, confidence)), 3),
-    sensorSnapshot: {
-      ear: signals.ear,
-      perclos: signals.perclos,
-      heartRate: signals.heartRate,
-      ...(typeof signals.hrv === 'number' && { hrv: signals.hrv }),
-      ...(typeof signals.yawnCount === 'number' && { yawnCount: signals.yawnCount }),
-      ...(typeof signals.nodCount === 'number' && { nodCount: signals.nodCount }),
-      ...(typeof signals.distractionCount === 'number' && {
-        distractionCount: signals.distractionCount,
-      }),
-      ...(typeof signals.blinkRate === 'number' && { blinkRate: signals.blinkRate }),
-      ...(typeof signals.longBlinkCount === 'number' && { longBlinkCount: signals.longBlinkCount }),
-      ...(typeof signals.fuzzyScore === 'number' && { fuzzyScore: signals.fuzzyScore }),
-      ...(typeof signals.fatigueReason === 'string' &&
-        signals.fatigueReason && { fatigueReason: signals.fatigueReason }),
-      ...(typeof signals.breathingRate === 'number' && { breathingRate: signals.breathingRate }),
-      timestamp,
-    },
+    confidence: conf,
+    sensorSnapshot,
+    lastDetectedAt: timestamp,
     ...(location && { location }),
     ...(verifier && { verifier }),
     ...(delayedS && { delayedS }),

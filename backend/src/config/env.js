@@ -29,6 +29,9 @@ const env = {
   alertCooldownMs: Number(process.env.ALERT_COOLDOWN_MS) || 15000,
   // The family's day for "acknowledge by the end of the day" (src/utils/alertDay.js).
   alertTimezone: process.env.ALERT_TIMEZONE || 'Asia/Manila',
+  // A new detection of the same kind within this many minutes updates the open alert
+  // ("detected again") instead of creating another one.
+  alertGroupMs: (Number(process.env.ALERT_GROUP_MINUTES) || 10) * 60 * 1000,
   publicBaseUrl: process.env.PUBLIC_BASE_URL || '',
   // False-positive verifier (src/ml/fp-verifier.json). FP_VERIFIER=off disables it;
   // FP_VERIFIER_THRESHOLD overrides the threshold chosen at training time.

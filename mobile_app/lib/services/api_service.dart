@@ -501,6 +501,28 @@ class ApiService {
     return RatingSummary.fromJson(r.data!['summary'] as Map<String, dynamic>);
   });
 
+  // ---- messages to the car (read aloud by the in-car voice) ----
+  Future<List<DriverMessage>> messages(String driverId) => _call(() async {
+    final r = await _dio.get<Map<String, dynamic>>(
+      '/drivers/$driverId/messages',
+    );
+    return (r.data!['messages'] as List)
+        .map((e) => DriverMessage.fromJson(e as Map<String, dynamic>))
+        .toList();
+  });
+
+  Future<bool> sendMessage(
+    String driverId,
+    String text, {
+    bool reminder = false,
+  }) => _call(() async {
+    final r = await _dio.post<Map<String, dynamic>>(
+      '/drivers/$driverId/messages',
+      data: {'text': text, 'kind': reminder ? 'reminder' : 'message'},
+    );
+    return r.data!['carOnline'] == true;
+  });
+
   // ---- surveys ----
   Future<List<Survey>> openSurveys() => _call(() async {
     final r = await _dio.get<Map<String, dynamic>>('/surveys');

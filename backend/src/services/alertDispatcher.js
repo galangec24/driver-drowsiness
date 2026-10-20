@@ -58,6 +58,13 @@ function dispatchNewAlert(alert) {
   pushFcm(alert.parentId, alert);
 }
 
+/** The same kind of detection again: the open alert was updated (count, latest time, maybe a
+ * more serious type). Apps move it to the top and highlight it; a push only when it escalated. */
+function dispatchAlertRepeated(alert, escalated) {
+  emitToParent(alert.parentId, 'alert:repeated', { ...alert, escalated: Boolean(escalated) });
+  if (escalated) pushFcm(alert.parentId, alert);
+}
+
 function dispatchAcknowledged(parentId, alertId, acknowledgedBy, falseAlarm) {
   emitToParent(parentId, 'alert:acknowledged', {
     alertId,
@@ -98,6 +105,7 @@ module.exports = {
   emitToParent,
   dispatchNewAlert,
   dispatchAcknowledged,
+  dispatchAlertRepeated,
   dispatchFeedback,
   dispatchRead,
   emitToAll,

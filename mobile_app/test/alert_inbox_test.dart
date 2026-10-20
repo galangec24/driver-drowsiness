@@ -104,4 +104,25 @@ void main() {
     expect(acked, 1);
     expect(find.byKey(const ValueKey('expired-label')), findsNothing);
   });
+
+  testWidgets('a repeated detection shows its count on one alert', (
+    tester,
+  ) async {
+    final a = DriverAlert.fromJson({
+      'id': 'r1',
+      'driverId': 'd1',
+      'type': 'warning',
+      'confidence': 0.8,
+      'acknowledged': false,
+      'createdAt': DateTime.now().toIso8601String(),
+      'lastDetectedAt': DateTime.now().toIso8601String(),
+      'repeatCount': 3,
+    });
+    expect(a.repeatCount, 3);
+    await tester.pumpWidget(
+      _wrap(AlertCard(alert: a, animateIn: false, highlighted: true)),
+    );
+    expect(find.byKey(const ValueKey('alert-repeats')), findsOneWidget);
+    expect(find.textContaining('Detected 3 times'), findsOneWidget);
+  });
 }

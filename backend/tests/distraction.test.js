@@ -62,6 +62,8 @@ describe('observed alerts (nodding / yawning / distraction) are not repeated wit
     at(2 * 60 * 1000 + 1000); // a third nod
     const more = await ingest(ingestPayload(driver._id, { ...AWAKE, nodCount: 3 })).expect(200);
     expect(more.body.alertTriggered).toBe(true);
-    expect(await Alert.countDocuments({ type: 'nodding' })).toBe(2);
+    // the new nod is grouped into the open alert ("detected again"), not a second alert
+    expect(await Alert.countDocuments({ type: 'nodding' })).toBe(1);
+    expect((await Alert.findOne({ type: 'nodding' })).repeatCount).toBe(2);
   });
 });

@@ -151,3 +151,21 @@ def test_switching_driver_starts_their_baselines_fresh() -> None:
     assert m.perclos.baseline is None and m.perclos.value == 0.0
     assert m.nod.count(t) == 0 and m.yawn.count(t) == 0
     assert m.make_payload(t)["signals"]["matchedDriver"] == "bbbbbbbbbbbbbbbbbbbbbbbb"
+
+
+def test_alert_photo_is_the_moment_the_eyes_were_most_closed() -> None:
+    """Reported: a drowsy alert showed a photo with open eyes (taken a second too late)."""
+    import numpy as np
+
+    from main import FrameResult
+
+    m, _ = make_monitor()
+    frames = {ear: np.full((4, 4, 3), int(ear * 100), np.uint8) for ear in (0.30, 0.05, 0.28)}
+    for ear, frame in frames.items():
+        m.keep_evidence(FrameResult(ear=ear, eyes_reliable=True), frame)
+    m.keep_evidence(
+        FrameResult(ear=0.01, eyes_reliable=False), np.zeros((4, 4, 3), np.uint8)
+    )  # unreliable: ignored
+    m.make_payload(1.0)  # interval sent; the photo must still be available for its alert
+    m.keep_evidence(FrameResult(ear=0.31, eyes_reliable=True), np.full((4, 4, 3), 31, np.uint8))
+    assert int(m.evidence_frame()[0, 0, 0]) == 5  # the closed-eyes frame, not the latest

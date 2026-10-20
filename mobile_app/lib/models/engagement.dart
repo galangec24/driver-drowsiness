@@ -110,3 +110,35 @@ class Survey {
   final List<SurveyQuestion> questions;
   final bool answered;
 }
+
+/// A parent's message / reminder to the car.
+class DriverMessage {
+  const DriverMessage({
+    required this.id,
+    required this.text,
+    required this.status,
+    required this.createdAt,
+  });
+
+  factory DriverMessage.fromJson(Map<String, dynamic> j) => DriverMessage(
+    id: j['id'] as String,
+    text: j['text'] as String,
+    status: (j['status'] ?? 'pending') as String,
+    createdAt:
+        DateTime.tryParse((j['createdAt'] ?? '') as String)?.toLocal() ??
+        DateTime.now(),
+  );
+
+  final String id;
+  final String text;
+  final String status; // pending | delivered | expired
+  final DateTime createdAt;
+}
+
+const quickReminders = [
+  'Please take a break at the next safe stop.',
+  'Drink some water and stay alert.',
+  'Please slow down and drive safely.',
+  'Call me when you arrive.',
+  'Drive safely. We love you.',
+];

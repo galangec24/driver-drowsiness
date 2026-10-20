@@ -52,6 +52,9 @@ const alertSchema = new mongoose.Schema(
     acknowledged: { type: Boolean, default: false },
     // Notification state for the parent (unread / read), separate from acknowledging.
     readAt: Date,
+    // Repeated detections of the same kind are grouped into this alert (see ingestService).
+    repeatCount: { type: Number, default: 1 },
+    lastDetectedAt: Date,
     // Removed by the parent: hidden from every list (kept for the sensitivity tuner / ML labels).
     removedAt: Date,
     acknowledgedAt: Date,
@@ -71,6 +74,7 @@ const alertSchema = new mongoose.Schema(
 alertSchema.index({ driverId: 1, createdAt: -1 });
 alertSchema.index({ parentId: 1, acknowledged: 1 });
 alertSchema.index({ parentId: 1, removedAt: 1, createdAt: -1 });
+alertSchema.index({ driverId: 1, acknowledged: 1, lastDetectedAt: -1 });
 
 alertSchema.methods.toPublic = function toPublic(extra = {}) {
   // Lazy: alertDay → env; keeps the model importable on its own.
@@ -91,6 +95,8 @@ alertSchema.methods.toPublic = function toPublic(extra = {}) {
     // Not acknowledged on the day it happened: can no longer be acknowledged, only removed.
     expired: isExpired(this),
     read: Boolean(this.readAt),
+    repeatCount: this.repeatCount || 1,
+    lastDetectedAt: this.lastDetectedAt || this.createdAt,
     readAt: this.readAt || null,
     falseAlarm: this.feedback ? (this.feedback.falseAlarm ?? null) : null,
     createdAt: this.createdAt,

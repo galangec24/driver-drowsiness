@@ -11,6 +11,9 @@ export interface ServerToClientEvents {
   'alert:feedback': (payload: { alertId: string; falseAlarm: boolean }) => void;
   'alert:updated': (payload: { alertId: string; snapshotUrl?: string }) => void;
   'alert:read': (payload: { alertIds: string[]; read: boolean }) => void;
+  /** The same kind of detection again: the open alert was updated (moved to the top, highlighted). */
+  'alert:repeated': (alert: Alert & { escalated: boolean }) => void;
+  'message:delivered': (message: { id: string; driverId: string }) => void;
   'alert:removed': (payload: { alertIds: string[] }) => void;
   'driver:status': (status: DriverLiveStatus) => void;
   /** Admins only: training worker job status and log output. */

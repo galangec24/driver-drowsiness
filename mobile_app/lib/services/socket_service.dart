@@ -16,6 +16,8 @@ class SocketService {
   void Function(String alertId, String? snapshotUrl)? onAlertUpdated;
   void Function(List<String> alertIds, bool read)? onRead;
   void Function(List<String> alertIds)? onRemoved;
+  void Function(DriverAlert alert, bool escalated)? onRepeated;
+  void Function()? onMessageDelivered;
   void Function(DriverLive status)? onStatus;
 
   bool get connected => _socket?.connected ?? false;
@@ -69,6 +71,13 @@ class SocketService {
           );
         }
       })
+      ..on('alert:repeated', (data) {
+        if (data is Map) {
+          final m = Map<String, dynamic>.from(data);
+          onRepeated?.call(DriverAlert.fromJson(m), m['escalated'] == true);
+        }
+      })
+      ..on('message:delivered', (_) => onMessageDelivered?.call())
       ..on('alert:read', (data) {
         if (data is Map) {
           onRead?.call(

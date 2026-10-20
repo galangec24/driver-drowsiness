@@ -97,6 +97,10 @@ class Monitor:
     # Fuzzy-logic fatigue over all the eye / mouth / head signs (fusion/fuzzy.py)
     fuzzy: FatigueFuzzy = field(default_factory=FatigueFuzzy)
     fatigue: FuzzyResult = field(default_factory=lambda: FuzzyResult(0.0))
+    # The frame where the eyes were most closed, per reading interval (last 3): the parent's
+    # alert photo shows the moment of the closure, not the second after (eyes already open).
+    _evidence: tuple[float, np.ndarray] | None = None
+    _evidence_history: list[tuple[float, np.ndarray]] = field(default_factory=list)
     distraction: DistractionDetector = field(default_factory=DistractionDetector)
     hearts: list[HeartRateState] = field(default_factory=list)  # BLE HR sources, priority order
     breathing: BreathingState | None = None  # dashboard radar
@@ -185,6 +189,7 @@ class Monitor:
         self.distraction = DistractionDetector()
         self.blink = BlinkDetector()
         self.fatigue = FuzzyResult(0.0)
+        self._evidence, self._evidence_history = None, []
         self.aggregator = IntervalAggregator()
         self.last_response = None
 
@@ -207,9 +212,25 @@ class Monitor:
             self._next_post = t + self.interval_s
         return t >= self._next_post
 
+    def keep_evidence(self, result: FrameResult, frame: np.ndarray) -> None:
+        """Remember this frame if its eyes are the most closed of the interval (cheap: one copy
+        only when a new lowest reading appears)."""
+        if result.ear is None or not result.eyes_reliable:
+            return
+        if self._evidence is None or result.ear < self._evidence[0]:
+            self._evidence = (result.ear, frame.copy())
+
+    def evidence_frame(self) -> np.ndarray | None:
+        """Most-closed-eyes frame of the last ~3 readings (None if no face was seen)."""
+        candidates = self._evidence_history + ([self._evidence] if self._evidence else [])
+        return min(candidates, key=lambda e: e[0])[1] if candidates else None
+
     def make_payload(self, t: float) -> dict[str, Any]:
         """Build one interval's payload and schedule the next POST."""
         self._next_post = t + self.interval_s
+        if self._evidence is not None:
+            self._evidence_history = [*self._evidence_history[-2:], self._evidence]
+        self._evidence = None
         ear, face_conf = self.aggregator.flush()
         extra: dict[str, Any] = {
             "yawnCount": self.yawn.count(t),
@@ -406,9 +427,19 @@ def run(
     speaker = make_speaker(cfg.voice_engine, cfg.voice_model, cfg.voice_rate)
     voice = VoiceGuide(speaker, break_every_s=cfg.break_reminder_min * 60)
     # The parent can call the car once the driver is known (needs the server; off with --offline).
+    inbox: dict[str, Any] = {}  # latest parent message, shown on screen for 20 s
+
+    def show_message(title: str, text: str) -> None:
+        inbox.update(title=title, text=text, until=time.monotonic() + 20)
+
     caller = (
         start_calls(
-            cfg.api_url, cfg.api_key, lambda: monitor.driver_id or None, speaker, cfg.call_auto_answer_s
+            cfg.api_url,
+            cfg.api_key,
+            lambda: monitor.driver_id or None,
+            speaker,
+            cfg.call_auto_answer_s,
+            on_message=show_message,
         )
         if client is not None and cfg.calls
         else None
@@ -487,6 +518,7 @@ def run(
                 frame = cv2.flip(frame, 1)
             t = frame_no / video_fps if video_fps else time.monotonic()
             result = monitor.process_frame(frame, t)
+            monitor.keep_evidence(result, frame)
             now = time.monotonic()
             voice.tick(now, driving=result.face is not None)
             if not identity.automatic and voice.greeted is None and result.face is not None:
@@ -583,9 +615,14 @@ def run(
                         f"fusionScore={r['fusionScore']:.3f} alertTriggered={r['alertTriggered']}"
                     )
                     if r.get("alertTriggered") and r.get("alertId") and cfg.send_snapshots and client:
-                        # `frame` is still clean here: the overlay is drawn further down.
+                        # Fatigue alerts: the moment the eyes were most closed. Others (eyes off the
+                        # road, unknown driver): now. `frame` is still clean here (no overlay yet).
+                        evidence = monitor.evidence_frame() if r.get("classification") != "alert" else None
                         snap_pool.submit(
-                            client.post_snapshot, monitor.driver_id, r["alertId"], encode_snapshot(frame)
+                            client.post_snapshot,
+                            monitor.driver_id,
+                            r["alertId"],
+                            encode_snapshot(evidence if evidence is not None else frame),
                         )
                         log.info(f"alert {r['alertId']}: snapshot uploading")
                 except _Stored:
@@ -611,7 +648,8 @@ def run(
                         and alerter.level >= 2
                         and now - last_offline_snap > 30
                     ):
-                        snap = encode_snapshot(frame)
+                        evidence = monitor.evidence_frame()
+                        snap = encode_snapshot(evidence if evidence is not None else frame)
                         last_offline_snap = now
                     if inflight is None:
                         inflight = pool.submit(sender.send, payload, snap)
@@ -619,9 +657,10 @@ def run(
                         log.warning("Previous POST still in flight; skipping this interval")
 
             if cfg.show_window:
-                screen = hud.render(
-                    frame, hud_state(monitor, result, alerter, identity, client, sender, t, now), now
-                )
+                state = hud_state(monitor, result, alerter, identity, client, sender, t, now)
+                if inbox and now < inbox["until"]:
+                    state.message = (inbox["title"], inbox["text"])
+                screen = hud.render(frame, state, now)
                 if recorder:
                     cv2.putText(
                         screen,

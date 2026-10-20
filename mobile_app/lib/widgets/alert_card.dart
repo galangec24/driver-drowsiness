@@ -21,7 +21,11 @@ class AlertCard extends StatelessWidget {
     this.snapshotUrl,
     this.onDetails,
     this.onRemove,
+    this.highlighted = false,
   });
+
+  /// Just detected again: glow so the parent sees which alert it was.
+  final bool highlighted;
 
   final DriverAlert alert;
   final VoidCallback? onAcknowledge;
@@ -102,7 +106,10 @@ class AlertCard extends StatelessWidget {
                 stops: const [0, 0.35],
               )
             : null,
-        border: Border.all(color: AppColors.glassBorder),
+        border: Border.all(
+          color: highlighted ? const Color(0xFFFCD34D) : AppColors.glassBorder,
+          width: highlighted ? 2 : 1,
+        ),
         boxShadow: [
           ...AppShadows.depth2,
           if (severe && active) ...AppShadows.glowDanger,
@@ -201,6 +208,27 @@ class AlertCard extends StatelessWidget {
                                 ),
                               ],
                             ),
+                            if (alert.repeatCount > 1)
+                              Container(
+                                key: const ValueKey('alert-repeats'),
+                                margin: const EdgeInsets.only(top: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0x26FBBF24),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  'Detected ${alert.repeatCount} times · last ${timeAgo(alert.lastDetectedAt ?? alert.createdAt)}',
+                                  style: const TextStyle(
+                                    color: Color(0xFFFDE68A),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
                             if (alert.fatigueReason != null)
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),

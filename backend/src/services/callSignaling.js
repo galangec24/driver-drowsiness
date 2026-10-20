@@ -15,6 +15,7 @@ const User = require('../models/User');
  */
 
 const RING_TIMEOUT_MS = 30 * 1000;
+let ioRef = null; // set when the first socket attaches (messages are sent from REST handlers)
 const deviceRoom = (driverId) => `device:${driverId}`;
 const calls = new Map(); // callId -> { driverId, parentId, parentSocket, deviceSocket, state, timer }
 
@@ -77,6 +78,7 @@ function activeCallFor(driverId) {
 
 /** A parent's socket: start / signal / end calls to their own drivers. */
 function attachParent(io, socket) {
+  ioRef = io;
   const { parentId } = socket.data.user;
 
   socket.on('call:start', async (payload, ack) => {
@@ -131,8 +133,19 @@ function attachParent(io, socket) {
 
 /** An in-car device's socket: answer / decline / signal / end. */
 function attachDevice(io, socket) {
+  ioRef = io;
   const { driverId } = socket.data.device;
   socket.join(deviceRoom(driverId));
+  deliverPending(socket, driverId).catch((err) =>
+    logger.warn({ err: err.message }, 'pending messages'),
+  );
+
+  socket.on('message:delivered', ({ id } = {}) => {
+    if (id)
+      require('../controllers/messages.controller')
+        .markDelivered(id, driverId)
+        .catch(() => {});
+  });
 
   socket.on('call:accept', ({ callId } = {}) => {
     const call = calls.get(callId);
@@ -165,6 +178,42 @@ function attachDevice(io, socket) {
   });
 }
 
+/** Parent message -> the car, if it is connected now. Returns whether it was sent. */
+async function deliverMessage(msg) {
+  if (!ioRef) return false;
+  const room = deviceRoom(msg.driverId.toString());
+  const sockets = await ioRef.in(room).fetchSockets();
+  if (!sockets.length) return false;
+  ioRef.to(room).emit('driver:message', {
+    id: msg._id.toString(),
+    text: msg.text,
+    kind: msg.kind,
+    fromName: msg.fromName,
+  });
+  return true;
+}
+
+/** A car that just connected gets the messages that waited for it (recent ones only). */
+async function deliverPending(socket, driverId) {
+  const Message = require('../models/Message');
+  const cutoff = new Date(Date.now() - Message.PENDING_TTL_MS);
+  await Message.updateMany(
+    { driverId, status: 'pending', createdAt: { $lt: cutoff } },
+    { status: 'expired' },
+  );
+  const pending = await Message.find({ driverId, status: 'pending' })
+    .sort({ createdAt: 1 })
+    .limit(5);
+  for (const m of pending) {
+    socket.emit('driver:message', {
+      id: m._id.toString(),
+      text: m.text,
+      kind: m.kind,
+      fromName: m.fromName,
+    });
+  }
+}
+
 function resetCalls() {
   for (const c of calls.values()) clearTimeout(c.timer);
   calls.clear();
@@ -177,4 +226,5 @@ module.exports = {
   iceServers,
   resetCalls,
   deviceRoom,
+  deliverMessage,
 };

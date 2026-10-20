@@ -19,6 +19,7 @@ import '../widgets/depth_button.dart';
 import '../widgets/driver_avatar.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/location_map.dart';
+import '../widgets/message_panel.dart';
 import '../widgets/mesh_background.dart';
 import '../widgets/signal_chart.dart';
 import '../widgets/status_pill.dart';
@@ -300,6 +301,8 @@ class _DriverDetailScreenState extends State<DriverDetailScreen> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    MessagePanel(driverId: d.id, driverName: d.name),
                     const SizedBox(height: 16),
                     _verifyCard(d),
                     const SizedBox(height: 16),
