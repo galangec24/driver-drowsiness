@@ -6,6 +6,7 @@ import { Icon } from '../ui/Icon';
 import { navItemsFor } from './nav';
 import { useAuth } from '../../store/auth';
 import { useSignOut } from './AccountMenu';
+import { UserAvatar } from '../ui/UserAvatar';
 
 const linkCls = ({ isActive }: { isActive: boolean }) =>
   [
@@ -61,10 +62,10 @@ export function MenuDrawer() {
                 className="glass absolute inset-y-0 left-0 flex w-[min(19rem,85vw)] flex-col gap-1 rounded-l-none bg-ink-900/95 p-4 pt-[max(1rem,env(safe-area-inset-top))]"
               >
                 <div className="mb-4 flex items-center gap-3">
-                  <img src="/icons/icon.svg" alt="" className="h-10 w-10" />
+                  <UserAvatar name={user?.name} url={user?.avatarUrl} size={40} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-extrabold text-white">Guardian Drive</p>
-                    <p className="truncate text-xs text-ink-muted">{user?.name}</p>
+                    <p className="truncate text-sm font-extrabold text-white">{user?.name}</p>
+                    <p className="truncate text-xs text-ink-muted">{user?.email}</p>
                   </div>
                   <button
                     type="button"
@@ -84,8 +85,17 @@ export function MenuDrawer() {
                 <NavLink to="/feedback" className={linkCls}>
                   <Icon name="help" size={20} /> Help &amp; feedback
                 </NavLink>
+                <NavLink to="/settings" className={linkCls}>
+                  <Icon name="settings" size={20} /> Settings &amp; profile
+                </NavLink>
                 <NavLink to="/download" className={linkCls}>
                   <Icon name="download" size={20} /> Get the app
+                </NavLink>
+                <NavLink to="/about" className={linkCls}>
+                  <Icon name="shield" size={20} /> About Guardian Drive
+                </NavLink>
+                <NavLink to="/about-me" className={linkCls}>
+                  <Icon name="user" size={20} /> About the developer
                 </NavLink>
                 <div className="mt-auto border-t border-white/10 pt-2">
                   <button

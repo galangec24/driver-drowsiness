@@ -296,7 +296,7 @@ class CallClient:
                 return
             label = "Reminder" if data.get("kind") == "reminder" else "Message"
             # Any language: read in its own voice when the car has one (see ui.voice.speak_message)
-            lang = speak_message(self.say, f"{label} from {who}", text)
+            lang = speak_message(self.say, f"{label} from {who}", text, data.get("lang"))
             log.info(f"{label.lower()} from {data.get('fromName')} [{lang}]: {text}")
             if self.on_message:
                 self.on_message(f"{label} from {who}", text)

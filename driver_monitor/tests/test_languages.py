@@ -84,3 +84,11 @@ def test_long_text_wraps_to_two_lines() -> None:
         pytest.skip("no font / Pillow on this machine")
     lines = unitext.wrap("Ingat ka anak, magpahinga ka muna bago ka magmaneho ulit pauwi " * 3, font, 300, 2)
     assert len(lines) == 2 and lines[-1].endswith("…")
+
+
+def test_the_language_chosen_in_the_app_wins_over_detection() -> None:
+    sp = FakeSpeaker({"fil"})
+    # "Okay" alone looks English, but the parent picked Filipino in the app
+    assert speak_message(sp, "Message from Mom", "Okay", "fil") == "fil"
+    assert sp.said == [[("Message from Mom.", "en"), ("Okay", "fil")]]
+    assert speak_message(FakeSpeaker(set()), "M", "Ingat ka", "auto") == "fil"

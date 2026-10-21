@@ -77,14 +77,13 @@ const DATASETS: adminApi.DatasetsResponse = {
 
 describe('admin navigation', () => {
   test('parents and admins get different menus', () => {
-    expect(navItemsFor('parent').map((i) => i.label)).toEqual(['Dashboard', 'Drivers', 'Alerts', 'Settings']);
+    expect(navItemsFor('parent').map((i) => i.label)).toEqual(['Dashboard', 'Drivers', 'Alerts']);
     expect(navItemsFor(undefined).map((i) => i.label)).not.toContain('Parents');
     expect(navItemsFor('admin').map((i) => i.to)).toEqual([
       '/admin',
       '/admin/parents',
       '/admin/training',
       '/admin/models',
-      '/settings',
     ]);
   });
 

@@ -171,17 +171,17 @@ describe('reading history', () => {
 describe('messages in other languages', () => {
   test('quick reminders in Tagalog, Bisaya and Chinese', async () => {
     renderWithProviders(<MessagePanel driverId="d1" driverName="Miguel" />);
-    await userEvent.click(screen.getByRole('tab', { name: 'Tagalog' }));
+    await userEvent.selectOptions(screen.getByLabelText('Message language'), 'fil');
     await userEvent.click(screen.getByRole('button', { name: 'Tawagan mo ako pagdating mo.' }));
     await waitFor(() =>
       expect(vi.mocked(messagesApi.sendMessage).mock.calls[0]).toEqual([
         'd1',
-        { text: 'Tawagan mo ako pagdating mo.', kind: 'reminder' },
+        { text: 'Tawagan mo ako pagdating mo.', kind: 'reminder', lang: 'fil' },
       ]),
     );
-    await userEvent.click(screen.getByRole('tab', { name: 'Bisaya' }));
+    await userEvent.selectOptions(screen.getByLabelText('Message language'), 'ceb');
     expect(screen.getByRole('button', { name: 'Tawgi ko inig abot nimo.' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('tab', { name: '中文' }));
+    await userEvent.selectOptions(screen.getByLabelText('Message language'), 'zh');
     expect(screen.getByRole('button', { name: '到了给我打电话。' })).toBeInTheDocument();
     expect(screen.getByTestId('language-hint')).toHaveTextContent('any language');
   });

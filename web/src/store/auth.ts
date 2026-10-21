@@ -28,6 +28,8 @@ interface AuthState {
   user: User | null;
   setSession: (token: string, user: User) => void;
   logout: () => void;
+  /** After editing the profile: same session, new details. */
+  updateUser: (u: User) => void;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -56,6 +58,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(u);
   }, []);
 
+  const updateUser = useCallback((u: User) => {
+    try {
+      localStorage.setItem(USER_KEY, JSON.stringify(u));
+    } catch {
+      // memory only
+    }
+    setUser(u);
+  }, []);
+
   const logout = useCallback(() => {
     try {
       localStorage.removeItem(TOKEN_KEY);
@@ -72,7 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, logout);
   }, [logout]);
 
-  const value = useMemo(() => ({ token, user, setSession, logout }), [token, user, setSession, logout]);
+  const value = useMemo(
+    () => ({ token, user, setSession, logout, updateUser }),
+    [token, user, setSession, logout, updateUser],
+  );
   return createElement(AuthContext.Provider, { value }, children);
 }
 

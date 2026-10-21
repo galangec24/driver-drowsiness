@@ -4,6 +4,11 @@ export interface User {
   email: string;
   role: string;
   createdAt: string;
+  phone?: string;
+  /** Preferred language for messages to the car ('auto' = detect). */
+  language?: string;
+  /** Relative to the API (/api/auth/avatar/...), or null without a photo. */
+  avatarUrl?: string | null;
 }
 
 export interface Thresholds {

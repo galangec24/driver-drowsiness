@@ -16,6 +16,7 @@ import { AdminPage } from './pages/admin/AdminPage';
 import { FeedbackPage } from './pages/FeedbackPage';
 import { SurveysPage } from './pages/SurveysPage';
 import { NotFoundPage } from './pages/StatusPages';
+import { AboutAppPage, AboutMePage } from './pages/AboutPages';
 
 /** "/" is the parent dashboard; admins have their own console. */
 function HomePage() {
@@ -40,6 +41,8 @@ export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   // Public: anyone can get the app before having an account.
   { path: '/download', element: <DownloadPage /> },
+  { path: '/about', element: <AboutAppPage /> },
+  { path: '/about-me', element: <AboutMePage /> },
   // Opened in the normal browser by the Windows/Android app for Google sign-in.
   { path: '/app-login', element: <AppLoginPage /> },
   // 3D map shown inside the Android app (coordinates only, no sign-in).

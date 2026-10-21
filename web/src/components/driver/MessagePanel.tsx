@@ -7,6 +7,8 @@ import { DepthButton } from '../ui/DepthButton';
 import { Icon } from '../ui/Icon';
 import { useToast } from '../ui/Toast';
 import { timeAgo } from '../../lib/format';
+import { useAuth } from '../../store/auth';
+import { LANGUAGES, languageLabel } from '../../lib/languages';
 
 const STATUS: Record<DriverMessage['status'], { label: string; cls: string }> = {
   delivered: { label: 'Read aloud in the car', cls: 'text-emerald-300' },
@@ -19,12 +21,18 @@ export function MessagePanel({ driverId, driverName }: { driverId: string; drive
   const qc = useQueryClient();
   const toast = useToast();
   const [text, setText] = useState('');
-  const [lang, setLang] = useState('en');
-  const reminders = REMINDER_LANGUAGES.find((l) => l.code === lang)?.reminders ?? QUICK_REMINDERS;
+  const { user } = useAuth();
+  // Starts in the user's preferred language (Settings > Profile); can be changed per message.
+  const [lang, setLang] = useState(user?.language || 'auto');
+  const own = REMINDER_LANGUAGES.find((l) => l.code === lang);
+  const reminders = own?.reminders ?? QUICK_REMINDERS;
+  const reminderLang = own?.code ?? 'en';
   const first = driverName.split(' ')[0];
   const messages = useQuery({ queryKey: ['messages', driverId], queryFn: () => listMessages(driverId) });
   const send = useMutation({
-    mutationFn: (body: { text: string; kind: 'message' | 'reminder' }) => sendMessage(driverId, body),
+    mutationFn: (body: { text: string; kind: 'message' | 'reminder' }) =>
+      // Quick reminders are in a known language; written ones use the chosen language.
+      sendMessage(driverId, { ...body, lang: body.kind === 'reminder' ? reminderLang : lang }),
     onSuccess: ({ carOnline }) => {
       setText('');
       void qc.invalidateQueries({ queryKey: ['messages', driverId] });
@@ -47,22 +55,24 @@ export function MessagePanel({ driverId, driverName }: { driverId: string; drive
       <p className="text-sm text-ink-muted">
         The in-car voice assistant reads it aloud, so {first} never has to look at a phone while driving.
       </p>
-      <div role="tablist" aria-label="Reminder language" className="flex flex-wrap gap-1.5">
-        {REMINDER_LANGUAGES.map((l) => (
-          <button
-            key={l.code}
-            type="button"
-            role="tab"
-            aria-selected={lang === l.code}
-            onClick={() => setLang(l.code)}
-            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${
-              lang === l.code ? 'bg-accent-primary/25 text-white' : 'text-ink-muted hover:bg-white/5 hover:text-white'
-            }`}
-          >
-            {l.label}
-          </button>
-        ))}
-      </div>
+      <label className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
+        Language
+        <select
+          aria-label="Message language"
+          value={lang}
+          onChange={(e) => setLang(e.target.value)}
+          className="h-9 rounded-lg border border-white/10 bg-black/25 px-2 text-sm text-white outline-none focus:border-accent-glow/70"
+        >
+          {LANGUAGES.map((l) => (
+            <option key={l.code} value={l.code}>
+              {l.label}
+            </option>
+          ))}
+        </select>
+        {!own && lang !== 'auto' && lang !== 'en' && (
+          <span>No ready-made reminders in this language yet: write your own below.</span>
+        )}
+      </label>
       <div className="flex flex-wrap gap-2">
         {reminders.map((r) => (
           <button
@@ -96,8 +106,9 @@ export function MessagePanel({ driverId, driverName }: { driverId: string; drive
         </DepthButton>
       </form>
       <p className="text-[11px] text-ink-muted" data-testid="language-hint">
-        Write in any language: English, Tagalog, Bisaya, Taglish, Chinese and more. The car reads it in that language
-        when it has the voice, and always shows it on its screen.
+        Write in any language: English, Tagalog, Bisaya, Taglish, Chinese and more. The car reads it in the language you
+        picked ({languageLabel(lang)}) when it has that voice, and always shows it on its screen. Your usual language is
+        set in Settings › Profile.
       </p>
       {(messages.data ?? []).length > 0 && (
         <ul className="flex flex-col gap-2" data-testid="message-history">

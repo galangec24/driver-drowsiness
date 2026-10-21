@@ -6,6 +6,7 @@ export interface DriverMessage {
   fromName: string;
   text: string;
   kind: 'message' | 'reminder';
+  lang?: string;
   status: 'pending' | 'delivered' | 'expired';
   deliveredAt: string | null;
   createdAt: string;
@@ -65,7 +66,7 @@ export async function listMessages(driverId: string): Promise<DriverMessage[]> {
 
 export async function sendMessage(
   driverId: string,
-  body: { text: string; kind: 'message' | 'reminder' },
+  body: { text: string; kind: 'message' | 'reminder'; lang?: string },
 ): Promise<{ message: DriverMessage; carOnline: boolean }> {
   const { data } = await api.post<{ message: DriverMessage; carOnline: boolean }>(
     `/drivers/${driverId}/messages`,

@@ -220,7 +220,9 @@ class Speaker:
                     log.warning(f"voice ({self.name}) failed: {exc}")
 
 
-def speak_message(speaker: Callable[[str], None], intro: str, text: str) -> str:
+def speak_message(
+    speaker: Callable[[str], None], intro: str, text: str, lang: str | None = None
+) -> str:
     """Read a parent's message aloud in its own language when the car has a voice for it.
 
     - A voice for the language is installed: the intro in English, then the message in that voice.
@@ -228,8 +230,9 @@ def speak_message(speaker: Callable[[str], None], intro: str, text: str) -> str:
       out, which is understandable for these phonetic spellings.
     - No voice and another writing system (e.g. Chinese without a Chinese voice): it can't be
       pronounced, so the car says which language it is and that it is on the screen.
+    lang: chosen by the sender in the app ("auto" or missing = detect it from the text).
     Returns the language code."""
-    lang = detect(text)
+    lang = lang if lang and lang != "auto" and lang in NAMES else detect(text)
     has_voice = getattr(speaker, "has_voice", None)
     say_parts = getattr(speaker, "say_parts", None)
     voiced = bool(has_voice and has_voice(lang))

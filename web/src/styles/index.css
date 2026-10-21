@@ -127,6 +127,9 @@
   z-index: -1;
   overflow: hidden;
   pointer-events: none;
+  /* own GPU layer: the moving light never repaints the page above it */
+  contain: strict;
+  transform: translateZ(0);
 }
 .bg-scene .mesh-bg {
   position: absolute;

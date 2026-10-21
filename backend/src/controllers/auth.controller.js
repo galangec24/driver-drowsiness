@@ -9,6 +9,7 @@ const emailOtp = require('../services/emailOtp');
 const { verifyGoogleIdToken } = require('../services/googleAuth');
 const AuthHandoff = require('../models/AuthHandoff');
 const logger = require('../config/logger');
+const { LANGUAGES } = require('../config/languages');
 
 const registerSchema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -301,6 +302,73 @@ async function me(req, res) {
   res.json({ user: user.toPublic() });
 }
 
+const MAX_AVATAR_BYTES = 300 * 1024;
+const profileSchema = z
+  .object({
+    name: z.string().trim().min(1, 'Enter your name').max(80).optional(),
+    phone: z
+      .string()
+      .trim()
+      .max(30)
+      .regex(/^[+\d\s()-]*$/, 'Use digits, spaces, +, - or ( ) only')
+      .optional(),
+    language: z.enum(LANGUAGES).optional(),
+    // data:image/jpeg;base64,... (resized by the app), or null to remove the photo
+    avatar: z
+      .string()
+      .max(Math.ceil((MAX_AVATAR_BYTES * 4) / 3) + 64)
+      .nullable()
+      .optional(),
+  })
+  .refine((b) => Object.keys(b).length > 0, 'Nothing to update');
+
+function decodeAvatar(dataUrl) {
+  const m = /^data:image\/(jpeg|jpg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+  if (!m) throw new HttpError(400, 'The photo must be a JPEG, PNG or WebP image');
+  const data = Buffer.from(m[2], 'base64');
+  if (data.length > MAX_AVATAR_BYTES)
+    throw new HttpError(413, 'The photo is too large (max 300 KB)');
+  // Check the file really is the image it says it is (magic bytes).
+  const jpeg = data[0] === 0xff && data[1] === 0xd8;
+  const png = data.slice(0, 4).toString('hex') === '89504e47';
+  const webp = data.slice(8, 12).toString('ascii') === 'WEBP';
+  if (!jpeg && !png && !webp) throw new HttpError(400, 'That file is not an image');
+  return { data, contentType: jpeg ? 'image/jpeg' : png ? 'image/png' : 'image/webp' };
+}
+
+/** PATCH /auth/me: name, phone, preferred language, profile photo. The e-mail stays (it signs in). */
+async function updateMe(req, res) {
+  const user = await User.findById(req.user.parentId);
+  if (!user) throw new HttpError(404, 'User not found');
+  const { name, phone, language, avatar } = req.body;
+  if (name !== undefined) user.name = name;
+  if (phone !== undefined) user.phone = phone;
+  if (language !== undefined) user.language = language;
+  if (avatar === null) {
+    user.avatar = undefined;
+    user.avatarV = undefined;
+  } else if (avatar !== undefined) {
+    const v = Date.now();
+    user.avatar = { ...decodeAvatar(avatar), v };
+    user.avatarV = v;
+  }
+  await user.save();
+  res.json({ user: user.toPublic() });
+}
+
+/** GET /auth/avatar/:id: the profile photo (public, like any avatar; the id is unguessable). */
+async function avatar(req, res) {
+  const user = await User.findById(req.params.id)
+    .select('+avatar')
+    .lean()
+    .catch(() => null);
+  if (!user || !user.avatar || !user.avatar.data) throw new HttpError(404, 'No photo');
+  res.set('Content-Type', user.avatar.contentType || 'image/jpeg');
+  res.set('Cache-Control', 'public, max-age=31536000, immutable'); // the URL changes with ?v=
+  res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.send(Buffer.from(user.avatar.data.buffer || user.avatar.data));
+}
+
 async function setFcmToken(req, res) {
   await User.updateOne({ _id: req.user.parentId }, { fcmToken: req.body.fcmToken });
   res.json({ ok: true });
@@ -310,6 +378,9 @@ module.exports = {
   register,
   login,
   me,
+  updateMe,
+  avatar,
+  profileSchema,
   setFcmToken,
   verifyEmail,
   resendCode,

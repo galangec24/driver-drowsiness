@@ -547,12 +547,38 @@ class ApiService {
     String driverId,
     String text, {
     bool reminder = false,
+    String? lang,
   }) => _call(() async {
     final r = await _dio.post<Map<String, dynamic>>(
       '/drivers/$driverId/messages',
-      data: {'text': text, 'kind': reminder ? 'reminder' : 'message'},
+      data: {
+        'text': text,
+        'kind': reminder ? 'reminder' : 'message',
+        'lang': ?lang,
+      },
     );
     return r.data!['carOnline'] == true;
+  });
+
+  /// Own profile: name, phone, preferred language, photo (data URL, or null to remove).
+  Future<AppUser> updateProfile({
+    String? name,
+    String? phone,
+    String? language,
+    String? avatar,
+    bool removeAvatar = false,
+  }) => _call(() async {
+    final r = await _dio.patch<Map<String, dynamic>>(
+      '/auth/me',
+      data: {
+        'name': ?name,
+        'phone': ?phone,
+        'language': ?language,
+        'avatar': ?avatar,
+        if (removeAvatar) 'avatar': null,
+      },
+    );
+    return AppUser.fromJson(r.data!['user'] as Map<String, dynamic>);
   });
 
   // ---- surveys ----

@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { APK_URL } from '../lib/platform';
 import { pushConfig } from '../api/auth';
-import { useAuth } from '../store/auth';
 import { useRealtime } from '../hooks/useRealtime';
 import { GlassCard } from '../components/ui/GlassCard';
 import { DepthButton } from '../components/ui/DepthButton';
@@ -15,6 +14,7 @@ import { UpdatesCard } from '../components/settings/UpdatesCard';
 import { AboutCard } from '../components/settings/AboutCard';
 import { RateAppCard } from '../components/settings/RateAppCard';
 import { AppearanceCard } from '../components/ui/ThemeToggle';
+import { ProfileCard } from '../components/settings/ProfileCard';
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -26,7 +26,6 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 export function SettingsPage() {
-  const { user } = useAuth();
   const { connected } = useRealtime();
   const toast = useToast();
   const [notify, setNotify] = useState(notificationsEnabled);
@@ -60,17 +59,7 @@ export function SettingsPage() {
       <h1 className="page-title">Settings</h1>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <GlassCard interactive={false}>
-          <h2 className="mb-2 text-lg font-bold text-white">Account</h2>
-          <Row label="Name">{user?.name}</Row>
-          <Row label="Email">{user?.email}</Row>
-          <Row label="Role">
-            <span className="capitalize">{user?.role}</span>
-          </Row>
-          <p className="mt-3 text-xs text-ink-muted">
-            Log out and Help &amp; feedback are in the account menu (your initials, top right).
-          </p>
-        </GlassCard>
+        <ProfileCard />
 
         <GlassCard interactive={false}>
           <h2 className="mb-2 text-lg font-bold text-white">Notifications</h2>

@@ -3,12 +3,14 @@ const Driver = require('../models/Driver');
 const User = require('../models/User');
 const Message = require('../models/Message');
 const HttpError = require('../utils/httpError');
+const { LANGUAGES } = require('../config/languages');
 const alertDispatcher = require('../services/alertDispatcher');
 const carLink = require('../services/callSignaling');
 
 const sendSchema = z.object({
   text: z.string().trim().min(1).max(200),
   kind: z.enum(['message', 'reminder']).optional().default('message'),
+  lang: z.enum(LANGUAGES).optional(),
 });
 
 async function ownedDriver(req) {
@@ -23,13 +25,15 @@ async function ownedDriver(req) {
 /** Send to the car now if it is online, else it waits (pending) for the car to reconnect. */
 async function send(req, res) {
   const driver = await ownedDriver(req);
-  const user = await User.findById(req.user.parentId).select('name').lean();
+  const user = await User.findById(req.user.parentId).select('name language').lean();
   const msg = await Message.create({
     driverId: driver._id,
     parentId: req.user.parentId,
     fromName: (user && user.name) || '',
     text: req.body.text,
     kind: req.body.kind,
+    // chosen for this message, else the sender's preferred language
+    lang: req.body.lang || (user && user.language) || 'auto',
   });
   const online = await carLink.deliverMessage(msg);
   res.status(201).json({ message: msg.toPublic(), carOnline: online });

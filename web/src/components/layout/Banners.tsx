@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useOnline } from '../../hooks/useOnline';
 import { useInstallPrompt } from '../../hooks/useInstallPrompt';
@@ -11,7 +12,18 @@ export function OfflineBanner() {
   const online = useOnline();
   const { connected } = useRealtime();
   const snapshot = readSnapshot<unknown>('drivers');
-  const show = !online || !connected;
+  // Only after a few seconds without the live connection: connecting at start-up and the short
+  // reconnects of the free server used to flash the banner (and push the page down) every time.
+  const lost = !online || !connected;
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    if (!lost) {
+      setShow(false);
+      return undefined;
+    }
+    const t = window.setTimeout(() => setShow(true), online ? 6000 : 0);
+    return () => window.clearTimeout(t);
+  }, [lost, online]);
 
   return (
     <AnimatePresence>

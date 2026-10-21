@@ -49,6 +49,8 @@ router.post('/google', googleLimit, validate(ctrl.googleSchema), asyncHandler(ct
 // Apps poll this every ~2 s while the user signs in with Google in the browser.
 router.get('/handoff/:id', handoffLimit, asyncHandler(ctrl.collectHandoff));
 router.get('/me', requireAuth, asyncHandler(ctrl.me));
+router.patch('/me', requireAuth, validate(ctrl.profileSchema), asyncHandler(ctrl.updateMe));
+router.get('/avatar/:id', asyncHandler(ctrl.avatar));
 router.put(
   '/fcm-token',
   requireAuth,

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:guardian_drive/config/theme.dart';
 import 'package:guardian_drive/models/engagement.dart';
 import 'package:guardian_drive/models/history.dart';
+import 'package:guardian_drive/models/user.dart';
 import 'package:guardian_drive/services/api_service.dart';
 import 'package:guardian_drive/services/storage_service.dart';
 import 'package:guardian_drive/widgets/delete_driver_dialog.dart';
@@ -104,5 +105,25 @@ void main() {
     final labels = [for (final l in reminderLanguages) l.$1];
     expect(labels, ['English', 'Tagalog', 'Bisaya', '中文']);
     expect(reminderLanguages[1].$2, contains('Tawagan mo ako pagdating mo.'));
+  });
+
+  test('profile: phone, preferred language and photo survive a restart', () {
+    final u = AppUser.fromJson({
+      'id': 'p1',
+      'name': 'Maria',
+      'email': 'maria@example.com',
+      'role': 'parent',
+      'phone': '0917',
+      'language': 'ceb',
+      'avatarUrl': '/api/auth/avatar/p1?v=1',
+    });
+    final again = AppUser.fromJson(u.toJson());
+    expect(again.language, 'ceb');
+    expect(again.phone, '0917');
+    expect(again.avatarUrl, '/api/auth/avatar/p1?v=1');
+    expect(AppUser.fromJson({'id': 'x'}).language, 'auto');
+    expect([
+      for (final l in appLanguages) l.$1,
+    ], containsAll(['auto', 'fil', 'ceb', 'zh']));
   });
 }

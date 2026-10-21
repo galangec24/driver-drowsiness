@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../config/format.dart';
 import '../config/theme.dart';
 import '../models/engagement.dart';
+import '../models/user.dart';
+import '../state/auth_controller.dart';
 import '../services/api_service.dart';
 import '../state/data_controller.dart';
 import 'depth_button.dart';
@@ -29,7 +31,8 @@ class _MessagePanelState extends State<MessagePanel> {
   List<DriverMessage> _history = [];
   bool _sending = false;
   int _seenVersion = -1;
-  int _lang = 0;
+  int _lang = 0; // ready-made reminders shown
+  String? _msgLang; // language of written messages (null = preferred one)
 
   ApiService get _api => context.read<DataController>().api;
   String get _first => widget.driverName.split(' ').first;
@@ -53,10 +56,12 @@ class _MessagePanelState extends State<MessagePanel> {
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _sending = true);
     try {
+      final pref = context.read<AuthController>().user?.language ?? 'auto';
       final online = await _api.sendMessage(
         widget.driverId,
         text,
         reminder: reminder,
+        lang: reminder ? _reminderCodes[_lang] : (_msgLang ?? pref),
       );
       _text.clear();
       messenger.showSnackBar(
@@ -81,6 +86,9 @@ class _MessagePanelState extends State<MessagePanel> {
     _text.dispose();
     super.dispose();
   }
+
+  // language codes of reminderLanguages (English, Tagalog, Bisaya, Chinese)
+  static const _reminderCodes = ['en', 'fil', 'ceb', 'zh'];
 
   static const _status = {
     'delivered': ('Read aloud in the car', Color(0xFF6EE7B7)),
@@ -171,6 +179,25 @@ class _MessagePanelState extends State<MessagePanel> {
                 },
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            key: const ValueKey('message-language'),
+            initialValue:
+                _msgLang ??
+                context.select<AuthController, String>(
+                  (a) => a.user?.language ?? 'auto',
+                ),
+            dropdownColor: AppColors.ink800,
+            decoration: const InputDecoration(
+              labelText: 'Language of your message',
+              isDense: true,
+            ),
+            items: [
+              for (final l in appLanguages)
+                DropdownMenuItem(value: l.$1, child: Text(l.$2)),
+            ],
+            onChanged: (v) => setState(() => _msgLang = v),
           ),
           const SizedBox(height: 4),
           const Text(

@@ -31,6 +31,13 @@ class AuthController extends ChangeNotifier {
 
   Future<bool> googleSignInEnabled() => _api.googleSignInEnabled();
 
+  /// After editing the profile: same session, new details.
+  Future<void> updateUser(AppUser u) async {
+    await _storage.setUser(u);
+    _user = u;
+    notifyListeners();
+  }
+
   /// Google sign-in finished in the browser? Then sign in here (true).
   Future<bool> collectHandoff(String id) async {
     final r = await _api.pollHandoff(id);

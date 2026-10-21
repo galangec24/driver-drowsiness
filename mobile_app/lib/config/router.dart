@@ -14,6 +14,7 @@ import '../screens/settings_screen.dart';
 import '../screens/surveys_screen.dart';
 import '../state/auth_controller.dart';
 import 'theme.dart';
+import '../screens/about_screens.dart';
 
 /// Page transition parity with web: fade + slide-y 8px, 200 ms.
 CustomTransitionPage<void> _page(GoRouterState state, Widget child) =>
@@ -76,6 +77,14 @@ GoRouter buildRouter(AuthController auth) => GoRouter(
           pageBuilder: (_, s) => _page(s, const SettingsScreen()),
         ),
       ],
+    ),
+    GoRoute(
+      path: '/about',
+      pageBuilder: (_, s) => _page(s, const AboutAppScreen()),
+    ),
+    GoRoute(
+      path: '/about-me',
+      pageBuilder: (_, s) => _page(s, const AboutMeScreen()),
     ),
     GoRoute(
       path: '/feedback',

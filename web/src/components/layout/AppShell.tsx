@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useLocation, useOutlet } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { SideRail } from './SideRail';
@@ -42,17 +42,16 @@ export function AppShell() {
         <div className="mx-auto w-full max-w-content px-4 sm:px-6">
           <OfflineBanner />
           <InstallBanner />
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
-            >
-              {outlet}
-            </motion.div>
-          </AnimatePresence>
+          {/* Slide only, no fade: a fading (opacity < 1) parent switches off the frosted-glass
+              blur of every card inside it for the whole transition, which looked like flicker. */}
+          <motion.div
+            key={location.pathname}
+            initial={{ y: 10 }}
+            animate={{ y: 0 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+          >
+            {outlet}
+          </motion.div>
           <Copyright className="mt-10" />
         </div>
       </main>

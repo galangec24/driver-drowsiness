@@ -9,6 +9,17 @@ const userSchema = new mongoose.Schema(
     // Google account id ("sub") once the user has signed in with Google.
     googleId: { type: String, index: { unique: true, sparse: true }, select: false },
     role: { type: String, default: 'parent' },
+    // Profile (Settings > Profile): phone, preferred language for messages, and a photo.
+    phone: { type: String, trim: true, maxlength: 30 },
+    language: { type: String, default: 'auto' },
+    // Small JPEG/PNG (resized on the device, at most 300 KB) kept in the database, so it survives
+    // server restarts without an image host. v changes on every upload (cache busting).
+    avatar: {
+      type: { data: Buffer, contentType: String, v: Number },
+      select: false,
+      default: undefined,
+    },
+    avatarV: { type: Number },
     // false = registered but the e-mail code was not entered yet. Accounts created before e-mail
     // verification existed have no value and count as verified.
     emailVerified: { type: Boolean },
@@ -61,6 +72,9 @@ userSchema.methods.toPublic = function toPublic() {
     name: this.name,
     email: this.email,
     role: this.role,
+    phone: this.phone || '',
+    language: this.language || 'auto',
+    avatarUrl: this.avatarV ? `/api/auth/avatar/${this._id}?v=${this.avatarV}` : null,
     emailVerified: this.emailVerified !== false,
     createdAt: this.createdAt,
   };

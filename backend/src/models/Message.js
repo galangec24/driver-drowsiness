@@ -13,6 +13,8 @@ const messageSchema = new mongoose.Schema(
     fromName: { type: String, default: '' },
     text: { type: String, required: true, maxlength: 200 },
     kind: { type: String, enum: ['message', 'reminder'], default: 'message' },
+    // The language it is written in, so the car picks that voice ('auto' = the car detects it).
+    lang: { type: String, default: 'auto' },
     status: { type: String, enum: ['pending', 'delivered', 'expired'], default: 'pending' },
     deliveredAt: Date,
   },
@@ -28,6 +30,7 @@ messageSchema.methods.toPublic = function toPublic() {
     fromName: this.fromName,
     text: this.text,
     kind: this.kind,
+    lang: this.lang || 'auto',
     status: this.status,
     deliveredAt: this.deliveredAt || null,
     createdAt: this.createdAt,

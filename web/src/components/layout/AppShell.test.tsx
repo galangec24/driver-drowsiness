@@ -46,7 +46,7 @@ describe('AppShell responsive behaviour', () => {
     const railLinks = screen.getByTestId('side-rail').querySelectorAll('a');
     const bottomLinks = screen.getByTestId('bottom-nav').querySelectorAll('a');
     const hrefs = (list: NodeListOf<HTMLAnchorElement>) => Array.from(list).map((a) => a.getAttribute('href'));
-    expect(hrefs(railLinks)).toEqual(['/', '/drivers', '/alerts', '/settings']);
+    expect(hrefs(railLinks)).toEqual(['/', '/drivers', '/alerts']);
     expect(hrefs(bottomLinks)).toEqual(hrefs(railLinks));
   });
 

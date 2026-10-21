@@ -6,7 +6,7 @@ import { useAuth } from '../../store/auth';
 import { clearSnapshots } from '../../lib/offlineCache';
 import { markFarewell } from '../../lib/farewell';
 import { useTheme } from '../../lib/theme';
-import { initials } from '../../lib/format';
+import { UserAvatar } from '../ui/UserAvatar';
 import { Icon, type IconName } from '../ui/Icon';
 
 /** Sign out: farewell card, offline cache and query cache cleared. */
@@ -111,9 +111,9 @@ export function AccountMenu() {
         aria-expanded={open}
         aria-label="Account menu"
         onClick={() => setOpen((o) => !o)}
-        className="glass relative flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-accent-primary/40 to-accent-glow/10 text-sm font-bold text-white shadow-depth-2 transition-transform hover:scale-105"
+        className="glass relative flex h-11 w-11 items-center justify-center rounded-full p-0.5 shadow-depth-2 transition-transform hover:scale-105"
       >
-        {initials(user?.name || '?')}
+        <UserAvatar name={user?.name} url={user?.avatarUrl} size={38} />
         <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border border-ink-900 bg-ink-800 text-white">
           <Icon name="chevronRight" size={12} className="rotate-90" />
         </span>
@@ -133,16 +133,16 @@ export function AccountMenu() {
           >
             {/* Profile card */}
             <Link
-              to="/settings"
+              to="/settings#profile"
               role="menuitem"
+              data-testid="menu-profile"
               className="glass-inset mb-2 flex items-center gap-3 p-3 transition-colors hover:bg-white/5"
             >
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-accent-primary to-accent-glow text-sm font-bold text-onaccent">
-                {initials(user?.name || '?')}
-              </span>
-              <span className="min-w-0">
+              <UserAvatar name={user?.name} url={user?.avatarUrl} size={48} />
+              <span className="min-w-0 flex-1">
                 <span className="block truncate font-bold text-white">{user?.name}</span>
                 <span className="block truncate text-xs text-ink-muted">{user?.email}</span>
+                <span className="block text-xs font-semibold text-accent-glow">Edit profile</span>
               </span>
             </Link>
 
@@ -169,6 +169,8 @@ export function AccountMenu() {
             <Item icon="download" label="Get the app" hint="Android, iPhone, computer" to="/download" />
 
             <div className="my-2 border-t border-white/10" />
+            <Item icon="shield" label="About Guardian Drive" hint="What it does and how it works" to="/about" />
+            <Item icon="user" label="About the developer" hint="Engr. Emmanuel Christian V. Galang" to="/about-me" />
             <Item
               icon="help"
               label="Help & feedback"

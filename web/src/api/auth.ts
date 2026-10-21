@@ -99,6 +99,19 @@ export async function resetPassword(email: string, code: string, password: strin
   return data;
 }
 
+export interface ProfilePatch {
+  name?: string;
+  phone?: string;
+  language?: string;
+  /** data:image/jpeg;base64,... or null to remove the photo */
+  avatar?: string | null;
+}
+
+export async function updateProfile(patch: ProfilePatch): Promise<User> {
+  const { data } = await api.patch<{ user: User }>('/auth/me', patch);
+  return data.user;
+}
+
 export async function me(): Promise<User> {
   const { data } = await api.get<{ user: User }>('/auth/me');
   return data.user;

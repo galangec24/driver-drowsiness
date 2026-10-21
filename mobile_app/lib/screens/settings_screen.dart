@@ -16,6 +16,7 @@ import '../state/data_controller.dart';
 import '../widgets/depth_button.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/page_header.dart';
+import '../widgets/profile_sheet.dart';
 import '../widgets/rate_app_card.dart';
 
 /// Notification prefs, account, server, APK info.
@@ -142,11 +143,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
       children: [
         const PageHeader(title: 'Settings'),
         _Section(
-          title: 'Account',
+          title: 'Profile',
           children: [
-            _Row('Name', auth.user?.name ?? '—'),
-            _Row('Email', auth.user?.email ?? '—'),
+            Row(
+              children: [
+                UserAvatar(user: auth.user, size: 60),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        auth.user?.name ?? '—',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        auth.user?.email ?? '—',
+                        style: const TextStyle(color: AppColors.muted),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
+            DepthButton(
+              key: const ValueKey('edit-profile'),
+              label: 'Edit profile',
+              icon: Icons.edit_rounded,
+              onPressed: () => showProfileSheet(context),
+            ),
+            const SizedBox(height: 8),
             DepthButton(
               label: 'Sign out',
               icon: Icons.logout_rounded,
@@ -155,6 +186,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 data.stop();
                 auth.logout(farewell: true);
               },
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _Section(
+          title: 'About',
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.shield_rounded, color: AppColors.glow),
+              title: const Text('About Guardian Drive'),
+              subtitle: const Text('What it does and how it works'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => context.push('/about'),
+            ),
+            ListTile(
+              key: const ValueKey('about-me'),
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.person_rounded, color: AppColors.glow),
+              title: const Text('About the developer'),
+              subtitle: const Text('Engr. Emmanuel Christian V. Galang'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => context.push('/about-me'),
             ),
           ],
         ),

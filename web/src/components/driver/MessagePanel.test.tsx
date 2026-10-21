@@ -46,7 +46,7 @@ describe('messages to the driver', () => {
     await waitFor(() =>
       expect(vi.mocked(messagesApi.sendMessage).mock.calls[0]).toEqual([
         'd1',
-        { text: 'Please take a break at the next safe stop.', kind: 'reminder' },
+        { text: 'Please take a break at the next safe stop.', kind: 'reminder', lang: 'en' },
       ]),
     );
     await userEvent.type(screen.getByLabelText('Message'), 'Dinner is ready');
@@ -54,7 +54,7 @@ describe('messages to the driver', () => {
     await waitFor(() =>
       expect(vi.mocked(messagesApi.sendMessage).mock.calls[1]).toEqual([
         'd1',
-        { text: 'Dinner is ready', kind: 'message' },
+        { text: 'Dinner is ready', kind: 'message', lang: 'auto' },
       ]),
     );
   });

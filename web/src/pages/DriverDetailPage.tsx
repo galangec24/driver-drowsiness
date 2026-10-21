@@ -147,7 +147,7 @@ export function DriverDetailPage() {
         <div className="flex flex-col gap-6">
           <GlassCard interactive={false} className="flex flex-col gap-6">
             <LineChart
-              label="Eye aspect ratio (EAR)"
+              label="How open the eyes are"
               values={points.map((p) => p.signals.ear ?? NaN)}
               threshold={d.personalThresholds.earThreshold}
               min={0}
@@ -163,7 +163,7 @@ export function DriverDetailPage() {
                 height={100}
               />
               <LineChart
-                label="Drowsiness score"
+                label="Drowsiness level"
                 values={points.map((p) => p.fusionScore)}
                 threshold={0.7}
                 min={0}
@@ -172,9 +172,26 @@ export function DriverDetailPage() {
                 height={100}
               />
             </div>
-            <p className="text-xs text-ink-muted">
-              Dashed red line on EAR = this driver's personal threshold. Last {points.length} readings.
-            </p>
+            <div className="glass-inset flex flex-col gap-1.5 p-3 text-xs text-ink-muted" data-testid="chart-help">
+              <p className="font-semibold text-white/90">How to read these charts</p>
+              <p>
+                <span className="font-semibold text-indigo-300">Eyes:</span> the higher the line, the more open the
+                eyes. The red dashed line is {d.name.split(' ')[0]}'s own &ldquo;eyes closing&rdquo; level, learned from
+                their normal driving. Short dips are just blinks; staying below it means the eyes are closing.
+              </p>
+              <p>
+                <span className="font-semibold text-pink-300">Heart rate:</span> beats per minute from the watch. A
+                slow, steady drop can be a sign of getting sleepy.
+              </p>
+              <p>
+                <span className="font-semibold text-amber-300">Drowsiness level:</span> everything combined. Above the
+                dashed line, Guardian Drive treats it as drowsy and alerts you.
+              </p>
+              <p>
+                Showing about the last {Math.max(1, Math.round(points.length / 60))} minute
+                {Math.round(points.length / 60) > 1 ? 's' : ''} ({points.length} readings).
+              </p>
+            </div>
           </GlassCard>
 
           <ReadingHistory driverId={d.id} driverName={d.name} />

@@ -188,6 +188,7 @@ async function deliverMessage(msg) {
     id: msg._id.toString(),
     text: msg.text,
     kind: msg.kind,
+    lang: msg.lang || 'auto',
     fromName: msg.fromName,
   });
   return true;
@@ -209,6 +210,7 @@ async function deliverPending(socket, driverId) {
       id: m._id.toString(),
       text: m.text,
       kind: m.kind,
+      lang: m.lang || 'auto',
       fromName: m.fromName,
     });
   }

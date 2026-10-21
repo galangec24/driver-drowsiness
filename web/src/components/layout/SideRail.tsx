@@ -38,7 +38,6 @@ export function SideRail({ unacknowledged = 0 }: { unacknowledged?: number }) {
         />
         <div className={`hidden ${lg('lg:block')}`}>
           <p className="text-sm font-extrabold leading-tight text-white">Guardian Drive</p>
-          <p className="text-xs text-ink-muted">{user?.role === 'admin' ? 'Admin console' : 'Parent console'}</p>
         </div>
       </div>
 
