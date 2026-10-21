@@ -52,9 +52,14 @@ async function sendMail(msg) {
   throw new Error('No e-mail provider configured (EMAIL_PROVIDER)');
 }
 
+/** True when e-mail can actually be sent (a provider is configured, or a test hook). */
+function canSendMail() {
+  return Boolean(sendImpl) || env.email.provider === 'brevo' || env.email.provider === 'console';
+}
+
 function _setSendImpl(fn) {
   sendImpl = fn;
   Object.assign(daily, { day: '', count: 0 });
 }
 
-module.exports = { sendMail, _setSendImpl };
+module.exports = { sendMail, canSendMail, _setSendImpl };

@@ -18,6 +18,7 @@ import { OrbitLoader } from '../components/ui/OrbitLoader';
 import { ParallaxScene } from '../components/ui/ParallaxScene';
 import { TiltCard, TiltLayer } from '../components/ui/TiltCard';
 import { Copyright } from '../components/legal/Copyright';
+import { AnimatedBackground } from '../components/layout/AnimatedBackground';
 
 type Mode = 'login' | 'register';
 
@@ -109,7 +110,7 @@ export function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
-      <div className="mesh-bg animate-mesh" aria-hidden="true" />
+      <AnimatedBackground />
       <ParallaxScene />
       <div className="relative grid w-full max-w-5xl items-center gap-10 lg:grid-cols-2">
         <motion.div

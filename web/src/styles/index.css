@@ -21,6 +21,12 @@
     --bg-glow-1: rgba(99, 102, 241, 0.2);
     --bg-glow-2: rgba(56, 189, 248, 0.08);
     --bg-glow-3: rgba(99, 102, 241, 0.06);
+    --aurora-1: rgba(99, 102, 241, 0.3);
+    --aurora-2: rgba(56, 189, 248, 0.14);
+    --aurora-3: rgba(129, 140, 248, 0.16);
+    --road-line: rgba(165, 180, 252, 0.22);
+    --road-grid: rgba(148, 163, 184, 0.1);
+    --grain-opacity: 0.05;
   }
   :root[data-theme='light'] {
     color-scheme: light;
@@ -37,6 +43,12 @@
     --bg-glow-1: rgba(99, 102, 241, 0.12);
     --bg-glow-2: rgba(56, 189, 248, 0.08);
     --bg-glow-3: rgba(99, 102, 241, 0.05);
+    --aurora-1: rgba(99, 102, 241, 0.16);
+    --aurora-2: rgba(56, 189, 248, 0.14);
+    --aurora-3: rgba(167, 139, 250, 0.12);
+    --road-line: rgba(79, 70, 229, 0.16);
+    --road-grid: rgba(15, 23, 42, 0.06);
+    --grain-opacity: 0.035;
   }
   html,
   body,
@@ -100,13 +112,153 @@
   background:
     radial-gradient(70% 50% at 50% -5%, var(--bg-glow-1), transparent 70%),
     radial-gradient(45% 40% at 95% 20%, var(--bg-glow-2), transparent 70%),
-    radial-gradient(60% 50% at 0% 100%, var(--bg-glow-3), transparent 70%),
-    var(--bg-base);
+    radial-gradient(60% 50% at 0% 100%, var(--bg-glow-3), transparent 70%), var(--bg-base);
 }
 :root[data-theme='light'] .glass {
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.06),
     0 8px 24px rgba(15, 23, 42, 0.06);
+}
+/* ---------------------------------------------------------------- animated background
+   (components/layout/AnimatedBackground.tsx) */
+.bg-scene {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.bg-scene .mesh-bg {
+  position: absolute;
+}
+/* Soft light that drifts on long, out-of-step paths (28 / 37 / 46 s): never a visible loop. */
+.aurora {
+  position: absolute;
+  border-radius: 9999px;
+  will-change: transform;
+  animation: aurora-a 28s ease-in-out infinite alternate;
+}
+.aurora-1 {
+  width: 70vmax;
+  height: 46vmax;
+  left: -12vmax;
+  top: -22vmax;
+  background: radial-gradient(closest-side, var(--aurora-1), transparent);
+}
+.aurora-2 {
+  width: 56vmax;
+  height: 40vmax;
+  right: -18vmax;
+  top: 4vmax;
+  background: radial-gradient(closest-side, var(--aurora-2), transparent);
+  animation-name: aurora-b;
+  animation-duration: 37s;
+}
+.aurora-3 {
+  width: 60vmax;
+  height: 38vmax;
+  left: 18vmax;
+  bottom: -24vmax;
+  background: radial-gradient(closest-side, var(--aurora-3), transparent);
+  animation-name: aurora-c;
+  animation-duration: 46s;
+}
+@keyframes aurora-a {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  35% {
+    transform: translate3d(9vmax, 4vmax, 0) rotate(8deg) scale(1.08);
+  }
+  70% {
+    transform: translate3d(3vmax, 9vmax, 0) rotate(-4deg) scale(0.96);
+  }
+  100% {
+    transform: translate3d(14vmax, 2vmax, 0) rotate(5deg) scale(1.05);
+  }
+}
+@keyframes aurora-b {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  40% {
+    transform: translate3d(-10vmax, 6vmax, 0) scale(1.12);
+  }
+  100% {
+    transform: translate3d(-4vmax, -5vmax, 0) scale(0.94);
+  }
+}
+@keyframes aurora-c {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(-12vmax, -6vmax, 0) rotate(-10deg);
+  }
+  100% {
+    transform: translate3d(8vmax, -3vmax, 0) rotate(6deg);
+  }
+}
+/* A faint road in perspective at the bottom; the lane lines move toward the viewer. */
+.bg-road {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 42vh;
+  perspective: 420px;
+  perspective-origin: 50% 0%;
+  -webkit-mask-image: linear-gradient(to top, #000 10%, transparent 95%);
+  mask-image: linear-gradient(to top, #000 10%, transparent 95%);
+}
+.bg-road-plane {
+  position: absolute;
+  left: -50%;
+  right: -50%;
+  top: 0;
+  height: 200%;
+  transform: rotateX(72deg);
+  transform-origin: 50% 0%;
+  overflow: hidden;
+}
+.bg-road-lines {
+  position: absolute;
+  inset: -160px 0 0 0;
+  background-image:
+    linear-gradient(
+      to right,
+      transparent calc(50% - 3px),
+      var(--road-line) calc(50% - 3px),
+      var(--road-line) calc(50% + 3px),
+      transparent calc(50% + 3px)
+    ),
+    repeating-linear-gradient(to right, var(--road-grid) 0 1px, transparent 1px 120px),
+    repeating-linear-gradient(to bottom, var(--road-grid) 0 1px, transparent 1px 80px);
+  -webkit-mask-image: repeating-linear-gradient(to bottom, #000 0 48px, rgba(0, 0, 0, 0.35) 48px 80px);
+  mask-image: repeating-linear-gradient(to bottom, #000 0 48px, rgba(0, 0, 0, 0.35) 48px 80px);
+  will-change: transform;
+  animation: road-move 2.4s linear infinite;
+}
+@keyframes road-move {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 160px, 0);
+  }
+}
+/* Fine film grain: hides gradient banding on 8-bit screens. */
+.bg-grain {
+  position: absolute;
+  inset: 0;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+@media (prefers-reduced-motion: reduce) {
+  .aurora,
+  .bg-road-lines {
+    animation: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -169,41 +321,65 @@ input[type='range'].gd-range::-moz-range-thumb {
   animation: orbit-pulse 1.6s ease-in-out infinite;
 }
 @keyframes orbit-x {
-  from { transform: rotateX(65deg) rotateZ(0deg); }
-  to { transform: rotateX(65deg) rotateZ(360deg); }
+  from {
+    transform: rotateX(65deg) rotateZ(0deg);
+  }
+  to {
+    transform: rotateX(65deg) rotateZ(360deg);
+  }
 }
 @keyframes orbit-y {
-  from { transform: rotateY(65deg) rotateZ(0deg); }
-  to { transform: rotateY(65deg) rotateZ(-360deg); }
+  from {
+    transform: rotateY(65deg) rotateZ(0deg);
+  }
+  to {
+    transform: rotateY(65deg) rotateZ(-360deg);
+  }
 }
 @keyframes orbit-z {
-  from { transform: rotateX(-30deg) rotateY(30deg) rotateZ(0deg); }
-  to { transform: rotateX(-30deg) rotateY(30deg) rotateZ(360deg); }
+  from {
+    transform: rotateX(-30deg) rotateY(30deg) rotateZ(0deg);
+  }
+  to {
+    transform: rotateX(-30deg) rotateY(30deg) rotateZ(360deg);
+  }
 }
 @keyframes orbit-pulse {
-  0%, 100% { transform: scale(1) translateZ(0); }
-  50% { transform: scale(1.12) translateZ(20px); }
+  0%,
+  100% {
+    transform: scale(1) translateZ(0);
+  }
+  50% {
+    transform: scale(1.12) translateZ(20px);
+  }
 }
 
 /* ---- Parallax background shapes (components/ui/ParallaxScene.tsx) ---- */
 .shape-orb {
   border-radius: 9999px;
-  background-image: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.55), transparent 35%),
+  background-image:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.55), transparent 35%),
     linear-gradient(135deg, var(--tw-gradient-stops));
-  box-shadow: inset -10px -14px 30px rgba(0, 0, 0, 0.45), 0 20px 50px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    inset -10px -14px 30px rgba(0, 0, 0, 0.45),
+    0 20px 50px rgba(0, 0, 0, 0.35);
   filter: blur(0.3px);
 }
 .shape-ring {
   border-radius: 9999px;
   border: 10px solid rgba(129, 140, 248, 0.28);
-  box-shadow: 0 0 40px rgba(129, 140, 248, 0.35), inset 0 0 20px rgba(129, 140, 248, 0.35);
+  box-shadow:
+    0 0 40px rgba(129, 140, 248, 0.35),
+    inset 0 0 20px rgba(129, 140, 248, 0.35);
   transform: rotateX(60deg);
 }
 .shape-cube {
   border-radius: 14px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(99, 102, 241, 0.15));
   border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 8px 8px 0 rgba(99, 102, 241, 0.25), 0 18px 40px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    8px 8px 0 rgba(99, 102, 241, 0.25),
+    0 18px 40px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(6px);
   transform: rotateX(25deg) rotateY(-25deg);
 }

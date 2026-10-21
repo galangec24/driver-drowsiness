@@ -199,6 +199,7 @@ describe('driver details, thresholds and ownership', () => {
     await request(stack.app)
       .delete(`/api/drivers/${driver._id}`)
       .set(auth(owner.token))
+      .send({ confirmName: driver.name })
       .expect(204);
     expect(await Driver.countDocuments()).toBe(0);
   });

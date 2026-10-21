@@ -23,6 +23,7 @@ import { ParallaxScene } from '../components/ui/ParallaxScene';
 import { Spinner } from '../components/ui/Spinner';
 import { TiltCard, TiltLayer } from '../components/ui/TiltCard';
 import { Copyright } from '../components/legal/Copyright';
+import { AnimatedBackground } from '../components/layout/AnimatedBackground';
 
 const ANDROID_STEPS = [
   'Tap **Download APK** and wait for the download to finish.',
@@ -267,7 +268,7 @@ export function DownloadPage() {
 
   return (
     <div className="relative min-h-screen min-h-dvh overflow-hidden px-4 py-10 sm:py-14">
-      <div className="mesh-bg animate-mesh" aria-hidden="true" />
+      <AnimatedBackground />
       <ParallaxScene />
 
       <div className="relative mx-auto flex max-w-content flex-col gap-10">

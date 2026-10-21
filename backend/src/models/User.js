@@ -37,6 +37,19 @@ const userSchema = new mongoose.Schema(
       select: false,
       default: undefined,
     },
+    // Code e-mailed to confirm deleting a driver (same shape and limits as emailOtp).
+    deleteOtp: {
+      type: {
+        hash: String,
+        expiresAt: Date,
+        attempts: Number,
+        sentAt: Date,
+        windowStart: Date,
+        sendsInWindow: Number,
+      },
+      select: false,
+      default: undefined,
+    },
     fcmToken: { type: String, select: false },
   },
   { timestamps: { createdAt: true, updatedAt: false } },

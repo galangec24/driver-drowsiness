@@ -457,7 +457,13 @@ export function SurveysTab() {
               <DepthButton
                 size="sm"
                 variant="secondary"
-                onClick={() => setView({ kind: 'edit', draft: { title: s.title, description: s.description, questions: s.questions }, survey: s })}
+                onClick={() =>
+                  setView({
+                    kind: 'edit',
+                    draft: { title: s.title, description: s.description, questions: s.questions },
+                    survey: s,
+                  })
+                }
               >
                 Edit
               </DepthButton>

@@ -30,6 +30,8 @@ from dataclasses import dataclass, field
 
 from loguru import logger as log
 
+from ui.lang import NAMES, detect, is_latin
+
 NONE, MILD, HIGH = 0, 1, 2
 
 
@@ -136,69 +138,200 @@ class VoiceGuide:
 
 
 # ----------------------------------------------------------------------------------- engines
+# Sentence punctuation of Chinese / Japanese text is kept (it is not a shell character).
+_PUNCT = " .,!?-、。，！？"
+
+
 def _clean(text: str) -> str:
-    """Letters, digits and plain punctuation only: no quotes or shell characters reach the engine
-    command (the driver's name comes from the server)."""
-    return " ".join("".join(ch for ch in text if ch.isalnum() or ch in " .,!?-").split())
+    """Letters (any language), digits and plain punctuation only: no quotes or shell characters
+    reach the engine command (the driver's name and parents' messages come from the server)."""
+    return " ".join("".join(ch for ch in text if ch.isalnum() or ch in _PUNCT).split())
+
+
+# Parts of one utterance: (text, language code from ui.lang). Spoken in order, as one job.
+Part = tuple[str, str]
+Command = Callable[[str, str], list[str]]
 
 
 class Speaker:
-    """Speaks one sentence at a time on a background thread; never blocks the camera loop.
+    """Speaks one utterance at a time on a background thread; never blocks the camera loop.
 
-    If a new sentence arrives while one is queued, the queued one is replaced (the newest
-    situation matters most)."""
+    If a new utterance arrives while one is queued, the queued one is replaced (the newest
+    situation matters most). An utterance may switch language part way ("Message from Mom." in
+    English, then the message in Chinese) when the engine has a voice for it."""
 
-    def __init__(self, command: Callable[[str], list[str]] | None, name: str) -> None:
+    def __init__(
+        self,
+        command: Command | None,
+        name: str,
+        languages: Callable[[], set[str]] | None = None,
+    ) -> None:
         self.command = command
         self.name = name
-        self._q: queue.Queue[str] = queue.Queue(maxsize=1)
+        self._languages = languages
+        self._known: set[str] | None = None
+        self._q: queue.Queue[list[Part]] = queue.Queue(maxsize=1)
         if command is not None:
             threading.Thread(target=self._loop, daemon=True).start()
 
-    def __call__(self, text: str) -> None:
-        if self.command is None:
+    def __call__(self, text: str, lang: str = "en") -> None:
+        self.say_parts([(text, lang)])
+
+    def has_voice(self, lang: str) -> bool:
+        """True when the engine has a voice for this language (English always)."""
+        if lang == "en":
+            return True
+        if self._known is None:
+            try:
+                self._known = self._languages() if self._languages else set()
+            except Exception as exc:  # noqa: BLE001 - a failed probe just means "English only"
+                log.warning(f"voice ({self.name}): could not list voices: {exc}")
+                self._known = set()
+            log.info(f"voice ({self.name}) languages: en {' '.join(sorted(self._known))}")
+        return lang in self._known
+
+    def say_parts(self, parts: list[Part]) -> None:
+        if self.command is None or not parts:
             return
-        log.info(f"voice: {text}")
+        log.info("voice: " + " ".join(t for t, _ in parts))
         try:
-            self._q.put_nowait(text)
+            self._q.put_nowait(parts)
         except queue.Full:
             try:
                 self._q.get_nowait()
             except queue.Empty:
                 pass
-            self._q.put_nowait(text)
+            self._q.put_nowait(parts)
 
     def _loop(self) -> None:
+        assert self.command is not None
         while True:
-            text = self._q.get()
-            try:
-                subprocess.run(
-                    self.command(_clean(text)),  # noqa: S603 - fixed engine command, sanitised text
-                    check=False,
-                    timeout=30,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-                )
-            except (OSError, subprocess.SubprocessError) as exc:
-                log.warning(f"voice ({self.name}) failed: {exc}")
+            for text, lang in self._q.get():
+                try:
+                    subprocess.run(
+                        self.command(_clean(text), lang),  # noqa: S603 - fixed command, sanitised text
+                        check=False,
+                        timeout=60,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                    )
+                except (OSError, subprocess.SubprocessError) as exc:
+                    log.warning(f"voice ({self.name}) failed: {exc}")
 
 
-def _sapi(rate: int) -> Callable[[str], list[str]]:
-    def cmd(text: str) -> list[str]:
+def speak_message(speaker: Callable[[str], None], intro: str, text: str) -> str:
+    """Read a parent's message aloud in its own language when the car has a voice for it.
+
+    - A voice for the language is installed: the intro in English, then the message in that voice.
+    - No voice, but Latin letters (Tagalog, Bisaya, Taglish, Spanish): the English voice sounds it
+      out, which is understandable for these phonetic spellings.
+    - No voice and another writing system (e.g. Chinese without a Chinese voice): it can't be
+      pronounced, so the car says which language it is and that it is on the screen.
+    Returns the language code."""
+    lang = detect(text)
+    has_voice = getattr(speaker, "has_voice", None)
+    say_parts = getattr(speaker, "say_parts", None)
+    voiced = bool(has_voice and has_voice(lang))
+    if lang != "en" and voiced and say_parts:
+        say_parts([(f"{intro}.", "en"), (text, lang)])
+    elif is_latin(lang):
+        speaker(f"{intro}. {text}")
+    else:
+        speaker(
+            f"{intro}, written in {NAMES.get(lang, 'another language')}. It is on the screen. "
+            "Read it only when you have stopped safely."
+        )
+    return lang
+
+
+# Language code -> the voice culture prefix (Windows) / eSpeak NG voice names to try.
+_SAPI_CULTURE = {
+    "fil": "fil",
+    "es": "es",
+    "zh": "zh",
+    "ja": "ja",
+    "ko": "ko",
+    "th": "th",
+    "ar": "ar",
+    "ru": "ru",
+    "hi": "hi",
+}
+_ESPEAK_VOICES = {
+    "fil": ["tl", "fil"],
+    "ceb": ["ceb"],
+    "es": ["es"],
+    "zh": ["cmn", "zh"],
+    "ja": ["ja"],
+    "ko": ["ko"],
+    "th": ["th"],
+    "ar": ["ar"],
+    "ru": ["ru"],
+    "hi": ["hi"],
+}
+
+
+def _run_lines(cmd: list[str]) -> list[str]:
+    out = subprocess.run(  # noqa: S603 - fixed command
+        cmd,
+        check=False,
+        timeout=30,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    return [ln.strip() for ln in (out.stdout or "").splitlines() if ln.strip()]
+
+
+_SAPI_LIST = (
+    "Add-Type -AssemblyName System.Speech;"
+    "(New-Object System.Speech.Synthesis.SpeechSynthesizer).GetInstalledVoices()"
+    "|?{$_.Enabled}|%{$_.VoiceInfo.Culture.Name}"
+)
+
+
+def _sapi_languages() -> set[str]:
+    cultures = [c.lower() for c in _run_lines(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", _SAPI_LIST])]
+    return {lang for lang, pre in _SAPI_CULTURE.items() if any(c.startswith(pre) for c in cultures)}
+
+
+def _sapi(rate: int) -> Command:
+    def cmd(text: str, lang: str) -> list[str]:
+        pick = ""
+        pre = _SAPI_CULTURE.get(lang)
+        if pre:  # a voice of that language, when Windows has one installed
+            pick = (
+                "$v=$s.GetInstalledVoices()|?{$_.Enabled -and $_.VoiceInfo.Culture.Name -like "
+                f"'{pre}*'}}|select -First 1;if($v){{$s.SelectVoice($v.VoiceInfo.Name)}};"
+            )
         script = (
+            "[Console]::OutputEncoding=[Text.Encoding]::UTF8;"
             "Add-Type -AssemblyName System.Speech;"
             "$s=New-Object System.Speech.Synthesis.SpeechSynthesizer;"
-            f"$s.Rate={rate};$s.Speak('{text}')"
+            f"{pick}$s.Rate={rate};$s.Speak('{text}')"
         )
         return ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script]
 
     return cmd
 
 
-def _piper(model: str) -> Callable[[str], list[str]]:
+def _piper_models(default: str) -> dict[str, str]:
+    """VOICE_MODELS="fil=/home/pi/voices/fil.onnx,zh=/home/pi/voices/zh.onnx" adds voices for
+    other languages; VOICE_MODEL stays the English one."""
+    models = {"en": default}
+    for item in os.environ.get("VOICE_MODELS", "").split(","):
+        lang, _, path = item.partition("=")
+        if lang.strip() and path.strip() and os.path.exists(path.strip()):
+            models[lang.strip()] = path.strip()
+    return models
+
+
+def _piper(models: dict[str, str]) -> Command:
     # piper reads text on stdin; a shell pipe to aplay plays it (Pi: ALSA)
-    def cmd(text: str) -> list[str]:
+    def cmd(text: str, lang: str) -> list[str]:
+        model = models.get(lang, models["en"])
         return [
             "sh",
             "-c",
@@ -208,9 +341,34 @@ def _piper(model: str) -> Callable[[str], list[str]]:
     return cmd
 
 
-def _espeak(rate: int) -> Callable[[str], list[str]]:
-    exe = shutil.which("espeak-ng") or "espeak"
-    return lambda text: [exe, "-s", str(150 + rate * 10), text]
+def _espeak_exe() -> str:
+    return shutil.which("espeak-ng") or "espeak"
+
+
+def _espeak_installed() -> set[str]:
+    # "Pty Language Age/Gender VoiceName File Other Languages": the 2nd column is the voice code
+    rows = _run_lines([_espeak_exe(), "--voices"])[1:]
+    return {r.split()[1].lower() for r in rows if len(r.split()) > 1}
+
+
+def _espeak(rate: int) -> tuple[Command, Callable[[], set[str]]]:
+    exe = _espeak_exe()
+    chosen: dict[str, str] = {}
+
+    def languages() -> set[str]:
+        have = _espeak_installed()
+        for lang, names in _ESPEAK_VOICES.items():
+            for n in names:
+                if n in have:
+                    chosen[lang] = n
+                    break
+        return set(chosen)
+
+    def cmd(text: str, lang: str) -> list[str]:
+        voice = ["-v", chosen[lang]] if lang in chosen else []
+        return [exe, *voice, "-s", str(150 + rate * 10), text]
+
+    return cmd, languages
 
 
 def make_speaker(engine: str = "auto", model: str = "", rate: int = 0) -> Speaker:
@@ -230,7 +388,9 @@ def make_speaker(engine: str = "auto", model: str = "", rate: int = 0) -> Speake
             )
             return Speaker(None, "off")
     if engine == "sapi":
-        return Speaker(_sapi(rate), "Windows voice")
+        return Speaker(_sapi(rate), "Windows voice", _sapi_languages)
     if engine == "piper":
-        return Speaker(_piper(model), "Piper AI voice")
-    return Speaker(_espeak(rate), "eSpeak")
+        models = _piper_models(model)
+        return Speaker(_piper(models), "Piper AI voice", lambda: set(models) - {"en"})
+    cmd, languages = _espeak(rate)
+    return Speaker(cmd, "eSpeak", languages)

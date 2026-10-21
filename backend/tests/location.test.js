@@ -152,7 +152,11 @@ describe('POST /api/ingest/snapshot', () => {
     }).expect(201);
     const dir = path.join(UPLOAD_DIR, 'alerts', driver._id.toString());
     expect(fs.existsSync(dir)).toBe(true);
-    await request(stack.app).delete(`/api/drivers/${driver._id}`).set(auth(parent.token)).expect(204);
+    await request(stack.app)
+      .delete(`/api/drivers/${driver._id}`)
+      .set(auth(parent.token))
+      .send({ confirmName: driver.name })
+      .expect(204);
     expect(fs.existsSync(dir)).toBe(false);
   });
 });

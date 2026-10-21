@@ -8,7 +8,10 @@ import { listAlerts } from '../../api/alerts';
 import { usePollingFallback } from '../../hooks/useRealtime';
 import { Copyright } from '../legal/Copyright';
 import { NotificationBell } from '../notifications/NotificationBell';
-import { ThemeToggle } from '../ui/ThemeToggle';
+import { AccountMenu } from './AccountMenu';
+import { MenuDrawer } from './MenuDrawer';
+import { AnimatedBackground } from './AnimatedBackground';
+import { useNavCollapsed } from '../../lib/navState';
 
 /**
  * Responsive shell: side rail ≥640 px (labels ≥1024 px), bottom nav < 640 px,
@@ -24,14 +27,18 @@ export function AppShell() {
     refetchInterval,
   });
   const unacknowledged = data?.unacknowledged ?? 0;
+  const [collapsed] = useNavCollapsed();
 
   return (
     <div data-testid="app-shell" className="relative min-h-screen min-h-dvh">
-      <div className="mesh-bg animate-mesh" aria-hidden="true" />
+      <AnimatedBackground />
       <SideRail unacknowledged={unacknowledged} />
-      <ThemeToggle className="fixed right-[4.25rem] top-4 z-40 sm:right-[4.75rem]" />
+      <MenuDrawer />
+      <AccountMenu />
       <NotificationBell />
-      <main className="pb-28 pt-5 sm:pb-10 sm:pl-28 lg:pl-[17rem]">
+      <main
+        className={`pb-28 pt-[4.5rem] transition-[padding] duration-200 sm:pb-10 sm:pl-28 sm:pt-5 ${collapsed ? '' : 'lg:pl-[17rem]'}`}
+      >
         <div className="mx-auto w-full max-w-content px-4 sm:px-6">
           <OfflineBanner />
           <InstallBanner />

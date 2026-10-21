@@ -17,12 +17,15 @@ router.patch(
   asyncHandler(ctrl.updateThresholds),
 );
 router.get('/:id/logs', asyncHandler(ctrl.logs));
+router.get('/:id/history', asyncHandler(ctrl.history));
 
 // Messages / reminders to the car (read aloud by the in-car voice)
 const messages = require('../controllers/messages.controller');
 router.get('/:id/messages', asyncHandler(messages.list));
 router.post('/:id/messages', validate(messages.sendSchema), asyncHandler(messages.send));
 router.post('/:id/verify', validate(ctrl.verifySchema), asyncHandler(ctrl.verify));
-router.delete('/:id', asyncHandler(ctrl.remove));
+// Deleting needs a code e-mailed to the account owner (see requestDeleteCode).
+router.post('/:id/delete-code', asyncHandler(ctrl.requestDeleteCode));
+router.delete('/:id', validate(ctrl.removeSchema), asyncHandler(ctrl.remove));
 
 module.exports = router;

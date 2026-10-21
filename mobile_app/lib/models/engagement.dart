@@ -142,3 +142,33 @@ const quickReminders = [
   'Call me when you arrive.',
   'Drive safely. We love you.',
 ];
+
+/// The same reminders in the languages families use most (same as the website); the car reads
+/// each in its own voice when it has one, and always shows it on its screen.
+const reminderLanguages = <(String label, List<String> reminders)>[
+  ('English', quickReminders),
+  (
+    'Tagalog',
+    [
+      'Magpahinga ka muna sa susunod na ligtas na hintuan.',
+      'Uminom ka ng tubig at manatiling alerto.',
+      'Dahan-dahan lang sa pagmamaneho, ingat ka.',
+      'Tawagan mo ako pagdating mo.',
+      'Ingat sa pagmamaneho. Mahal ka namin.',
+    ],
+  ),
+  (
+    'Bisaya',
+    [
+      'Pahulay sa usa ka luwas nga hunonganan.',
+      'Pag-inom ug tubig ug magpabilin nga alerto.',
+      'Hinay-hinay lang sa pagdrayb, amping.',
+      'Tawgi ko inig abot nimo.',
+      'Amping sa pagdrayb. Gihigugma ka namo.',
+    ],
+  ),
+  (
+    '中文',
+    ['请在下一个安全的地方停车休息。', '喝点水，保持清醒。', '请慢点开，注意安全。', '到了给我打电话。', '开车注意安全，我们爱你。'],
+  ),
+];

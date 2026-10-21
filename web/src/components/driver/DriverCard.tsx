@@ -47,7 +47,11 @@ export function DriverCard({ driver, live, pulsing }: DriverCardProps) {
             <div
               className={[
                 'h-full rounded-full transition-all duration-300',
-                (score ?? 0) > 0.7 ? 'bg-accent-danger shadow-glow-danger' : (score ?? 0) > 0.4 ? 'bg-accent-warn' : 'bg-accent-ok',
+                (score ?? 0) > 0.7
+                  ? 'bg-accent-danger shadow-glow-danger'
+                  : (score ?? 0) > 0.4
+                    ? 'bg-accent-warn'
+                    : 'bg-accent-ok',
               ].join(' ')}
               style={{ width: status === 'offline' ? '0%' : `${Math.round((score ?? 0) * 100)}%` }}
             />

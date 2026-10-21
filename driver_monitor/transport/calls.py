@@ -25,6 +25,8 @@ from typing import Any
 
 from loguru import logger as log
 
+from ui.voice import speak_message
+
 SAMPLE_RATE = 48000
 FRAME_SAMPLES = 960  # 20 ms
 
@@ -293,8 +295,9 @@ class CallClient:
             if not text:
                 return
             label = "Reminder" if data.get("kind") == "reminder" else "Message"
-            self.say(f"{label} from {who}. {text}")
-            log.info(f"{label.lower()} from {data.get('fromName')}: {text}")
+            # Any language: read in its own voice when the car has one (see ui.voice.speak_message)
+            lang = speak_message(self.say, f"{label} from {who}", text)
+            log.info(f"{label.lower()} from {data.get('fromName')} [{lang}]: {text}")
             if self.on_message:
                 self.on_message(f"{label} from {who}", text)
             await sio.emit("message:delivered", {"id": data.get("id")})

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { deleteDriver, driverLogs, getDriver, verifyDriver } from '../api/drivers';
+import { driverLogs, getDriver, verifyDriver } from '../api/drivers';
 import { listAlerts } from '../api/alerts';
 import { errorMessage } from '../api/client';
 import type { SensorLogPoint } from '../api/types';
@@ -10,6 +10,8 @@ import { GlassCard } from '../components/ui/GlassCard';
 import { DepthButton } from '../components/ui/DepthButton';
 import { CallButton } from '../components/call/CallButton';
 import { MessagePanel } from '../components/driver/MessagePanel';
+import { DeleteDriverDialog } from '../components/driver/DeleteDriverDialog';
+import { ReadingHistory } from '../components/driver/ReadingHistory';
 import { Avatar } from '../components/ui/Avatar';
 import { StatusPill } from '../components/ui/StatusPill';
 import { LineChart } from '../components/ui/LineChart';
@@ -32,6 +34,7 @@ export function DriverDetailPage() {
   const { live, socket, connected } = useRealtime();
   const refetchInterval = usePollingFallback();
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const driver = useQuery({ queryKey: ['driver', id], queryFn: () => getDriver(id), refetchInterval });
@@ -81,15 +84,12 @@ export function DriverDetailPage() {
     onError: (err) => toast.show({ title: 'Verification failed', body: errorMessage(err), tone: 'danger' }),
   });
 
-  const remove = useMutation({
-    mutationFn: () => deleteDriver(id),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['drivers'] });
-      toast.show({ title: 'Driver removed', tone: 'info' });
-      navigate('/drivers', { replace: true });
-    },
-    onError: (err) => toast.show({ title: 'Could not remove', body: errorMessage(err), tone: 'danger' }),
-  });
+  function onDeleted() {
+    setDeleting(false);
+    void qc.invalidateQueries({ queryKey: ['drivers'] });
+    toast.show({ title: 'Driver deleted', tone: 'info' });
+    navigate('/drivers', { replace: true });
+  }
 
   if (driver.isLoading)
     return (
@@ -177,6 +177,8 @@ export function DriverDetailPage() {
             </p>
           </GlassCard>
 
+          <ReadingHistory driverId={d.id} driverName={d.name} />
+
           <section>
             <h2 className="mb-3 text-lg font-bold text-white">Recent alerts</h2>
             <AlertFeed alerts={alerts.data?.alerts ?? []} emptyText="No alerts for this driver yet." />
@@ -238,16 +240,15 @@ export function DriverDetailPage() {
           <GlassCard interactive={false} className="flex items-center justify-between gap-3 border-accent-danger/30">
             <div>
               <p className="font-semibold text-white">Remove driver</p>
-              <p className="text-xs text-ink-muted">Deletes the face profile and reference photo.</p>
+              <p className="text-xs text-ink-muted">
+                Deletes the face profile, photos, alerts and readings. Needs a code sent to your e-mail.
+              </p>
             </div>
             <DepthButton
               variant="danger"
               size="sm"
               icon={<Icon name="trash" size={16} />}
-              loading={remove.isPending}
-              onClick={() => {
-                if (window.confirm(`Remove ${d.name}? This cannot be undone.`)) remove.mutate();
-              }}
+              onClick={() => setDeleting(true)}
             >
               Remove
             </DepthButton>
@@ -255,6 +256,14 @@ export function DriverDetailPage() {
         </div>
       </div>
 
+      {deleting && (
+        <DeleteDriverDialog
+          driverId={d.id}
+          driverName={d.name}
+          onClose={() => setDeleting(false)}
+          onDeleted={onDeleted}
+        />
+      )}
       {cameraOpen && (
         <CameraCapture
           angle="front"

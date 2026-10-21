@@ -61,7 +61,15 @@ export function TiltCard({ children, className = '', maxTilt = 10 }: TiltCardPro
 }
 
 /** A child of TiltCard lifted `depth` px toward the viewer. */
-export function TiltLayer({ depth = 30, children, className = '' }: { depth?: number; children: ReactNode; className?: string }) {
+export function TiltLayer({
+  depth = 30,
+  children,
+  className = '',
+}: {
+  depth?: number;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <div className={className} style={{ transform: `translateZ(${depth}px)`, transformStyle: 'preserve-3d' }}>
       {children}

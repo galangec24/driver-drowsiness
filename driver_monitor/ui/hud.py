@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 import cv2
 import numpy as np
 
+from ui import unitext
+
 PANEL_W = 380
 HEIGHT = 720
 
@@ -228,10 +230,18 @@ def render(frame: np.ndarray, s: HudState, t: float) -> np.ndarray:
         title, text = s.message
         cv2.rectangle(panel, (x, y - 4), (x + pw, y + 58), (120, 70, 40), -1)
         cv2.rectangle(panel, (x, y - 4), (x + pw, y + 58), (248, 140, 129), 1)
-        _text(panel, title[:40], (x + 10, y + 16), 0.5, (255, 255, 255), 1)
-        _text(panel, text[:42], (x + 10, y + 38), 0.48, WHITE)
-        if len(text) > 42:
-            _text(panel, text[42:84], (x + 10, y + 54), 0.48, WHITE)
+        drawn = False
+        if unitext.needs_unicode(title + text):  # Chinese, ñ, é...: OpenCV can't draw these
+            font = unitext.font_for(text, 16)
+            if font is not None:
+                lines = unitext.wrap(text, font, pw - 20, 2)
+                unitext.draw_lines(panel, [title[:40]], x + 10, y + 1, 16, (255, 255, 255))
+                drawn = unitext.draw_lines(panel, lines, x + 10, y + 21, 16, WHITE, font, gap=2)
+        if not drawn:
+            _text(panel, title[:40], (x + 10, y + 16), 0.5, (255, 255, 255), 1)
+            _text(panel, text[:42], (x + 10, y + 38), 0.48, WHITE)
+            if len(text) > 42:
+                _text(panel, text[42:84], (x + 10, y + 54), 0.48, WHITE)
         y += 70
 
     for line in s.extra[:3]:

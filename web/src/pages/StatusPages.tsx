@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom';
 import { API_URL } from '../api/client';
 import { DepthButton } from '../components/ui/DepthButton';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
+import { AnimatedBackground } from '../components/layout/AnimatedBackground';
 
 function Frame({ code, title, children }: { code: string; title: string; children: React.ReactNode }) {
   return (
     <div className="relative flex min-h-screen min-h-dvh items-center justify-center p-6">
-      <div className="mesh-bg" aria-hidden="true" />
+      <AnimatedBackground />
       <ThemeToggle className="fixed right-4 top-4" />
       <main className="glass flex w-full max-w-md flex-col items-center gap-4 p-8 text-center">
         <img src="/icons/icon.svg" alt="" className="h-14 w-14 drop-shadow-[0_0_14px_rgba(99,102,241,0.5)]" />

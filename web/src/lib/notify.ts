@@ -11,9 +11,7 @@ export function notificationsSupported(): boolean {
 export function notificationsEnabled(): boolean {
   try {
     return (
-      notificationsSupported() &&
-      Notification.permission === 'granted' &&
-      localStorage.getItem(PREF_KEY) !== 'off'
+      notificationsSupported() && Notification.permission === 'granted' && localStorage.getItem(PREF_KEY) !== 'off'
     );
   } catch {
     return false;

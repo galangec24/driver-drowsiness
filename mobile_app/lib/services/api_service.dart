@@ -4,6 +4,7 @@ import '../models/alert.dart';
 import '../models/driver.dart';
 import '../models/engagement.dart';
 import '../models/feedback.dart';
+import '../models/history.dart';
 import '../models/user.dart';
 import 'storage_service.dart';
 
@@ -360,8 +361,39 @@ class ApiService {
         return Driver.fromJson(r.data!['driver'] as Map<String, dynamic>);
       });
 
-  Future<void> deleteDriver(String id) =>
-      _call(() => _dio.delete<void>('/drivers/$id'));
+  /// Ask for the code that confirms deleting a driver. Returns ('email', address) when a code was
+  /// e-mailed, or ('name', null) when the server has no e-mail and the driver's name confirms.
+  Future<({String method, String? email, int retryAfterS})> requestDeleteCode(
+    String id,
+  ) => _call(() async {
+    final r = await _dio.post<Map<String, dynamic>>('/drivers/$id/delete-code');
+    final d = r.data!;
+    return (
+      method: d['method'] as String? ?? 'email',
+      email: d['email'] as String?,
+      retryAfterS: (d['retryAfterS'] as num?)?.toInt() ?? 60,
+    );
+  });
+
+  Future<void> deleteDriver(String id, {String? code, String? confirmName}) =>
+      _call(
+        () => _dio.delete<void>(
+          '/drivers/$id',
+          data: {'code': ?code, 'confirmName': ?confirmName},
+        ),
+      );
+
+  Future<DriverHistory> history(String id, {DateTime? from, DateTime? to}) =>
+      _call(() async {
+        final r = await _dio.get<Map<String, dynamic>>(
+          '/drivers/$id/history',
+          queryParameters: {
+            if (from != null) 'from': from.toUtc().toIso8601String(),
+            if (to != null) 'to': to.toUtc().toIso8601String(),
+          },
+        );
+        return DriverHistory.fromJson(r.data!);
+      });
 
   Future<List<SensorPoint>> logs(String id, {int limit = 120}) =>
       _call(() async {

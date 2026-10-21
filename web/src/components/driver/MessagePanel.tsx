@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { QUICK_REMINDERS, listMessages, sendMessage, type DriverMessage } from '../../api/messages';
+import { QUICK_REMINDERS, REMINDER_LANGUAGES, listMessages, sendMessage, type DriverMessage } from '../../api/messages';
 import { errorMessage } from '../../api/client';
 import { GlassCard } from '../ui/GlassCard';
 import { DepthButton } from '../ui/DepthButton';
@@ -19,6 +19,8 @@ export function MessagePanel({ driverId, driverName }: { driverId: string; drive
   const qc = useQueryClient();
   const toast = useToast();
   const [text, setText] = useState('');
+  const [lang, setLang] = useState('en');
+  const reminders = REMINDER_LANGUAGES.find((l) => l.code === lang)?.reminders ?? QUICK_REMINDERS;
   const first = driverName.split(' ')[0];
   const messages = useQuery({ queryKey: ['messages', driverId], queryFn: () => listMessages(driverId) });
   const send = useMutation({
@@ -45,8 +47,24 @@ export function MessagePanel({ driverId, driverName }: { driverId: string; drive
       <p className="text-sm text-ink-muted">
         The in-car voice assistant reads it aloud, so {first} never has to look at a phone while driving.
       </p>
+      <div role="tablist" aria-label="Reminder language" className="flex flex-wrap gap-1.5">
+        {REMINDER_LANGUAGES.map((l) => (
+          <button
+            key={l.code}
+            type="button"
+            role="tab"
+            aria-selected={lang === l.code}
+            onClick={() => setLang(l.code)}
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${
+              lang === l.code ? 'bg-accent-primary/25 text-white' : 'text-ink-muted hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            {l.label}
+          </button>
+        ))}
+      </div>
       <div className="flex flex-wrap gap-2">
-        {QUICK_REMINDERS.map((r) => (
+        {reminders.map((r) => (
           <button
             key={r}
             type="button"
@@ -77,6 +95,10 @@ export function MessagePanel({ driverId, driverName }: { driverId: string; drive
           Send
         </DepthButton>
       </form>
+      <p className="text-[11px] text-ink-muted" data-testid="language-hint">
+        Write in any language: English, Tagalog, Bisaya, Taglish, Chinese and more. The car reads it in that language
+        when it has the voice, and always shows it on its screen.
+      </p>
       {(messages.data ?? []).length > 0 && (
         <ul className="flex flex-col gap-2" data-testid="message-history">
           {(messages.data ?? []).slice(0, 6).map((m) => (

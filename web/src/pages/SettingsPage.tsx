@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { APK_URL } from '../lib/platform';
 import { pushConfig } from '../api/auth';
@@ -11,7 +11,6 @@ import { Icon } from '../components/ui/Icon';
 import { useToast } from '../components/ui/Toast';
 import { clearSnapshots } from '../lib/offlineCache';
 import { disableNotifications, enableNotifications, notificationsEnabled, notificationsSupported } from '../lib/notify';
-import { markFarewell } from '../lib/farewell';
 import { UpdatesCard } from '../components/settings/UpdatesCard';
 import { AboutCard } from '../components/settings/AboutCard';
 import { RateAppCard } from '../components/settings/RateAppCard';
@@ -27,9 +26,8 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 export function SettingsPage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { connected } = useRealtime();
-  const qc = useQueryClient();
   const toast = useToast();
   const [notify, setNotify] = useState(notificationsEnabled);
   const push = useQuery({ queryKey: ['pushConfig'], queryFn: pushConfig, staleTime: 5 * 60e3 });
@@ -57,13 +55,6 @@ export function SettingsPage() {
     );
   }
 
-  function signOut() {
-    markFarewell(user?.name);
-    clearSnapshots();
-    qc.clear();
-    logout();
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <h1 className="page-title">Settings</h1>
@@ -76,11 +67,9 @@ export function SettingsPage() {
           <Row label="Role">
             <span className="capitalize">{user?.role}</span>
           </Row>
-          <div className="mt-4">
-            <DepthButton variant="secondary" icon={<Icon name="logout" size={18} />} onClick={signOut}>
-              Sign out
-            </DepthButton>
-          </div>
+          <p className="mt-3 text-xs text-ink-muted">
+            Log out and Help &amp; feedback are in the account menu (your initials, top right).
+          </p>
         </GlassCard>
 
         <GlassCard interactive={false}>
@@ -122,17 +111,6 @@ export function SettingsPage() {
           <p className="mb-4 text-sm text-ink-muted">Answer short surveys from the Guardian Drive team.</p>
           <Link to="/surveys">
             <DepthButton variant="secondary">Open surveys</DepthButton>
-          </Link>
-        </GlassCard>
-
-        <GlassCard interactive={false} data-testid="feedback-card">
-          <h2 className="mb-2 text-lg font-bold text-white">Feedback</h2>
-          <p className="mb-4 text-sm text-ink-muted">
-            Found a problem or have an idea? Send it to the team, with screenshots or files. You will see the reply
-            here.
-          </p>
-          <Link to="/feedback">
-            <DepthButton icon={<Icon name="mail" size={18} />}>Send feedback</DepthButton>
           </Link>
         </GlassCard>
 

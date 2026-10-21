@@ -40,5 +40,4 @@ class IO {
     return [];
   }
 }
-window.IntersectionObserver =
-  window.IntersectionObserver ?? (IO as unknown as typeof IntersectionObserver);
+window.IntersectionObserver = window.IntersectionObserver ?? (IO as unknown as typeof IntersectionObserver);

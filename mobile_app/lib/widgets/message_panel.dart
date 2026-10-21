@@ -29,6 +29,7 @@ class _MessagePanelState extends State<MessagePanel> {
   List<DriverMessage> _history = [];
   bool _sending = false;
   int _seenVersion = -1;
+  int _lang = 0;
 
   ApiService get _api => context.read<DataController>().api;
   String get _first => widget.driverName.split(' ').first;
@@ -119,9 +120,25 @@ class _MessagePanelState extends State<MessagePanel> {
           const SizedBox(height: 10),
           Wrap(
             spacing: 6,
+            children: [
+              for (var i = 0; i < reminderLanguages.length; i++)
+                ChoiceChip(
+                  key: ValueKey('lang-$i'),
+                  label: Text(
+                    reminderLanguages[i].$1,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  selected: _lang == i,
+                  onSelected: (_) => setState(() => _lang = i),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
             runSpacing: 6,
             children: [
-              for (final r in quickReminders)
+              for (final r in reminderLanguages[_lang].$2)
                 ActionChip(
                   label: Text(r, style: const TextStyle(fontSize: 12)),
                   onPressed: _sending ? null : () => _send(r, reminder: true),
@@ -154,6 +171,13 @@ class _MessagePanelState extends State<MessagePanel> {
                 },
               ),
             ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Write in any language: English, Tagalog, Bisaya, Taglish, Chinese '
+            'and more. The car reads it in that language when it has the voice, '
+            'and always shows it on its screen.',
+            style: TextStyle(color: AppColors.muted, fontSize: 11),
           ),
           for (final m in _history.take(5))
             Padding(

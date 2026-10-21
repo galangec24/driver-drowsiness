@@ -79,8 +79,53 @@ export async function updateThresholds(id: string, patch: Partial<Thresholds>): 
   return data.driver;
 }
 
-export async function deleteDriver(id: string): Promise<void> {
-  await api.delete(`/drivers/${id}`);
+/** How deleting is confirmed: a code e-mailed to the account, or (no e-mail on the server) the name. */
+export type DeleteCodeResult =
+  { method: 'email'; email: string; sent: boolean; retryAfterS: number } | { method: 'name' };
+
+export async function requestDeleteCode(id: string): Promise<DeleteCodeResult> {
+  const { data } = await api.post<DeleteCodeResult>(`/drivers/${id}/delete-code`);
+  return data;
+}
+
+export async function deleteDriver(id: string, confirm: { code?: string; confirmName?: string }): Promise<void> {
+  await api.delete(`/drivers/${id}`, { data: confirm });
+}
+
+export interface HistoryRow {
+  /** Last reading of this minute, and the first one. */
+  at: string;
+  from: string;
+  readings: number;
+  classification: 'alert' | 'warning' | 'drowsy';
+  ear: number | null;
+  perclos: number | null;
+  heartRate: number | null;
+  fusionScore: number | null;
+  source: string;
+  location: { lat: number; lng: number; speed?: number } | null;
+  /** Driven since the previous minute with a location, and in total since the start of the range. */
+  km: number;
+  totalKm: number;
+}
+
+export interface DriverHistory {
+  from: string;
+  to: string;
+  totalKm: number;
+  lastReading: {
+    at: string;
+    classification: 'alert' | 'warning' | 'drowsy';
+    fusionScore: number;
+    source: string;
+    location: { lat: number; lng: number; speed?: number } | null;
+  } | null;
+  rows: HistoryRow[];
+}
+
+export async function driverHistory(id: string, range: { from?: string; to?: string } = {}): Promise<DriverHistory> {
+  const { data } = await api.get<DriverHistory>(`/drivers/${id}/history`, { params: range });
+  return data;
 }
 
 export async function driverLogs(id: string, limit = 120): Promise<SensorLogPoint[]> {

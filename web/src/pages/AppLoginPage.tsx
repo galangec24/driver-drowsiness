@@ -7,6 +7,7 @@ import { GoogleButton } from '../components/auth/GoogleButton';
 import { GlassCard } from '../components/ui/GlassCard';
 import { Icon } from '../components/ui/Icon';
 import { Spinner } from '../components/ui/Spinner';
+import { AnimatedBackground } from '../components/layout/AnimatedBackground';
 
 const APP_NAME: Record<string, string> = { windows: 'Windows app', android: 'Android app' };
 
@@ -39,7 +40,7 @@ export function AppLoginPage() {
 
   return (
     <div className="relative flex min-h-screen min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
-      <div className="mesh-bg animate-mesh" aria-hidden="true" />
+      <AnimatedBackground />
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="relative w-full max-w-md">
         <GlassCard
           interactive={false}

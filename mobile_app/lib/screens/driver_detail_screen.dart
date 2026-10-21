@@ -15,12 +15,14 @@ import '../services/api_service.dart';
 import '../state/data_controller.dart';
 import '../widgets/alert_card.dart';
 import '../widgets/alert_detail_sheet.dart';
+import '../widgets/delete_driver_dialog.dart';
 import '../widgets/depth_button.dart';
 import '../widgets/driver_avatar.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/location_map.dart';
 import '../widgets/message_panel.dart';
 import '../widgets/mesh_background.dart';
+import '../widgets/reading_history.dart';
 import '../widgets/signal_chart.dart';
 import '../widgets/status_pill.dart';
 
@@ -116,40 +118,15 @@ class _DriverDetailScreenState extends State<DriverDetailScreen> {
   Future<void> _delete() async {
     final d = _driver;
     if (d == null) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.ink900,
-        title: Text('Remove ${d.name}?'),
-        content: const Text(
-          'This deletes the face profile and reference photo. It cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Remove',
-              style: TextStyle(color: AppColors.danger),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
     final data = context.read<DataController>();
     final router = GoRouter.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    try {
-      await data.api.deleteDriver(d.id);
-      data.removeDriver(d.id);
-      router.go('/drivers');
-    } on ApiException catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e.message)));
-    }
+    // A code e-mailed to the account owner authorizes the deletion.
+    final deleted = await confirmDeleteDriver(context, data.api, d.id, d.name);
+    if (!deleted || !mounted) return;
+    data.removeDriver(d.id);
+    messenger.showSnackBar(SnackBar(content: Text('${d.name} was deleted')));
+    router.go('/drivers');
   }
 
   @override
@@ -303,6 +280,8 @@ class _DriverDetailScreenState extends State<DriverDetailScreen> {
                     ),
                     const SizedBox(height: 16),
                     MessagePanel(driverId: d.id, driverName: d.name),
+                    const SizedBox(height: 16),
+                    ReadingHistory(api: data.api, driverId: d.id),
                     const SizedBox(height: 16),
                     _verifyCard(d),
                     const SizedBox(height: 16),

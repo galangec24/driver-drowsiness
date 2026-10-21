@@ -1,7 +1,12 @@
 const { z } = require('zod');
 const Driver = require('../models/Driver');
 const SensorLog = require('../models/SensorLog');
+const Alert = require('../models/Alert');
+const Message = require('../models/Message');
+const User = require('../models/User');
 const HttpError = require('../utils/httpError');
+const emailOtp = require('../services/emailOtp');
+const { canSendMail } = require('../services/mailer');
 const statusStore = require('../services/statusStore');
 const { isReady, loadFaceModels } = require('../config/faceApi');
 const { enrollPhotos, analyzePhoto, SAME_PERSON_DISTANCE } = require('../services/faceEnrollment');
@@ -228,9 +233,89 @@ async function updateThresholds(req, res) {
   res.json({ driver: withStatus(driver) });
 }
 
+const removeSchema = z.object({
+  code: z
+    .string()
+    .regex(/^\d{6}$/, 'Enter the 6-digit code')
+    .optional(),
+  // Only when the server can't send e-mail: type the driver's name instead.
+  confirmName: z.string().max(80).optional(),
+});
+
+const DELETE_CODE_ERRORS = {
+  invalid: [400, 'That code is not correct. Check the e-mail and try again.'],
+  expired: [400, 'That code has expired. Ask for a new one.'],
+  too_many_attempts: [429, 'Too many wrong codes. Ask for a new one.'],
+  no_code: [400, 'Ask for a confirmation code first.'],
+};
+
+async function owner(req) {
+  const user = await User.findById(req.user.parentId).select('+deleteOtp');
+  if (!user) throw new HttpError(401, 'Account not found');
+  return user;
+}
+
+/**
+ * POST /drivers/:id/delete-code: e-mail the account owner a 6-digit code that authorizes
+ * deleting this one driver. Without an e-mail provider the parent types the driver's name instead.
+ */
+async function requestDeleteCode(req, res) {
+  const driver = await findOwned(req);
+  if (!canSendMail()) return res.json({ method: 'name' });
+  const user = await owner(req);
+  let sent;
+  try {
+    sent = await emailOtp.issueCode(user, Date.now(), 'delete', {
+      scope: driver._id.toString(),
+      detail: `Driver: ${driver.name}`,
+    });
+  } catch (err) {
+    const e = new HttpError(
+      503,
+      "We couldn't send the e-mail right now. Please try again in a few minutes.",
+    );
+    e.reason = err.message;
+    throw e;
+  }
+  return res.json({
+    method: 'email',
+    email: user.email,
+    sent: sent.sent,
+    retryAfterS: sent.retryAfterS,
+  });
+}
+
 async function remove(req, res) {
   const driver = await findOwned(req);
+  const { code, confirmName } = req.body || {};
+  if (canSendMail()) {
+    if (!code) {
+      throw new HttpError(400, 'Enter the code we e-mailed you to confirm.', {
+        code: 'CODE_REQUIRED',
+      });
+    }
+    const result = await emailOtp.verifyCode(
+      await owner(req),
+      code,
+      Date.now(),
+      'delete',
+      driver._id.toString(),
+    );
+    if (result !== 'ok') {
+      const [status, message] = DELETE_CODE_ERRORS[result];
+      throw new HttpError(status, message, { code: result });
+    }
+  } else if ((confirmName || '').trim().toLowerCase() !== driver.name.trim().toLowerCase()) {
+    throw new HttpError(400, "Type the driver's name exactly to confirm.", {
+      code: 'NAME_REQUIRED',
+    });
+  }
   await driver.deleteOne();
+  await Promise.all([
+    SensorLog.deleteMany({ driverId: driver._id }),
+    Alert.deleteMany({ driverId: driver._id }),
+    Message.deleteMany({ driverId: driver._id }),
+  ]);
   await removeReferencePhoto(driver._id.toString());
   await removeAlertSnapshots(driver._id.toString());
   res.status(204).end();
@@ -254,6 +339,112 @@ async function logs(req, res) {
   });
 }
 
+const EARTH_KM = 6371;
+function haversineKm(a, b) {
+  const rad = (d) => (d * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * EARTH_KM * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+// GPS jitter while parked is not distance; a jump faster than this is a bad fix, not driving.
+const MIN_STEP_KM = 0.015;
+const MAX_KMH = 200;
+const MINUTE = 60 * 1000;
+const historySchema = z.object({
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+});
+
+/**
+ * GET /drivers/:id/history?from&to (default: the last 24 h, at most 7 days): readings arrive about
+ * once a second, so they are summarised per minute: time, worst state, averages, location, the km
+ * driven since the previous minute and in total.
+ */
+async function history(req, res) {
+  const driver = await findOwned(req);
+  const q = historySchema.safeParse(req.query);
+  if (!q.success) throw new HttpError(400, 'Invalid date range');
+  const to = q.data.to || new Date();
+  let from = q.data.from || new Date(to.getTime() - 24 * 3600 * 1000);
+  if (to - from > 7 * 24 * 3600 * 1000) from = new Date(to.getTime() - 7 * 24 * 3600 * 1000);
+
+  const ms = { $toLong: '$createdAt' };
+  const buckets = await SensorLog.aggregate([
+    { $match: { driverId: driver._id, createdAt: { $gte: from, $lte: to } } },
+    { $sort: { createdAt: 1 } },
+    {
+      $group: {
+        _id: { $subtract: [ms, { $mod: [ms, MINUTE] }] },
+        firstAt: { $first: '$createdAt' },
+        lastAt: { $last: '$createdAt' },
+        readings: { $sum: 1 },
+        ear: { $avg: '$signals.ear' },
+        perclos: { $avg: '$signals.perclos' },
+        heartRate: { $avg: '$signals.heartRate' },
+        maxScore: { $max: '$fusionScore' },
+        drowsy: { $sum: { $cond: [{ $eq: ['$classification', 'drowsy'] }, 1, 0] } },
+        warning: { $sum: { $cond: [{ $eq: ['$classification', 'warning'] }, 1, 0] } },
+        locations: { $push: '$location' },
+        source: { $last: '$source' },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+
+  const round = (v, d = 3) => (typeof v === 'number' ? Number(v.toFixed(d)) : null);
+  let prev = null;
+  let totalKm = 0;
+  const rows = buckets.map((b) => {
+    const locs = (b.locations || []).filter((l) => l && typeof l.lat === 'number');
+    const loc = locs.length ? locs[locs.length - 1] : null;
+    let km = 0;
+    if (loc && prev) {
+      const step = haversineKm(prev.loc, loc);
+      const hours = Math.max(1 / 3600, (b.lastAt - prev.at) / 3600e3);
+      if (step >= MIN_STEP_KM && step / hours <= MAX_KMH) km = step;
+    }
+    if (loc) prev = { loc, at: b.lastAt };
+    totalKm += km;
+    return {
+      at: b.lastAt,
+      from: b.firstAt,
+      readings: b.readings,
+      classification: b.drowsy ? 'drowsy' : b.warning ? 'warning' : 'alert',
+      ear: round(b.ear),
+      perclos: round(b.perclos),
+      heartRate: round(b.heartRate, 0),
+      fusionScore: round(b.maxScore),
+      source: b.source,
+      location: loc
+        ? { lat: loc.lat, lng: loc.lng, ...(typeof loc.speed === 'number' && { speed: loc.speed }) }
+        : null,
+      km: round(km),
+      totalKm: round(totalKm),
+    };
+  });
+
+  const last = await SensorLog.findOne({ driverId: driver._id }).sort({ createdAt: -1 }).lean();
+  res.json({
+    from,
+    to,
+    totalKm: round(totalKm),
+    lastReading: last
+      ? {
+          at: last.createdAt,
+          classification: last.classification,
+          fusionScore: last.fusionScore,
+          source: last.source,
+          signals: last.signals,
+          location: last.location || null,
+        }
+      : null,
+    rows: rows.reverse(), // newest first
+  });
+}
+
 async function verify(req, res) {
   const driver = await Driver.findOne({ _id: req.params.id, parentId: req.user.parentId }).select(
     '+faceEmbedding',
@@ -274,6 +465,9 @@ module.exports = {
   get,
   updateThresholds,
   remove,
+  removeSchema,
+  requestDeleteCode,
+  history,
   logs,
   verify,
   checkPhoto,
