@@ -347,6 +347,7 @@ Update later with `git pull`. Wiring, flashing and test steps are in [docs/WEARA
 | Part | Command | Covers |
 |---|---|---|
 | Backend | `cd backend && npm test` | Auth and codes, ingest + fusion, fuzzy and narrow-eye handling, alerts and cooldowns, distraction, adaptive tuning, feedback, admin, location. In-memory MongoDB. |
+| Backend load | `cd backend && node scripts/loadTest.js` | Ingest latency (p50/p95/p99) and throughput with 1–100 readings in flight; `--url` for a live server |
 | Driver monitor | `cd driver_monitor && pytest` | Every detector, fuzzy rules, blinks, distraction, recovery, alarm levels, HUD, location sources, offline outbox, mock-camera pipeline |
 | Web | `cd web && npm test` / `npm run e2e` | Components and pages (Vitest), end-to-end smoke (Playwright) |
 | Android | `cd mobile_app && flutter test` | Screens, update check, models |

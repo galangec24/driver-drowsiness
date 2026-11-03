@@ -36,6 +36,8 @@ const sensorLogSchema = new mongoose.Schema(
 );
 
 sensorLogSchema.index({ driverId: 1, createdAt: -1 });
+// Time ranges across all drivers: the per-minute rollup (services/sensorRollup.js).
+sensorLogSchema.index({ createdAt: 1 });
 
 module.exports = mongoose.model('SensorLog', sensorLogSchema);
 module.exports.SOURCES = SOURCES;

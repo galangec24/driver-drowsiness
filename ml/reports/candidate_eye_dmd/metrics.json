@@ -1,0 +1,52 @@
+{
+  "test": {
+    "accuracy": 0.9772,
+    "roc_auc": 0.9903,
+    "confusion_[open,closed]": [
+      [
+        985,
+        24
+      ],
+      [
+        22,
+        987
+      ]
+    ],
+    "webcam_quality_accuracy": 0.9698,
+    "webcam_quality_roc_auc": 0.9873
+  },
+  "selected": "hidden=64 alpha=0.01",
+  "kind": "mlp",
+  "datasets": [
+    "data/eyes_v1",
+    "data/eyes_mrl-eyes",
+    "data/eyes_dmd"
+  ],
+  "test_by_dataset": [
+    {
+      "dataset": "data/eyes_v1",
+      "images": 218,
+      "candidate": {
+        "accuracy": 0.9404,
+        "roc_auc": 0.9803
+      },
+      "live": {
+        "accuracy": 0.945,
+        "roc_auc": 0.9918
+      }
+    },
+    {
+      "dataset": "data/eyes_dmd",
+      "images": 1800,
+      "candidate": {
+        "accuracy": 0.9817,
+        "roc_auc": 0.9909
+      },
+      "live": {
+        "accuracy": 0.9317,
+        "roc_auc": 0.9766
+      }
+    }
+  ],
+  "live_model": "C:\\Users\\Emmanuel Christian\\OneDrive\\Desktop\\CAPSTONE\\guardian-drive\\driver_monitor\\models\\eye_state.json"
+}

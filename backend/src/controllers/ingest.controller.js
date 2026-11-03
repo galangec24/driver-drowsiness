@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const logger = require('../config/logger');
 const Driver = require('../models/Driver');
+const driverCache = require('../services/driverCache');
 const Alert = require('../models/Alert');
 const HttpError = require('../utils/httpError');
 const { SOURCES } = require('../models/SensorLog');
@@ -12,6 +13,7 @@ const { base64ToBuffer, sniff } = require('../services/imageDecoder');
 const { storeAlertSnapshot } = require('../services/mediaStorage');
 const User = require('../models/User');
 const { analyzeAllFaces } = require('../services/faceEnrollment');
+const faceQueue = require('../services/faceQueue');
 const { pickDriver } = require('../services/driverIdentifier');
 const { loadFaceModels, isReady } = require('../config/faceApi');
 
@@ -104,8 +106,8 @@ const snapshotSchema = z.object({
 async function ingest(req, res) {
   const started = req.ingestStartedAt || process.hrtime.bigint();
 
-  // 3. Load driver
-  const driver = await Driver.findById(req.body.driverId);
+  // 3. Load driver (cached for a few seconds: one reading per second per car)
+  const driver = await driverCache.get(req.body.driverId);
   if (!driver) throw new HttpError(404, 'Driver not found');
 
   // 4–6. Fusion, SensorLog, Alert + dispatch (delegated to services)
@@ -163,7 +165,7 @@ async function identify(req, res) {
       throw new HttpError(503, 'Face recognition models are not available');
     }
   }
-  const faces = await analyzeAllFaces(req.body.image);
+  const faces = await faceQueue.run(() => analyzeAllFaces(req.body.image));
   if (!faces.length) {
     res.json({
       driverId: null,

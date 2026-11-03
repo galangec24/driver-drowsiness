@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const JOB_TYPES = [
   'fetch_dataset', // Kaggle eye dataset → ml/data/eyes_<id>
+  'process_dmd', // DMD face videos (manual download) → eye crops in ml/data/eyes_dmd
   'train_verifier', // false-alarm verifier (synthetic + feedback + recordings) → candidate release
   'train_eye_state', // eye open/closed image model → candidate release
   'calibrate_yawn', // yawn mouth threshold from a yawn image dataset → candidate release

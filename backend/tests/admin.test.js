@@ -101,6 +101,11 @@ describe('datasets', () => {
     const ids = res.body.catalog.map((d) => d.id);
     expect(ids).toEqual(expect.arrayContaining(['yawn-eye', 'mrl-eyes', 'yawn', 'uta-rldd']));
     expect(res.body.catalog.find((d) => d.id === 'mrl-eyes').local.ready).toBe(false);
+    expect(res.body.catalog.find((d) => d.id === 'dmd')).toMatchObject({
+      task: 'eye_state',
+      source: 'manual',
+      local: { ready: false, archives: 0, folder: path.join(tmp, 'videos', 'dmd') },
+    });
     expect(res.body.feedback).toEqual({
       labelled: 0,
       falseAlarms: 0,
@@ -144,6 +149,18 @@ describe('training jobs', () => {
       409,
     );
     await post({ type: 'train_verifier', params: { recordings: ['ghost'] } }).expect(409);
+    // DMD is processed from manually placed archives, never downloaded; other datasets can't be processed
+    await post({ type: 'fetch_dataset', params: { datasetId: 'dmd' } }).expect(400);
+    await post({ type: 'process_dmd', params: { datasetId: 'mrl-eyes' } }).expect(400);
+    const noArchives = await post({ type: 'process_dmd', params: { datasetId: 'dmd' } }).expect(
+      409,
+    );
+    expect(noArchives.body.error).toMatch(/dmd-dataset-drowsiness/);
+    const notProcessed = await post({
+      type: 'train_eye_state',
+      params: { datasets: ['dmd'] },
+    }).expect(409);
+    expect(notProcessed.body.error).toMatch(/^Process "/);
     await post({ type: 'rm_rf', params: {} }).expect(400);
 
     env.ml.python = '';
@@ -206,6 +223,66 @@ describe('training jobs', () => {
     } finally {
       socket.close();
     }
+  });
+
+  test('process_dmd runs the DMD script on the placed archives with the monitor Python', async () => {
+    const a = await admin();
+    fs.mkdirSync(path.join(tmp, 'videos', 'dmd'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'videos', 'dmd', 'dmd-dataset-drowsiness-gA-1.tar.gz'), 'x');
+    const ds = await request(stack.app).get('/api/admin/datasets').set(auth(a.token)).expect(200);
+    expect(ds.body.catalog.find((d) => d.id === 'dmd').local.archives).toBe(1);
+
+    const [step] = runner.buildSteps({
+      _id: 'j',
+      type: 'process_dmd',
+      params: { datasetId: 'dmd' },
+    });
+    expect(step.python).toBe('monitor');
+    expect(step.args).toEqual([
+      'scripts/process_dmd.py',
+      path.join(tmp, 'videos', 'dmd'),
+      '--out',
+      'data/eyes_dmd',
+    ]);
+
+    runner._setStepBuilder(() => [{ label: 'fake', python: 'monitor', args: ['-e', '0'] }]);
+    const created = await request(stack.app)
+      .post('/api/admin/jobs')
+      .set(auth(a.token))
+      .send({ type: 'process_dmd', params: { datasetId: 'dmd' } })
+      .expect(201);
+    expect((await waitForJob(created.body.job.id, a.token)).status).toBe('succeeded');
+  });
+
+  test('an eye model candidate carries the in-car (DMD) comparison with the live model', () => {
+    const dir = path.join(tmp, 'data', 'candidates', 'abc');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'eye_state.json'), '{"kind":"logreg"}');
+    fs.writeFileSync(
+      path.join(dir, 'metrics.json'),
+      JSON.stringify({
+        test: { accuracy: 0.95, webcam_quality_accuracy: 0.93, roc_auc: 0.98 },
+        kind: 'mlp',
+        selected: 'hidden=64',
+        datasets: ['data/eyes_v1', 'data/eyes_dmd'],
+        test_by_dataset: [
+          {
+            dataset: 'data/eyes_v1',
+            images: 200,
+            candidate: { accuracy: 0.95 },
+            live: { accuracy: 0.94 },
+          },
+          {
+            dataset: 'data/eyes_dmd',
+            images: 400,
+            candidate: { accuracy: 0.9 },
+            live: { accuracy: 0.7 },
+          },
+        ],
+      }),
+    );
+    const release = runner.collectRelease({ _id: 'abc', type: 'train_eye_state' });
+    expect(release.summary).toMatchObject({ inCarAccuracy: 0.9, inCarLiveAccuracy: 0.7 });
   });
 
   test('a failing step marks the job failed with the reason', async () => {

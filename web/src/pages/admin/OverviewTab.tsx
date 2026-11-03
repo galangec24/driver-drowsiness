@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getOverview, MODEL_LABEL, type ModelKind } from '../../api/admin';
+import { getDailyReport, getOverview, MODEL_LABEL, type ModelKind } from '../../api/admin';
 import { errorMessage } from '../../api/client';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { DepthButton } from '../../components/ui/DepthButton';
@@ -30,6 +30,59 @@ const STEPS = [
     text: 'One click makes it live for every driver and in-car device; rollback any time.',
   },
 ] as const;
+
+const hours = (minutes: number) =>
+  minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;
+
+/** Last 14 days from the database views (alerts per day, minutes monitored and drowsy). */
+function DailyReport() {
+  const q = useQuery({
+    queryKey: ['admin', 'reports', 'daily'],
+    queryFn: () => getDailyReport(14),
+    refetchInterval: 60000,
+  });
+  const rows = q.data?.rows ?? [];
+  return (
+    <Section title="Last 14 days" subtitle="Alerts, false alarms and how long drivers were monitored, per day.">
+      {q.isError ? (
+        <GlassCard interactive={false} className="text-red-200">
+          {errorMessage(q.error)}
+        </GlassCard>
+      ) : rows.length === 0 ? (
+        <GlassCard interactive={false} className="text-sm text-ink-muted" data-testid="daily-report-empty">
+          {q.isLoading ? 'Loading…' : 'No readings or alerts in the last 14 days.'}
+        </GlassCard>
+      ) : (
+        <GlassCard interactive={false} className="overflow-x-auto p-0">
+          <table className="w-full text-left text-sm" data-testid="daily-report">
+            <thead className="border-b border-white/10 text-xs uppercase tracking-wider text-ink-muted">
+              <tr>
+                <th className="px-4 py-3 font-semibold">Day</th>
+                <th className="px-4 py-3 text-center font-semibold">Alerts</th>
+                <th className="px-4 py-3 text-center font-semibold">False alarms</th>
+                <th className="px-4 py-3 text-center font-semibold">Drivers</th>
+                <th className="px-4 py-3 font-semibold">Monitored</th>
+                <th className="px-4 py-3 font-semibold">Drowsy</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.day} className="border-b border-white/5">
+                  <td className="px-4 py-3 font-semibold text-white">{r.day}</td>
+                  <td className="px-4 py-3 text-center text-white">{r.alerts}</td>
+                  <td className="px-4 py-3 text-center text-ink-muted">{r.falseAlarms}</td>
+                  <td className="px-4 py-3 text-center text-ink-muted">{r.drivers}</td>
+                  <td className="px-4 py-3 text-ink-muted">{hours(r.minutesMonitored)}</td>
+                  <td className="px-4 py-3 text-ink-muted">{r.drowsyMinutes ? hours(r.drowsyMinutes) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </GlassCard>
+      )}
+    </Section>
+  );
+}
 
 export function OverviewTab({ onNavigate }: { onNavigate: (tab: 'datasets' | 'training' | 'models') => void }) {
   const q = useQuery({ queryKey: ['admin', 'overview'], queryFn: getOverview, refetchInterval: 30000 });
@@ -90,6 +143,8 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: 'datasets' | 'tr
           </GlassCard>
         ))}
       </div>
+
+      <DailyReport />
 
       <Section title="Live models" subtitle="What every driver and in-car device uses right now.">
         <div className="grid gap-4 md:grid-cols-3">

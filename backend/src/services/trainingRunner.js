@@ -132,6 +132,19 @@ function buildSteps(job) {
         },
       ];
     }
+    case 'process_dmd':
+      return [
+        {
+          label: 'Crop labelled eyes from the DMD face-camera videos',
+          python: 'monitor',
+          args: [
+            'scripts/process_dmd.py',
+            path.join(env.ml.videosDir, p.datasetId),
+            '--out',
+            `data/${eyeDir(p.datasetId)}`,
+          ],
+        },
+      ];
     case 'train_verifier': {
       const steps = [];
       if (!exists(dataPath('synthetic_v1', 'ticks.csv.gz'))) {
@@ -302,6 +315,8 @@ function collectRelease(job) {
   }
   if (job.type === 'train_eye_state') {
     const metrics = readJson(path.join(dir, 'metrics.json'));
+    // Real in-car frames (DMD), scored for this model and the live one on the same images.
+    const inCar = (metrics.test_by_dataset || []).find((r) => r.dataset === 'data/eyes_dmd');
     return {
       kind: 'eye_state',
       artifact: readJson(path.join(dir, 'eye_state.json')),
@@ -311,6 +326,8 @@ function collectRelease(job) {
         accuracy: metrics.test.accuracy,
         webcamAccuracy: metrics.test.webcam_quality_accuracy,
         rocAuc: metrics.test.roc_auc,
+        inCarAccuracy: inCar ? inCar.candidate.accuracy : null,
+        inCarLiveAccuracy: inCar && inCar.live ? inCar.live.accuracy : null,
         model: `${metrics.kind} ${JSON.stringify(metrics.selected)}`,
         datasets: metrics.datasets,
       },

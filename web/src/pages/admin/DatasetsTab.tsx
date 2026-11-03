@@ -177,7 +177,32 @@ export function DatasetsTab() {
                 </a>
               )}
               <div className="mt-1 flex flex-wrap items-center gap-2">
+                {ds.task === 'eye_state' && ds.source === 'manual' && (
+                  <>
+                    <DepthButton
+                      size="sm"
+                      variant={ds.local.ready ? 'secondary' : 'primary'}
+                      disabled={!ds.local.archives}
+                      onClick={() => job.mutate({ type: 'process_dmd', params: { datasetId: ds.id } })}
+                    >
+                      {ds.local.ready ? 'Process again' : 'Process'}
+                      {ds.local.archives ? ` ${ds.local.archives} session file(s)` : ''}
+                    </DepthButton>
+                    {ds.local.ready && (
+                      <Badge tone="ok">
+                        Processed · {ds.local.open} open / {ds.local.closed} closed eyes
+                        {ds.local.people ? ` · ${ds.local.people} people` : ''}
+                      </Badge>
+                    )}
+                    {!ds.local.archives && (
+                      <span className="text-xs text-ink-muted">
+                        Place the downloaded archives in <code className="break-all">{ds.local.folder}</code>
+                      </span>
+                    )}
+                  </>
+                )}
                 {ds.task === 'eye_state' &&
+                  ds.source === 'kaggle' &&
                   (ds.local.ready ? (
                     <Badge tone="ok">
                       Downloaded · {ds.local.open} open / {ds.local.closed} closed

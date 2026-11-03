@@ -1,0 +1,163 @@
+{
+  "method": "leave-one-person-out over the 6 DMD people; each fold trains on yawn-eye + MRL + the other 5 DMD people",
+  "folds": [
+    {
+      "person": "gA_1",
+      "images": 1144,
+      "open": 594,
+      "closed": 550,
+      "candidate": {
+        "accuracy": 0.9537,
+        "roc_auc": 0.9831
+      },
+      "live": {
+        "accuracy": 0.9336,
+        "roc_auc": 0.9792
+      },
+      "errors": {
+        "candidate": {
+          "closed_caught": 0.975,
+          "open_false_closed": 0.066
+        },
+        "live": {
+          "closed_caught": 0.976,
+          "open_false_closed": 0.106
+        }
+      }
+    },
+    {
+      "person": "gA_5",
+      "images": 1030,
+      "open": 600,
+      "closed": 430,
+      "candidate": {
+        "accuracy": 0.9767,
+        "roc_auc": 0.9849
+      },
+      "live": {
+        "accuracy": 0.9078,
+        "roc_auc": 0.9633
+      },
+      "errors": {
+        "candidate": {
+          "closed_caught": 0.972,
+          "open_false_closed": 0.02
+        },
+        "live": {
+          "closed_caught": 0.956,
+          "open_false_closed": 0.127
+        }
+      }
+    },
+    {
+      "person": "gB_6",
+      "images": 724,
+      "open": 600,
+      "closed": 124,
+      "candidate": {
+        "accuracy": 0.8619,
+        "roc_auc": 0.9479
+      },
+      "live": {
+        "accuracy": 0.8923,
+        "roc_auc": 0.9589
+      },
+      "errors": {
+        "candidate": {
+          "closed_caught": 0.919,
+          "open_false_closed": 0.15
+        },
+        "live": {
+          "closed_caught": 0.871,
+          "open_false_closed": 0.103
+        }
+      }
+    },
+    {
+      "person": "gB_7",
+      "images": 1126,
+      "open": 598,
+      "closed": 528,
+      "candidate": {
+        "accuracy": 0.7993,
+        "roc_auc": 0.9092
+      },
+      "live": {
+        "accuracy": 0.8188,
+        "roc_auc": 0.9205
+      },
+      "errors": {
+        "candidate": {
+          "closed_caught": 0.689,
+          "open_false_closed": 0.104
+        },
+        "live": {
+          "closed_caught": 0.845,
+          "open_false_closed": 0.204
+        }
+      }
+    },
+    {
+      "person": "gB_9",
+      "images": 600,
+      "open": 300,
+      "closed": 300,
+      "candidate": {
+        "accuracy": 0.99,
+        "roc_auc": 0.9997
+      },
+      "live": {
+        "accuracy": 0.9467,
+        "roc_auc": 0.9882
+      },
+      "errors": {
+        "candidate": {
+          "closed_caught": 0.987,
+          "open_false_closed": 0.007
+        },
+        "live": {
+          "closed_caught": 0.913,
+          "open_false_closed": 0.02
+        }
+      }
+    },
+    {
+      "person": "gB_10",
+      "images": 1200,
+      "open": 600,
+      "closed": 600,
+      "candidate": {
+        "accuracy": 0.975,
+        "roc_auc": 0.9887
+      },
+      "live": {
+        "accuracy": 0.9242,
+        "roc_auc": 0.9741
+      },
+      "errors": {
+        "candidate": {
+          "closed_caught": 0.985,
+          "open_false_closed": 0.035
+        },
+        "live": {
+          "closed_caught": 0.898,
+          "open_false_closed": 0.05
+        }
+      }
+    }
+  ],
+  "mean": {
+    "candidate": {
+      "accuracy": 0.9261,
+      "roc_auc": 0.9689
+    },
+    "live": {
+      "accuracy": 0.9039,
+      "roc_auc": 0.964
+    }
+  },
+  "pooled_accuracy": {
+    "candidate": 0.9246,
+    "live": 0.9011
+  }
+}

@@ -82,10 +82,20 @@ JSON) go into the database.
 | **Kaggle: Yawn & Eye Dataset** (176 MB) | Eye model | Already downloaded (the current eye model) |
 | **Kaggle: Drowsiness Dataset** (176 MB) | Eye model | Datasets → **Download** |
 | **Kaggle: MRL Eye** (23 MB, infrared) | Eye model | Datasets → **Download**. Adds night/IR camera eyes. |
+| **DMD: Driver Monitoring Dataset** (Vicomtech, in-car video) | Eye model | Register at dmd.vicomtech.org → download drowsiness sessions (`dmd-dataset-drowsiness-<group>-<n>.tar.gz`, ~0.8 GB each) into `ml/data/videos/dmd/` → Datasets → **Process**. Real face-camera frames labelled open/closed per frame; the best test of the eye model. |
 | **Kaggle: Yawn & Eye, yawn faces** | Yawn threshold | Datasets → **Calibrate yawn detector** |
 | **UTA-RLDD** (60 people, ~30 h video) | False-alarm verifier | Request access at the dataset site → put videos in `ml/data/videos/uta-rldd/<participant>/<0\|5\|10>.mov` → **Process videos** |
 | **NTHU-DDD**, **YawDD** (video) | False-alarm verifier | Request access → sort into `drowsy/` and `alert/` sub-folders under `ml/data/videos/<id>/` → **Process videos** |
 | Kaggle: Yawn Dataset (mouth crops), DDD (2.7 GB frames) | — | Listed for reference; not usable automatically (see the card text) |
+
+**DMD "Process"** reads only each session's face video and its annotation file straight from the
+archive (body/mosaic videos are skipped; nothing big is unpacked for good). It uses clearly open and
+clearly closed frames (not half-open ones, not the frames next to a label change), downscales them to
+webcam size and crops the eyes with the monitor's own landmark code, so the crops look exactly like
+what the model sees in the car. With 3+ people, whole people are held out for testing; with fewer, the
+end of each session is. Every eye model trained afterwards is scored, next to the **live model on the
+same frames**, under **In-car (DMD)** in the Models tab. Tick DMD under *Train eye model* to also
+train on it.
 
 "Process videos" runs the real driver monitor over every video offline (the same EAR / PERCLOS pipeline
 as in the car), labels each recording from the dataset's folder/file names, and imports the result as
@@ -98,6 +108,7 @@ Check each dataset's licence before using it beyond research.
 | Job | Python | Output |
 |---|---|---|
 | Download dataset | ml | `ml/data/eyes_<id>` |
+| Process in-car eye videos (DMD) | driver_monitor (MediaPipe) | `ml/data/eyes_dmd` |
 | **Train false-alarm verifier** | ml | candidate `fp_verifier` + report (false alerts/h, drowsy episodes caught, latency, harder population) |
 | **Train eye model** | ml | candidate `eye_state` + report (accuracy, webcam-quality accuracy) |
 | **Calibrate yawn detector** | driver_monitor (MediaPipe) | candidate `yawn_threshold` + report |
@@ -129,7 +140,8 @@ What to look for before promoting:
 - **Verifier:** false alerts/hour should drop **while drowsy episodes caught stays ~100 %**. A model
   that stops false alarms by missing real drowsiness is worse, not better. Check the "harder population"
   column too.
-- **Eye model:** webcam-quality accuracy matters more than clean-photo accuracy.
+- **Eye model:** the **In-car (DMD)** column matters most (real face-camera frames, compared with the
+  live model on the same frames), then webcam-quality accuracy, then clean-photo accuracy.
 - **Yawn threshold:** see below.
 
 ## 6. Results from the first real runs (this repository, 2026-10-10)
@@ -145,7 +157,7 @@ What to look for before promoting:
 ## 7. API (for reference)
 
 All under `/api/admin`, JWT + admin role:
-`GET overview` · `GET datasets` · `POST recordings {name, content}` · `GET/POST jobs` ·
+`GET overview` · `GET reports/daily?days=30` (per day: alerts, false alarms, minutes monitored and drowsy, from the database views `alert_daily_summary` and `driver_daily_activity`) · `GET health` (memory, face-recognition queue, when readings were last summarised) · `GET datasets` · `POST recordings {name, content}` · `GET/POST jobs` ·
 `GET jobs/:id` (with log) · `POST jobs/:id/cancel` · `GET models` · `GET models/:id` (report, metrics) ·
 `POST models/:id/promote` · `POST models/reset/:kind`.
 Socket.io (admins' room): `training:job`, `training:log`.

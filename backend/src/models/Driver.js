@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const driverCache = require('../services/driverCache');
 
 const thresholdsSchema = new mongoose.Schema(
   {
@@ -86,6 +87,35 @@ driverSchema.pre('validate', function setNameKey(next) {
   if (this.isModified('name') || !this.nameKey) this.nameKey = nameKeyOf(this.name);
   next();
 });
+
+// Ingest caches drivers (services/driverCache.js): drop the copy whenever one changes. The 10-second
+// lastLocation write from ingest is the only change that doesn't affect scoring, so it keeps it.
+// ($setOnInsert only applies when an upsert inserts; Mongoose adds createdAt there on every update.)
+const changedFields = (update) =>
+  Object.entries(update || {})
+    .filter(([k]) => k !== '$setOnInsert')
+    .flatMap(([k, v]) => (k.startsWith('$') && v && typeof v === 'object' ? Object.keys(v) : [k]));
+driverSchema.post('save', (doc) => driverCache.invalidate(doc._id));
+driverSchema.post('deleteOne', { document: true, query: false }, (doc) =>
+  driverCache.invalidate(doc._id),
+);
+driverSchema.post(
+  [
+    'updateOne',
+    'updateMany',
+    'findOneAndUpdate',
+    'replaceOne',
+    'deleteOne',
+    'deleteMany',
+    'findOneAndDelete',
+  ],
+  { document: false, query: true },
+  function dropCachedDrivers() {
+    const fields = changedFields(this.getUpdate());
+    if (fields.length && fields.every((f) => f === 'lastLocation')) return;
+    driverCache.clear();
+  },
+);
 
 driverSchema.methods.toPublic = function toPublic() {
   return {

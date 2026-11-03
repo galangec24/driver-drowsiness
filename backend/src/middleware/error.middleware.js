@@ -35,6 +35,11 @@ function errorHandler(err, req, res, _next) {
     }
   }
 
+  // Busy / rate-limited: tell the client when to try again.
+  if (details && details.retryAfterS && !res.get('Retry-After')) {
+    res.set('Retry-After', String(details.retryAfterS));
+  }
+
   // Never return stack traces.
   res.status(status).json({ error: message, ...(details && { details }) });
 }

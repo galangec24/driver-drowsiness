@@ -1,7 +1,13 @@
 import { api } from './client';
 
 export type JobType =
-  'fetch_dataset' | 'train_verifier' | 'train_eye_state' | 'calibrate_yawn' | 'process_videos' | 'import_uploads';
+  | 'fetch_dataset'
+  | 'process_dmd'
+  | 'train_verifier'
+  | 'train_eye_state'
+  | 'calibrate_yawn'
+  | 'process_videos'
+  | 'import_uploads';
 export type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
 export type ModelKind = 'fp_verifier' | 'eye_state' | 'yawn_threshold';
 
@@ -88,12 +94,17 @@ export interface CatalogDataset {
   sizeMb?: number;
   task: 'eye_state' | 'yawn_calibration' | 'video' | 'reference';
   preset?: 'rldd' | 'folders';
+  /** Manual eye dataset: the job that turns its videos into eye crops. */
+  process?: 'dmd';
   description: string;
   local: {
     ready?: boolean;
     images?: number;
     open?: number;
     closed?: number;
+    /** Manual eye dataset: archives / face videos placed in `folder`, and people in the processed set. */
+    archives?: number;
+    people?: number;
     lastCalibrated?: string | null;
     folder?: string;
     videos?: number;
@@ -120,6 +131,30 @@ export interface Overview {
 
 export async function getOverview(): Promise<Overview> {
   return (await api.get<Overview>('/admin/overview')).data;
+}
+
+/** One day from the database views alert_daily_summary + driver_daily_activity. */
+export interface DailyReportRow {
+  day: string;
+  alerts: number;
+  byType: Record<string, number>;
+  falseAlarms: number;
+  confirmed: number;
+  drivers: number;
+  minutesMonitored: number;
+  drowsyMinutes: number;
+  warningMinutes: number;
+}
+
+export interface DailyReport {
+  since: string;
+  timezone: string;
+  rows: DailyReportRow[];
+  summarisedUntil: string | null;
+}
+
+export async function getDailyReport(days = 14): Promise<DailyReport> {
+  return (await api.get<DailyReport>('/admin/reports/daily', { params: { days } })).data;
 }
 
 export async function getDatasets(): Promise<DatasetsResponse> {
@@ -164,6 +199,7 @@ export async function resetModel(kind: ModelKind): Promise<void> {
 
 export const JOB_LABEL: Record<JobType, string> = {
   fetch_dataset: 'Download dataset',
+  process_dmd: 'Process in-car eye videos (DMD)',
   train_verifier: 'Train false-alarm verifier',
   train_eye_state: 'Train eye model',
   calibrate_yawn: 'Calibrate yawn detector',

@@ -14,6 +14,9 @@ const registry = require('../services/modelRegistry');
 const datasetStore = require('../services/datasetStore');
 const fpVerifier = require('../services/fpVerifier');
 const statusStore = require('../services/statusStore');
+const faceQueue = require('../services/faceQueue');
+const SensorMinute = require('../models/SensorMinute');
+const { startOfLocalDay } = require('../utils/alertDay');
 
 /** A driver is "online" while the in-car device has reported within this window (same as the apps). */
 const ONLINE_MS = 30_000;
@@ -25,6 +28,7 @@ const folderName = z
 
 const jobSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('fetch_dataset'), params: z.object({ datasetId: z.string() }) }),
+  z.object({ type: z.literal('process_dmd'), params: z.object({ datasetId: z.string() }) }),
   z.object({
     type: z.literal('train_verifier'),
     params: z
@@ -216,17 +220,21 @@ async function validateJob({ type, params }) {
   if (!worker.enabled) {
     throw new HttpError(503, `Training worker unavailable: ${worker.problems.join('; ')}`);
   }
-  const needsMonitor = type === 'calibrate_yawn' || type === 'process_videos';
+  const needsMonitor = ['calibrate_yawn', 'process_videos', 'process_dmd'].includes(type);
   if (needsMonitor && !worker.monitorPython) {
     throw new HttpError(503, 'This job needs the driver_monitor Python (MONITOR_PYTHON).');
   }
   // Catalog checks work anywhere; file checks only where the files are (a remote worker reports a
   // clear error in the job log instead).
   const local = worker.mode === 'local';
-  if (type === 'fetch_dataset' || type === 'calibrate_yawn') {
+  if (['fetch_dataset', 'calibrate_yawn', 'process_dmd'].includes(type)) {
     const ds = findDataset(params.datasetId);
-    const task = type === 'fetch_dataset' ? 'eye_state' : 'yawn_calibration';
-    if (!ds || ds.task !== task)
+    const fits = {
+      fetch_dataset: (d) => d.task === 'eye_state' && d.source === 'kaggle',
+      calibrate_yawn: (d) => d.task === 'yawn_calibration',
+      process_dmd: (d) => d.process === 'dmd',
+    }[type];
+    if (!ds || !fits(ds))
       throw new HttpError(400, `Dataset ${params.datasetId} can't be used for this job`);
   }
   if (type === 'train_eye_state') {
@@ -235,7 +243,10 @@ async function validateJob({ type, params }) {
       if (!ds || ds.task !== 'eye_state') throw new HttpError(400, `${id} is not an eye dataset`);
       if (!local) continue;
       const stats = path.join(env.ml.mlDir, 'data', runner.eyeDir(id), 'eyes.npz');
-      if (!fs.existsSync(stats)) throw new HttpError(409, `Download "${ds.title}" first`);
+      if (!fs.existsSync(stats)) {
+        const verb = ds.source === 'kaggle' ? 'Download' : 'Process';
+        throw new HttpError(409, `${verb} "${ds.title}" first`);
+      }
     }
   }
   if (!local) return;
@@ -247,6 +258,13 @@ async function validateJob({ type, params }) {
   if (type === 'process_videos') {
     const folder = path.join(env.ml.videosDir, params.folder);
     if (!fs.existsSync(folder)) throw new HttpError(409, `Folder not found: ${folder}`);
+  }
+  if (type === 'process_dmd' && !datasetStore.dmdSessionFiles(params.datasetId)) {
+    const folder = path.join(env.ml.videosDir, params.datasetId);
+    throw new HttpError(
+      409,
+      `No DMD archives found: put dmd-dataset-drowsiness-*.tar.gz in ${folder}`,
+    );
   }
   if (type === 'import_uploads') {
     const dir = path.join(env.ml.mlDir, 'data', 'raw', 'uploads');
@@ -300,6 +318,105 @@ async function getModel(req, res) {
   res.json({ release: { ...release.toPublic(), metrics: release.metrics } });
 }
 
+// ------------------------------------------------------------------------------- reports
+const reportSchema = z.object({ days: z.coerce.number().int().min(1).max(365).default(30) });
+
+/**
+ * GET /admin/reports/daily?days=30: one row per day from the database views (config/dbViews.js):
+ * alerts by type, false alarms, and how many driver-minutes were monitored / drowsy.
+ */
+async function dailyReport(req, res) {
+  const q = reportSchema.safeParse(req.query);
+  if (!q.success) throw new HttpError(400, 'days must be 1–365');
+  const since = startOfLocalDay(new Date(Date.now() - (q.data.days - 1) * 24 * 3600 * 1000));
+  const sinceDay = new Intl.DateTimeFormat('en-CA', { timeZone: env.alertTimezone }).format(since);
+  const db = Alert.db.db;
+  const [alerts, activity, rollup] = await Promise.all([
+    db
+      .collection('alert_daily_summary')
+      .aggregate([
+        { $match: { day: { $gte: sinceDay } } },
+        {
+          $group: {
+            _id: { day: '$day', type: '$type' },
+            alerts: { $sum: '$alerts' },
+            detections: { $sum: '$detections' },
+            falseAlarms: { $sum: '$falseAlarms' },
+            confirmed: { $sum: '$confirmed' },
+          },
+        },
+      ])
+      .toArray(),
+    db
+      .collection('driver_daily_activity')
+      .aggregate([
+        { $match: { day: { $gte: sinceDay } } },
+        {
+          $group: {
+            _id: '$day',
+            drivers: { $sum: 1 },
+            minutes: { $sum: '$minutes' },
+            drowsyMinutes: { $sum: '$drowsyMinutes' },
+            warningMinutes: { $sum: '$warningMinutes' },
+          },
+        },
+      ])
+      .toArray(),
+    SensorMinute.RollupState.findById('sensor_minutes').lean(),
+  ]);
+
+  const days = new Map();
+  const row = (day) => {
+    if (!days.has(day)) {
+      days.set(day, {
+        day,
+        alerts: 0,
+        byType: {},
+        falseAlarms: 0,
+        confirmed: 0,
+        drivers: 0,
+        minutesMonitored: 0,
+        drowsyMinutes: 0,
+        warningMinutes: 0,
+      });
+    }
+    return days.get(day);
+  };
+  for (const a of alerts) {
+    const r = row(a._id.day);
+    r.alerts += a.alerts;
+    r.byType[a._id.type] = a.alerts;
+    r.falseAlarms += a.falseAlarms;
+    r.confirmed += a.confirmed;
+  }
+  for (const a of activity) {
+    const r = row(a._id);
+    r.drivers = a.drivers;
+    r.minutesMonitored = a.minutes;
+    r.drowsyMinutes = a.drowsyMinutes;
+    r.warningMinutes = a.warningMinutes;
+  }
+  res.json({
+    since: sinceDay,
+    timezone: env.alertTimezone,
+    rows: [...days.values()].sort((a, b) => (a.day < b.day ? 1 : -1)),
+    // Minutes after this are not in the activity figures yet (summarised once a minute).
+    summarisedUntil: rollup ? rollup.until : null,
+  });
+}
+
+/** GET /admin/health: load figures for the operator (in-process queues, memory, summaries). */
+async function health(_req, res) {
+  const rollup = await SensorMinute.RollupState.findById('sensor_minutes').lean();
+  const mem = process.memoryUsage();
+  res.json({
+    uptimeS: Math.round(process.uptime()),
+    memoryMb: { rss: Math.round(mem.rss / 1e6), heapUsed: Math.round(mem.heapUsed / 1e6) },
+    faceQueue: faceQueue.stats(),
+    rollup: rollup ? { until: rollup.until, runAt: rollup.runAt, lastMs: rollup.lastMs } : null,
+  });
+}
+
 async function promoteModel(req, res) {
   if (!objectId.safeParse(req.params.id).success) throw new HttpError(400, 'Invalid id');
   const release = await registry.promote(req.params.id, req.user.parentId);
@@ -326,6 +443,8 @@ module.exports = {
   getModel,
   promoteModel,
   resetModel,
+  dailyReport,
+  health,
   uploadSchema,
   jobSchema,
 };

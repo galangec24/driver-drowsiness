@@ -11,6 +11,8 @@ router.use(requireAuth, asyncHandler(requireAdmin));
 
 router.get('/overview', asyncHandler(ctrl.overview));
 router.get('/parents', asyncHandler(ctrl.parents));
+router.get('/reports/daily', asyncHandler(ctrl.dailyReport));
+router.get('/health', asyncHandler(ctrl.health));
 router.get('/feedback', asyncHandler(feedback.adminList));
 router.get('/ratings', asyncHandler(require('../controllers/ratings.controller').adminList));
 

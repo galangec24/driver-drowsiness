@@ -62,6 +62,19 @@ def featurize(images: np.ndarray) -> np.ndarray:
     return np.stack([hog_features(preprocess(im)) for im in images])
 
 
+def live_model_path() -> Path:
+    """What the in-car monitor runs: a promoted model if one was synced, else the bundled one."""
+    promoted = MONITOR / "models" / "eye_state.promoted.json"
+    return promoted if promoted.exists() else MONITOR / "models" / "eye_state.json"
+
+
+def scores(y: np.ndarray, p: np.ndarray) -> dict:
+    out = {"accuracy": round(accuracy_score(y, p >= 0.5), 4)}
+    if len(set(y.tolist())) == 2:
+        out["roc_auc"] = round(roc_auc_score(y, p), 4)
+    return out
+
+
 def export(clf, scaler: StandardScaler, kind: str, meta: dict) -> dict:
     if kind == "logreg":
         layers = [{"W": clf.coef_.T.tolist(), "b": clf.intercept_.tolist()}]
@@ -87,6 +100,9 @@ def main() -> None:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--extra", action="append", default=[], help="more eyes.npz datasets (e.g. your own)")
     ap.add_argument("--out-dir", default=None, help="write a candidate (model + report) here instead")
+    ap.add_argument(
+        "--baseline", default=None, help="model to compare against (default: the live in-car model)"
+    )
     args = ap.parse_args()
     out_dir = Path(args.out_dir) if args.out_dir else None
     t0 = time.time()
@@ -94,11 +110,13 @@ def main() -> None:
 
     d = np.load(ROOT / args.data / "eyes.npz")
     images, labels, split = d["images"], d["labels"].astype(int), d["split"]
+    source = np.full(len(labels), args.data)
     for extra in args.extra:
         e = np.load(ROOT / extra / "eyes.npz")
         images = np.concatenate([images, e["images"]])
         labels = np.concatenate([labels, e["labels"].astype(int)])
         split = np.concatenate([split, e["split"]])
+        source = np.concatenate([source, np.full(len(e["labels"]), extra)])
     tr_idx = np.where(split == "train")[0]
     te_idx = np.where(split == "test")[0]
     fit_idx, val_idx = train_test_split(
@@ -157,6 +175,20 @@ def main() -> None:
     }
     print("test", test)
 
+    # The live model on the same held-out images, per dataset: a fair before/after comparison
+    # (e.g. on real in-car DMD frames, which the clean-photo test set doesn't represent).
+    baseline_path = Path(args.baseline) if args.baseline else live_model_path()
+    baseline = EyeStateModel.load(baseline_path) if baseline_path.exists() else None
+    p_base = baseline.prob_closed(X_te) if baseline else None
+    by_dataset = []
+    for name in dict.fromkeys(source[te_idx]):
+        m = source[te_idx] == name
+        row = {"dataset": name, "images": int(m.sum()), "candidate": scores(y_te[m], p_te[m])}
+        if p_base is not None:
+            row["live"] = scores(y_te[m], p_base[m])
+        by_dataset.append(row)
+        print("test on", name, {k: v for k, v in row.items() if k != "dataset"})
+
     meta = {
         "dataset": str(json.loads((ROOT / args.data / "stats.json").read_text())["dataset"]),
         "trained_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -177,6 +209,8 @@ def main() -> None:
             "selected": best["params"],
             "kind": best["kind"],
             "datasets": [args.data, *args.extra],
+            "test_by_dataset": by_dataset,
+            "live_model": str(baseline_path) if baseline else None,
         }
         (out_dir / "metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf8")
 
@@ -184,11 +218,25 @@ def main() -> None:
         f"| {r['kind']} | {r['params']} | {r['val_acc']} | {r['val_acc_webcam']} |" for r in results
     )
     stats = json.loads((ROOT / args.data / "stats.json").read_text())
+    extras = "".join(
+        f"\nPlus `{e}`: {json.loads((ROOT / e / 'stats.json').read_text())['dataset']}." for e in args.extra
+    )
+
+    def cell(row: dict, who: str) -> str:
+        s = row.get(who)
+        if not s:
+            return "—"
+        return f"{s['accuracy']:.1%}" + (f" (AUC {s['roc_auc']})" if "roc_auc" in s else "")
+
+    compare = "\n".join(
+        f"| `{r['dataset']}` | {r['images']} | {cell(r, 'candidate')} | {cell(r, 'live')} |"
+        for r in by_dataset
+    )
     report = f"""# Eye-state classifier (open / closed)
 
 Dataset: Kaggle `{stats['dataset']}` — {stats['open']} open + {stats['closed']} closed eye photos
 ({stats['train']} train / {stats['test']} test as published;
-{stats['test_images_with_near_duplicate_in_train']} test images have a near-duplicate in train).
+{stats['test_images_with_near_duplicate_in_train']} test images have a near-duplicate in train).{extras}
 Training images get {args.augment} augmented copies each
 (webcam-like low resolution, blur, noise, rotation, lighting, mirroring).
 
@@ -214,6 +262,15 @@ Selected: **{best['kind']} ({best['params']})**.
 | ROC-AUC at webcam quality | {test['webcam_quality_roc_auc']} |
 
 Runtime/sklearn parity: max |Δp| = {diff:.1e}.
+
+## This model vs the live model, per dataset (same held-out images)
+
+Live model: `{baseline_path.name if baseline else 'none found'}`. The in-car rows (DMD) matter most:
+they are real face-camera frames, cropped exactly like the monitor does.
+
+| Test images from | Images | This model | Live model |
+|---|---|---|---|
+{compare}
 
 ## How it is used
 

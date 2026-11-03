@@ -6,6 +6,7 @@ const { computeDrowsinessScore, resolveThresholds } = require('./fusionEngine');
 const alertDispatcher = require('./alertDispatcher');
 const statusStore = require('./statusStore');
 const signalWindow = require('./signalWindow');
+const driverCache = require('./driverCache');
 const fpVerifier = require('./fpVerifier');
 const { computeFeatures, MIN_TICKS } = require('./fpFeatures');
 const { startOfLocalDay } = require('../utils/alertDay');
@@ -74,6 +75,7 @@ function resolveTimestamp(raw, now, queued = false) {
 }
 
 function resetCooldowns() {
+  driverCache.clear();
   lastAlertAt.clear();
   alertedCount.clear();
   locationSavedAt.clear();
@@ -210,7 +212,29 @@ function verifyCandidate(window, driver) {
   return { allow: score >= threshold, score, threshold, modelVersion: model.version };
 }
 
-async function createAlert(
+// Alert writes per `${driverId}:${group}`, run one after another (see createAlert).
+const alertChains = new Map();
+
+/**
+ * Runs fn after the previous call with the same key has finished. Two readings of the same driver
+ * arriving together would otherwise both miss the open alert and create two alerts instead of one
+ * "detected again". One API instance (Render), so an in-process queue is enough.
+ */
+function serialized(key, fn) {
+  const run = (alertChains.get(key) || Promise.resolve()).then(fn);
+  const tail = run.catch(() => {});
+  alertChains.set(key, tail);
+  tail.then(() => {
+    if (alertChains.get(key) === tail) alertChains.delete(key);
+  });
+  return run;
+}
+
+function createAlert(driver, type, ...rest) {
+  return serialized(`${driver._id}:${ALERT_GROUP[type]}`, () => writeAlert(driver, type, ...rest));
+}
+
+async function writeAlert(
   driver,
   type,
   confidence,

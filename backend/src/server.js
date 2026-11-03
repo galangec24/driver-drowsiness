@@ -10,6 +10,8 @@ const { loadModel: loadFpVerifier } = require('./services/fpVerifier');
 const Driver = require('./models/Driver');
 const modelRegistry = require('./services/modelRegistry');
 const trainingRunner = require('./services/trainingRunner');
+const sensorRollup = require('./services/sensorRollup');
+const { ensureViews } = require('./config/dbViews');
 
 /** Drivers created before name uniqueness existed get their nameKey (duplicates are reported). */
 async function backfillDriverNameKeys() {
@@ -36,13 +38,21 @@ async function start() {
     logger.warn({ err: err.message }, 'driver name backfill failed'),
   );
 
+  await ensureViews().catch((err) => logger.warn({ err: err.message }, 'database views failed'));
+
   const app = createApp();
   const server = http.createServer(app);
+  // Render's load balancer reuses connections for longer than Node's 5 s default; closing them
+  // first makes requests fail with 502 under load. Keep sockets open longer than the proxy does.
+  server.keepAliveTimeout = 65_000;
+  server.headersTimeout = 66_000;
   initSockets(server);
 
   // Face models load in the background; enrollment returns 503 until ready.
   loadFaceModels().catch((err) => logger.warn({ err: err.message }, 'face models unavailable'));
   const tuningTask = scheduleAdaptiveTuning();
+  // Per-minute summaries of the readings (history screen, reports): once a minute.
+  const rollupTask = sensorRollup.schedule();
   if (env.fpVerifier) {
     loadFpVerifier();
     // An admin-promoted verifier (stored in MongoDB) replaces the bundled file.
@@ -64,6 +74,7 @@ async function start() {
   const shutdown = async (signal) => {
     logger.info({ signal }, 'shutting down');
     tuningTask.stop();
+    rollupTask.stop();
     server.close();
     await disconnectDb();
     process.exit(0);

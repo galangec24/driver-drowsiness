@@ -41,6 +41,16 @@ function countFiles(dir, pred, limit = 100_000) {
   return n;
 }
 
+const ARCHIVE_RE = /\.(tar|tar\.gz|tgz)$/i;
+const DMD_FACE_RE = /_rgb_face\.mp4$/i;
+
+/** Downloaded DMD archives + already-extracted face videos in VIDEO_DATASETS_DIR/<id>. */
+function dmdSessionFiles(id) {
+  const folder = path.join(env.ml.videosDir, id);
+  if (!fs.existsSync(folder)) return 0;
+  return countFiles(folder, (n) => ARCHIVE_RE.test(n) || DMD_FACE_RE.test(n));
+}
+
 /** Imported recording datasets (ml/data/recordings_<name>) usable as --extra for the verifier. */
 function recordingSets() {
   let entries = [];
@@ -75,6 +85,11 @@ async function listDatasets() {
       local.ready = Boolean(stats);
       if (stats)
         Object.assign(local, { images: stats.images, open: stats.open, closed: stats.closed });
+      if (ds.source === 'manual') {
+        local.folder = path.join(env.ml.videosDir, ds.id);
+        local.archives = dmdSessionFiles(ds.id);
+        if (stats && stats.people) local.people = stats.people.length;
+      }
     } else if (ds.task === 'yawn_calibration') {
       local.ready = true; // downloaded on demand by the calibration job
       local.lastCalibrated =
@@ -146,4 +161,4 @@ function saveUpload(name, content) {
   return { file: path.basename(file), rows: lines.length };
 }
 
-module.exports = { listDatasets, recordingSets, saveUpload };
+module.exports = { listDatasets, recordingSets, saveUpload, dmdSessionFiles };

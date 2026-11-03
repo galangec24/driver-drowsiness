@@ -22,7 +22,9 @@ import { Badge, Section, numOrDash, pctOrDash } from './shared';
 
 const KIND_HELP: Record<ModelKind, string> = {
   fp_verifier: 'Lower false alerts/hour is better, as long as drowsy episodes caught stays near 100 %.',
-  eye_state: 'Accuracy on held-out eye photos; "webcam" = the same photos degraded to webcam quality.',
+  eye_state:
+    'Accuracy on held-out eye photos; "webcam" = the same photos degraded to webcam quality. "In-car" = real ' +
+    'face-camera frames (DMD), scored for this model and the live one on the same frames: it matters most.',
   yawn_threshold: 'Mouth-opening level that counts as a yawn, chosen to best separate yawning from non-yawning faces.',
 };
 
@@ -52,6 +54,13 @@ function columns(kind: ModelKind): { label: string; value: (s: Record<string, un
     return [
       { label: 'Accuracy', value: (s) => pctOrDash(s.accuracy, 1) },
       { label: 'Webcam quality', value: (s) => pctOrDash(s.webcamAccuracy, 1) },
+      {
+        label: 'In-car (DMD)',
+        value: (s) =>
+          s.inCarAccuracy == null
+            ? '—'
+            : `${pctOrDash(s.inCarAccuracy, 1)} (live ${pctOrDash(s.inCarLiveAccuracy, 1)})`,
+      },
       {
         label: 'Datasets',
         value: (s) => ((s.datasets as string[]) ?? []).map((d) => d.replace('data/', '')).join(', '),

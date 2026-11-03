@@ -7,6 +7,7 @@ import { renderWithProviders } from '../../test/utils';
 import { AdminPage } from './AdminPage';
 import { DatasetsTab } from './DatasetsTab';
 import { ModelsTab } from './ModelsTab';
+import { OverviewTab } from './OverviewTab';
 
 const spies: Array<{ mockRestore: () => void }> = [];
 function spy<K extends keyof typeof adminApi>(name: K) {
@@ -46,6 +47,24 @@ const DATASETS: adminApi.DatasetsResponse = {
       task: 'eye_state',
       description: 'IR eyes',
       local: { ready: false },
+    },
+    {
+      id: 'dmd',
+      title: 'DMD',
+      source: 'manual',
+      url: 'https://dmd.vicomtech.org/',
+      task: 'eye_state',
+      process: 'dmd',
+      description: 'in-car eyes',
+      local: {
+        ready: true,
+        images: 2800,
+        open: 1500,
+        closed: 1300,
+        people: 2,
+        archives: 2,
+        folder: '/data/videos/dmd',
+      },
     },
     {
       id: 'yawn',
@@ -91,6 +110,53 @@ describe('admin navigation', () => {
     signInAs('parent');
     renderWithProviders(<AdminPage />, { route: '/admin' });
     expect(screen.queryByText(/Admin console/)).not.toBeInTheDocument();
+  });
+});
+
+describe('Overview tab', () => {
+  test('shows the last 14 days from the database views', async () => {
+    signInAs('admin');
+    spy('getOverview').mockResolvedValue({
+      counts: { parents: 3, drivers: 4, alerts7d: 5, alertsByType: {} },
+      feedback: { labelled: 0, falseAlarms: 0, falseAlarmRate: null },
+      models: { fp_verifier: { bundled: true }, eye_state: { bundled: true }, yawn_threshold: { bundled: true } },
+      worker: {
+        enabled: true,
+        mode: 'local',
+        mlPython: null,
+        monitorPython: null,
+        mlDir: '',
+        videosDir: '',
+        problems: [],
+      },
+      lastJob: null,
+    } as adminApi.Overview);
+    const report = spy('getDailyReport').mockResolvedValue({
+      since: '2026-10-21',
+      timezone: 'Asia/Manila',
+      summarisedUntil: '2026-11-03T08:00:00Z',
+      rows: [
+        {
+          day: '2026-11-03',
+          alerts: 4,
+          byType: { drowsy: 3, yawning: 1 },
+          falseAlarms: 1,
+          confirmed: 2,
+          drivers: 2,
+          minutesMonitored: 95,
+          drowsyMinutes: 3,
+          warningMinutes: 5,
+        },
+      ],
+    });
+    renderWithProviders(<OverviewTab onNavigate={() => {}} />);
+
+    const table = await screen.findByTestId('daily-report');
+    const row = within(table).getByText('2026-11-03').closest('tr')!;
+    expect(within(row).getByText('4')).toBeInTheDocument();
+    expect(within(row).getByText('1 h 35 min')).toBeInTheDocument();
+    expect(within(row).getByText('3 min')).toBeInTheDocument();
+    expect(report).toHaveBeenCalledWith(14);
   });
 });
 
@@ -167,6 +233,13 @@ describe('Datasets tab', () => {
 
     await userEvent.click(within(screen.getByTestId('dataset-mrl-eyes')).getByRole('button', { name: /download/i }));
     expect(start).toHaveBeenCalledWith('fetch_dataset', { datasetId: 'mrl-eyes' });
+
+    // Manual eye dataset (DMD): processed from the archives the admin placed, never "downloaded"
+    const dmd = within(screen.getByTestId('dataset-dmd'));
+    expect(dmd.getByText(/Processed · 1500 open \/ 1300 closed eyes · 2 people/)).toBeInTheDocument();
+    expect(dmd.queryByRole('button', { name: /download/i })).not.toBeInTheDocument();
+    await userEvent.click(dmd.getByRole('button', { name: /process again 2 session file/i }));
+    expect(start).toHaveBeenCalledWith('process_dmd', { datasetId: 'dmd' });
 
     await userEvent.click(within(screen.getByTestId('dataset-yawn')).getByRole('button', { name: /calibrate/i }));
     expect(start).toHaveBeenCalledWith('calibrate_yawn', { datasetId: 'yawn' });

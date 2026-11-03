@@ -2,6 +2,7 @@
  * Public datasets the admin console knows how to use. Kaggle entries download with one click
  * (kagglehub, no account needed for public datasets); video datasets need a request/registration on
  * their own site, so the admin downloads them manually into VIDEO_DATASETS_DIR and runs "Process".
+ * A manual eye_state entry has `process`: the job that turns its videos into eye crops.
  *
  * task:
  *   eye_state         open/closed eye crops   → trains the eye-state image model
@@ -42,6 +43,19 @@ const CATALOG = [
     classes: { open: 'Open_Eyes', closed: 'Closed_Eyes' },
     perClass: 2000,
     description: 'Infrared eye crops from the MRL Eye dataset: helps night-time / IR cameras.',
+  },
+  {
+    id: 'dmd',
+    title: 'DMD: Driver Monitoring Dataset (drowsiness)',
+    source: 'manual',
+    url: 'https://dmd.vicomtech.org/',
+    task: 'eye_state',
+    process: 'dmd',
+    description:
+      'Real in-car face-camera video (Vicomtech) with every frame labelled eyes open / closed: the closest ' +
+      'public match to the in-car camera. Register, download drowsiness sessions ' +
+      '(dmd-dataset-drowsiness-*.tar.gz) into <VIDEO_DATASETS_DIR>/dmd/, then "Process": eyes are cropped ' +
+      'exactly like the in-car monitor does.',
   },
   {
     id: 'yawn-faces',

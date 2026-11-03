@@ -1,6 +1,8 @@
 const { z } = require('zod');
 const Driver = require('../models/Driver');
 const SensorLog = require('../models/SensorLog');
+const SensorMinute = require('../models/SensorMinute');
+const sensorRollup = require('../services/sensorRollup');
 const Alert = require('../models/Alert');
 const Message = require('../models/Message');
 const User = require('../models/User');
@@ -9,7 +11,8 @@ const emailOtp = require('../services/emailOtp');
 const { canSendMail } = require('../services/mailer');
 const statusStore = require('../services/statusStore');
 const { isReady, loadFaceModels } = require('../config/faceApi');
-const { enrollPhotos, analyzePhoto, SAME_PERSON_DISTANCE } = require('../services/faceEnrollment');
+const faceEnrollment = require('../services/faceEnrollment');
+const faceQueue = require('../services/faceQueue');
 const { compare, euclidean } = require('../services/faceMatcher');
 const {
   storeReferencePhoto,
@@ -126,7 +129,7 @@ async function create(req, res) {
   await assertNameAvailable(req.user.parentId, name);
   await ensureFaceModels();
   // Enroll first so a bad photo never leaves a half-created driver behind.
-  const enrollment = await enrollPhotos(photos);
+  const enrollment = await faceQueue.run(() => faceEnrollment.enrollPhotos(photos));
   const lookalikes = await similarFaces(req.user.parentId, enrollment.embedding);
   // Same face as a driver already registered: most likely a duplicate of that person. Twins are
   // the exception, so the parent can confirm and resubmit (confirmLookalike) instead of a hard block.
@@ -190,7 +193,7 @@ async function checkPhoto(req, res) {
 
   let probe;
   try {
-    probe = await analyzePhoto(req.body.photo);
+    probe = await faceQueue.run(() => faceEnrollment.analyzePhoto(req.body.photo));
   } catch (err) {
     if (err.status === 422) return fail('no_face');
     throw err;
@@ -200,14 +203,14 @@ async function checkPhoto(req, res) {
   if (req.body.front) {
     let front;
     try {
-      front = await analyzePhoto(req.body.front);
+      front = await faceQueue.run(() => faceEnrollment.analyzePhoto(req.body.front));
     } catch (err) {
       if (err.status === 422)
         throw new HttpError(400, 'The front photo has no face: retake it first');
       throw err;
     }
     const distance = euclidean(front.descriptor, probe.descriptor);
-    if (distance > SAME_PERSON_DISTANCE)
+    if (distance > faceEnrollment.SAME_PERSON_DISTANCE)
       return fail('different_person', { quality: probe.quality });
     return res.json({
       ok: true,
@@ -313,6 +316,7 @@ async function remove(req, res) {
   await driver.deleteOne();
   await Promise.all([
     SensorLog.deleteMany({ driverId: driver._id }),
+    SensorMinute.deleteMany({ driverId: driver._id }),
     Alert.deleteMany({ driverId: driver._id }),
     Message.deleteMany({ driverId: driver._id }),
   ]);
@@ -352,7 +356,6 @@ function haversineKm(a, b) {
 // GPS jitter while parked is not distance; a jump faster than this is a bad fix, not driving.
 const MIN_STEP_KM = 0.015;
 const MAX_KMH = 200;
-const MINUTE = 60 * 1000;
 const historySchema = z.object({
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
@@ -371,35 +374,14 @@ async function history(req, res) {
   let from = q.data.from || new Date(to.getTime() - 24 * 3600 * 1000);
   if (to - from > 7 * 24 * 3600 * 1000) from = new Date(to.getTime() - 7 * 24 * 3600 * 1000);
 
-  const ms = { $toLong: '$createdAt' };
-  const buckets = await SensorLog.aggregate([
-    { $match: { driverId: driver._id, createdAt: { $gte: from, $lte: to } } },
-    { $sort: { createdAt: 1 } },
-    {
-      $group: {
-        _id: { $subtract: [ms, { $mod: [ms, MINUTE] }] },
-        firstAt: { $first: '$createdAt' },
-        lastAt: { $last: '$createdAt' },
-        readings: { $sum: 1 },
-        ear: { $avg: '$signals.ear' },
-        perclos: { $avg: '$signals.perclos' },
-        heartRate: { $avg: '$signals.heartRate' },
-        maxScore: { $max: '$fusionScore' },
-        drowsy: { $sum: { $cond: [{ $eq: ['$classification', 'drowsy'] }, 1, 0] } },
-        warning: { $sum: { $cond: [{ $eq: ['$classification', 'warning'] }, 1, 0] } },
-        locations: { $push: '$location' },
-        source: { $last: '$source' },
-      },
-    },
-    { $sort: { _id: 1 } },
-  ]);
+  // Per-minute rows: summarised minutes (sensor_minutes) + raw readings not summarised yet.
+  const buckets = await sensorRollup.minutesBetween(driver._id, from, to);
 
   const round = (v, d = 3) => (typeof v === 'number' ? Number(v.toFixed(d)) : null);
   let prev = null;
   let totalKm = 0;
   const rows = buckets.map((b) => {
-    const locs = (b.locations || []).filter((l) => l && typeof l.lat === 'number');
-    const loc = locs.length ? locs[locs.length - 1] : null;
+    const loc = b.location && typeof b.location.lat === 'number' ? b.location : null;
     let km = 0;
     if (loc && prev) {
       const step = haversineKm(prev.loc, loc);
@@ -454,7 +436,7 @@ async function verify(req, res) {
     throw new HttpError(409, 'Driver has no enrolled face');
   }
   await ensureFaceModels();
-  const probe = await analyzePhoto(req.body.photo);
+  const probe = await faceQueue.run(() => faceEnrollment.analyzePhoto(req.body.photo));
   const { match, confidence } = compare(driver.faceEmbedding, probe.descriptor);
   res.json({ match, confidence });
 }
