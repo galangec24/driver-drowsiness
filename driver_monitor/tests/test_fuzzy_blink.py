@@ -288,9 +288,56 @@ def test_blink_length_ignores_the_narrow_eye_hysteresis() -> None:
 def test_slow_blinks_fade_once_the_driver_is_awake() -> None:
     det = BlinkDetector()
     det._long.extend([0.0, 10.0, 20.0, 30.0, 40.0, 50.0])  # 6 slow blinks in under a minute
-    assert det.sustained_long(55.0) == 6
-    assert det.sustained_long(50.0 + 30 + 30) == pytest.approx(3.0)  # fading after 30 s
-    assert det.sustained_long(50.0 + 30 + 60) == 0  # back to normal ~90 s after the last one
+    assert det.sustained_long(60.0) == 6  # full weight for 15 s
+    assert det.sustained_long(50.0 + 15 + 15) == pytest.approx(3.0)  # fading after 15 s
+    assert det.sustained_long(50.0 + 15 + 30) == 0  # back to normal 45 s after the last one
+
+
+def test_microsleep_then_normal_blinks_is_awake_again_within_45_s() -> None:
+    """The field test (2026-11-03): eyes closed 2 s, a few slow blinks, then eyes open with normal
+    blinking. Drowsy at once, then back to awake within 45 s of the last slow blink."""
+    det = BlinkDetector()
+    fz = FatigueFuzzy()
+    t = 0.0
+
+    def frames(closed: bool, seconds: float) -> None:
+        nonlocal t
+        for _ in range(round(seconds / 0.1)):
+            det.update(closed, t)
+            t += 0.1
+
+    frames(False, 60.0)  # a minute of normal driving
+    microsleep_at = t
+    frames(True, 2.1)
+    assert fz.evaluate(**{**CALM, "closure_s": 2.1}).level == 2  # alarm at once
+    for _ in range(6):  # heavy, slow blinks right after
+        frames(False, 2.0)
+        frames(True, 0.8)
+    frames(False, 0.1)  # the last one ends when the eyes open
+    last_slow = t
+    assert det.long_blinks(t) == 6
+    assert fz.evaluate(**{**CALM, "long_blinks": det.sustained_long(t)}).level >= 1
+    while t < last_slow + 45:
+        frames(False, 3.0)
+        frames(True, 0.2)  # normal blinks
+    assert det.long_blinks(t) == 6  # still counted for the parent's 2-minute figure
+    assert fz.evaluate(**{**CALM, "long_blinks": det.sustained_long(t)}).level == 0
+    assert t - microsleep_at < 70
+
+
+def test_a_stalled_frame_does_not_turn_a_normal_blink_into_a_slow_one() -> None:
+    det = BlinkDetector()
+    det.update(False, 0.0)
+    det.update(True, 0.1)
+    det.update(True, 0.2)  # eyes closed for ~0.2 s ...
+    det.update(False, 0.75)  # ... but the next frame arrives 0.55 s later (busy laptop)
+    assert det.long_blinks(1.0) == 0
+    assert len(det._blinks) == 1
+    # A real slow blink at the same frame rate is still a slow blink.
+    for i in range(8):
+        det.update(True, 1.0 + i * 0.1)
+    det.update(False, 1.8)
+    assert det.long_blinks(2.0) == 1
 
 
 def feed_ear(p, ears, t: float = 0.0, dt: float = 0.1) -> float:

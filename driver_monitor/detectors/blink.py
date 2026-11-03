@@ -31,6 +31,7 @@ class BlinkDetector:
         min_observed_s: float = 120.0,
         long_window_s: float = 120.0,
         max_gap_s: float = 0.5,
+        frame_s: float = 0.1,
     ) -> None:
         self.long_s = long_s
         self.microsleep_s = microsleep_s
@@ -38,6 +39,10 @@ class BlinkDetector:
         self.min_observed_s = min_observed_s
         self.long_window_s = long_window_s
         self.max_gap_s = max_gap_s
+        # The monitor analyses ~10 frames/s; a blink's end is counted at most one frame after its
+        # last closed frame, so a slow or stalled frame on a busy laptop can't make it look slow.
+        self.frame_s = frame_s
+        self._last_closed_t: float | None = None
         self._closed_at: float | None = None
         self._last_t: float | None = None
         self._observed: deque[tuple[float, float]] = deque()  # (t, seconds watched since last)
@@ -56,8 +61,10 @@ class BlinkDetector:
         if closed:
             if self._closed_at is None:
                 self._closed_at = t
+            self._last_closed_t = t
         elif self._closed_at is not None:
-            dur = t - self._closed_at
+            last = self._last_closed_t if self._last_closed_t is not None else self._closed_at
+            dur = (last - self._closed_at) + min(t - last, self.frame_s)
             self._closed_at = None
             if dur < self.long_s:
                 self._blinks.append(t)
@@ -81,10 +88,11 @@ class BlinkDetector:
         self._expire(t)
         return sum(1 for e in self._long if t - e <= self.long_window_s)
 
-    def sustained_long(self, t: float, hold_s: float = 30.0, fade_s: float = 60.0) -> int | float:
+    def sustained_long(self, t: float, hold_s: float = 15.0, fade_s: float = 30.0) -> int | float:
         """Slow blinks in the last 2 minutes as evidence of fatigue *now*: full weight for `hold_s`
-        after the latest slow blink, fading over `fade_s`, so a driver who is awake again returns
-        to normal within about a minute instead of two."""
+        after the latest slow blink, fading over `fade_s`, so a driver whose eyes are open again
+        returns to normal within about 15-45 s. Real drowsiness doesn't depend on this memory:
+        microsleeps and PERCLOS raise the alarm at once."""
         n = self.long_blinks(t)
         recent = [e for e in self._long if t - e <= self.long_window_s]
         if not n or not recent:

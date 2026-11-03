@@ -147,7 +147,8 @@ Single signs are often harmless: people blink a lot while talking, and anyone ca
 
 - **Inputs:** PERCLOS, closure time, blink rate, slow blinks, yawns, nods. Their membership
   functions (trapezoids) scale with the driver's own server-tuned limits. Recent events weigh more
-  than older ones, so a driver who is awake again recovers within about a minute.
+  than older ones, so a driver whose eyes are open again recovers within about 15–45 seconds
+  (a microsleep or high PERCLOS still raises the alarm at once).
 - **Rules:** AND = min, NOT = 1 − μ, aggregation = max, centroid defuzzification. The output is
   fatigue from 0 to 1 (> 0.4 warning, > 0.7 drowsy).
 
