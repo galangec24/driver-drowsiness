@@ -9,14 +9,18 @@ class SocketService {
   io.Socket? _socket;
 
   void Function(bool connected)? onConnection;
-  void Function(DriverAlert alert)? onAlert;
+
+  /// silent: list it, but no notification (the driver's one for today already went out).
+  void Function(DriverAlert alert, bool silent)? onAlert;
   void Function(String alertId, String acknowledgedBy, bool? falseAlarm)?
   onAcknowledged;
   void Function(String alertId, bool falseAlarm)? onFeedback;
   void Function(String alertId, String? snapshotUrl)? onAlertUpdated;
   void Function(List<String> alertIds, bool read)? onRead;
   void Function(List<String> alertIds)? onRemoved;
-  void Function(DriverAlert alert, bool escalated)? onRepeated;
+
+  /// notify: escalated and the daily limit allows a notification.
+  void Function(DriverAlert alert, bool notify)? onRepeated;
   void Function()? onMessageDelivered;
   void Function(DriverLive status)? onStatus;
 
@@ -43,7 +47,8 @@ class SocketService {
       ..onConnectError((_) => onConnection?.call(false))
       ..on('alert:new', (data) {
         if (data is Map) {
-          onAlert?.call(DriverAlert.fromJson(Map<String, dynamic>.from(data)));
+          final m = Map<String, dynamic>.from(data);
+          onAlert?.call(DriverAlert.fromJson(m), m['silent'] == true);
         }
       })
       ..on('alert:acknowledged', (data) {
@@ -74,7 +79,11 @@ class SocketService {
       ..on('alert:repeated', (data) {
         if (data is Map) {
           final m = Map<String, dynamic>.from(data);
-          onRepeated?.call(DriverAlert.fromJson(m), m['escalated'] == true);
+          // Older servers send only `escalated`.
+          onRepeated?.call(
+            DriverAlert.fromJson(m),
+            (m['notify'] ?? m['escalated']) == true,
+          );
         }
       })
       ..on('message:delivered', (_) => onMessageDelivered?.call())

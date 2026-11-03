@@ -31,7 +31,8 @@ const env = {
   alertTimezone: process.env.ALERT_TIMEZONE || 'Asia/Manila',
   // A new detection of the same kind within this many minutes updates the open alert
   // ("detected again") instead of creating another one.
-  alertGroupMs: (Number(process.env.ALERT_GROUP_MINUTES) || 10) * 60 * 1000,
+  // Default: the whole day (one alert per driver and kind per day; see ingestService).
+  alertGroupMs: (Number(process.env.ALERT_GROUP_MINUTES) || 24 * 60) * 60 * 1000,
   publicBaseUrl: process.env.PUBLIC_BASE_URL || '',
   // False-positive verifier (src/ml/fp-verifier.json). FP_VERIFIER=off disables it;
   // FP_VERIFIER_THRESHOLD overrides the threshold chosen at training time.

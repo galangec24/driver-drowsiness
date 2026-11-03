@@ -126,7 +126,7 @@ class DataController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _onAlert(DriverAlert alert) {
+  void _onAlert(DriverAlert alert, bool silent) {
     if (alerts.any((a) => a.id == alert.id)) return;
     alerts = [alert, ...alerts].take(50).toList();
     if (!alert.acknowledged) unacknowledged += 1;
@@ -138,7 +138,8 @@ class DataController extends ChangeNotifier {
       notifyListeners();
     });
     _alertStream.add(alert);
-    if (_storage.notificationsEnabled) {
+    // At most one notification per driver per day (microsleep always): silent ones are listed only.
+    if (_storage.notificationsEnabled && !silent) {
       unawaited(_notifications.showAlert(alert));
     }
     notifyListeners();
@@ -186,7 +187,7 @@ class DataController extends ChangeNotifier {
   /// Alert detected again: just highlighted (scrolls into view on the alert lists).
   String? highlighted;
 
-  void _onRepeated(DriverAlert alert, bool escalated) {
+  void _onRepeated(DriverAlert alert, bool notify) {
     final had = alerts.where((a) => a.id == alert.id).firstOrNull;
     alerts = [
       alert,
@@ -195,7 +196,7 @@ class DataController extends ChangeNotifier {
     if (had == null || had.read) unread += 1;
     highlighted = alert.id;
     alertsVersion++;
-    if (escalated) unawaited(_notifications.showAlert(alert));
+    if (notify) unawaited(_notifications.showAlert(alert));
     Timer(const Duration(seconds: 4), () {
       if (highlighted == alert.id) {
         highlighted = null;

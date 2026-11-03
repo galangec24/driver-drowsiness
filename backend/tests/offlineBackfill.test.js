@@ -50,7 +50,7 @@ describe('store-and-forward: readings recorded offline and sent later', () => {
     expect(statusStore.get(driver._id.toString()).lastUpdate).toBe(liveUpdate);
   });
 
-  test('each episode in the backlog gets its own alert; duplicates within the cooldown do not', async () => {
+  test('episodes in the backlog join the daily alert; duplicates within the cooldown are dropped', async () => {
     const parent = await registerParent(stack.app);
     const driver = await createDriver(parent.user.id);
     for (const t of [30 * 60 * 1000, 30 * 60 * 1000 - 1000, 20 * 60 * 1000]) {
@@ -58,8 +58,16 @@ describe('store-and-forward: readings recorded offline and sent later', () => {
         200,
       );
     }
-    // 30 min ago (+ 1 s later, inside the cooldown) and 20 min ago → two alerts
-    expect(await Alert.countDocuments({ driverId: driver._id })).toBe(2);
+    // 30 min ago (+ 1 s later, inside the cooldown) and 20 min ago → one alert, detected twice
+    // (one alert per driver per day; a backlog that spans midnight would start a second one).
+    const alerts = await Alert.find({ driverId: driver._id });
+    const sameDay = new Date(Date.now() - 30 * 60 * 1000).getDate() === new Date().getDate();
+    if (sameDay) {
+      expect(alerts).toHaveLength(1);
+      expect(alerts[0].repeatCount).toBe(2);
+    } else {
+      expect(alerts.length).toBeGreaterThanOrEqual(1);
+    }
   });
 
   test('timestamp rules: live readings allow 5 min of clock skew, queued ones up to 24 h', () => {

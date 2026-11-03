@@ -54,15 +54,21 @@ async function pushFcm(parentId, alert) {
 /** alert is the public alert object (Alert#toPublic). */
 function dispatchNewAlert(alert) {
   emitToParent(alert.parentId, 'alert:new', alert);
-  // FCM is fire-and-forget so it never adds to ingest latency.
-  pushFcm(alert.parentId, alert);
+  // FCM is fire-and-forget so it never adds to ingest latency. Silent alerts (the driver's
+  // notification for today already went out) are only listed in the apps.
+  if (!alert.silent) pushFcm(alert.parentId, alert);
 }
 
 /** The same kind of detection again: the open alert was updated (count, latest time, maybe a
- * more serious type). Apps move it to the top and highlight it; a push only when it escalated. */
-function dispatchAlertRepeated(alert, escalated) {
-  emitToParent(alert.parentId, 'alert:repeated', { ...alert, escalated: Boolean(escalated) });
-  if (escalated) pushFcm(alert.parentId, alert);
+ * more serious type). Apps move it to the top and highlight it; `notify` (escalated, and the
+ * daily limit allows it) = push + app notification. */
+function dispatchAlertRepeated(alert, escalated, notify = escalated) {
+  emitToParent(alert.parentId, 'alert:repeated', {
+    ...alert,
+    escalated: Boolean(escalated),
+    notify: Boolean(notify),
+  });
+  if (notify) pushFcm(alert.parentId, alert);
 }
 
 function dispatchAcknowledged(parentId, alertId, acknowledgedBy, falseAlarm) {

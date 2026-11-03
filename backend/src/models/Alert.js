@@ -65,6 +65,9 @@ const alertSchema = new mongoose.Schema(
       by: { type: String, enum: ['apk', 'web', 'unknown'] },
       at: Date,
     },
+    // When the parent was notified about this alert (push / app notification). At most one alert
+    // per driver per day notifies, except microsleeps (services/ingestService.js).
+    notifiedAt: { type: Date },
     // Text message to the parent's phone (drowsy / microsleep only; services/smsAlerts.js).
     sms: {
       type: {

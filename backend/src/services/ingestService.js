@@ -213,7 +213,20 @@ function verifyCandidate(window, driver) {
   return { allow: score >= threshold, score, threshold, modelVersion: model.version };
 }
 
-// Alert writes per `${driverId}:${group}`, run one after another (see createAlert).
+// Microsleep (actually falling asleep) always notifies; anything else at most once per driver per day.
+const ALWAYS_NOTIFY = new Set(['microsleep']);
+
+/** May this alert notify the parent? (Called inside the driver's alert queue: no races.) */
+async function mayNotify(driver, type, timestamp) {
+  if (ALWAYS_NOTIFY.has(type)) return true;
+  const notifiedToday = await Alert.exists({
+    driverId: driver._id,
+    notifiedAt: { $gte: startOfLocalDay(timestamp) },
+  });
+  return !notifiedToday;
+}
+
+// Alert writes per driver, run one after another (see createAlert).
 const alertChains = new Map();
 
 /**
@@ -232,7 +245,7 @@ function serialized(key, fn) {
 }
 
 function createAlert(driver, type, ...rest) {
-  return serialized(`${driver._id}:${ALERT_GROUP[type]}`, () => writeAlert(driver, type, ...rest));
+  return serialized(String(driver._id), () => writeAlert(driver, type, ...rest));
 }
 
 async function writeAlert(
@@ -265,7 +278,9 @@ async function writeAlert(
   };
   const conf = round(Math.min(1, Math.max(0, confidence)), 3);
 
-  // Detected again while the parent hasn't acknowledged: update that alert instead of a new one.
+  // Detected again today while the parent hasn't acknowledged: update that alert ("detected again
+  // ×N") instead of a new one. Parents get at most one notification per driver per day; a
+  // microsleep always notifies (mayNotify).
   const open = await Alert.findOne({
     driverId: driver._id,
     removedAt: null,
@@ -283,18 +298,22 @@ async function writeAlert(
     if (escalated) open.type = type;
     if (location) open.location = location;
     open.readAt = undefined; // the notification resurfaces as unread
+    const notify = escalated && (await mayNotify(driver, type, timestamp));
+    if (notify) open.notifiedAt = new Date();
     await open.save();
     const pub = open.toPublic({ driverName: driver.name });
-    alertDispatcher.dispatchAlertRepeated(pub, escalated);
+    alertDispatcher.dispatchAlertRepeated(pub, escalated, notify);
     // A warning that became drowsy: text the parent now (once per alert; not awaited).
-    if (escalated) smsAlerts.notifyAlert(open, driver);
+    if (notify) smsAlerts.notifyAlert(open, driver);
     return pub;
   }
 
+  const notify = await mayNotify(driver, type, timestamp);
   const alert = await Alert.create({
     driverId: driver._id,
     parentId: driver.parentId,
     type,
+    ...(notify && { notifiedAt: new Date() }),
     confidence: conf,
     sensorSnapshot,
     lastDetectedAt: timestamp,
@@ -302,9 +321,10 @@ async function writeAlert(
     ...(verifier && { verifier }),
     ...(delayedS && { delayedS }),
   });
-  const pub = alert.toPublic({ driverName: driver.name });
+  // silent: listed in the apps, but no notification (one already went out today).
+  const pub = alert.toPublic({ driverName: driver.name, ...(!notify && { silent: true }) });
   alertDispatcher.dispatchNewAlert(pub);
-  smsAlerts.notifyAlert(alert, driver); // drowsy → text the parent's phone (not awaited)
+  if (notify) smsAlerts.notifyAlert(alert, driver); // drowsy → text the parent (not awaited)
   return pub;
 }
 

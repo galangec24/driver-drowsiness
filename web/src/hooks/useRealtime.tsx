@@ -187,6 +187,8 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
 
     s.on('alert:new', (alert) => {
       prependAlert(qc, alert);
+      // At most one notification per driver per day (microsleep always): the rest are only listed.
+      if (alert.silent) return;
       const severe = alert.type === 'drowsy' || alert.type === 'microsleep';
       const title = alertTitle(alert);
       toastRef.current.show({
@@ -216,18 +218,19 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
 
     s.on('alert:read', ({ alertIds, read }) => applyRead(qc, alertIds, read));
 
-    s.on('alert:repeated', ({ escalated, ...alert }) => {
+    s.on('alert:repeated', ({ escalated, notify = escalated, ...alert }) => {
       applyRepeated(qc, alert);
       setHighlighted(alert.id);
       window.setTimeout(() => setHighlighted((h) => (h === alert.id ? null : h)), 4000);
       const title = escalated ? alertTitle(alert) : `${alert.driverName || 'Driver'}: detected again`;
+      if (!notify) return; // listed and highlighted; today's notification already went out
       toastRef.current.show({
         title,
         body: `${alertTitle(alert)} · ${alert.repeatCount ?? 2} times`,
         tone: escalated ? 'danger' : 'warn',
         durationMs: 5000,
       });
-      if (escalated) notifyBrowser(title, `Detected ${alert.repeatCount ?? 2} times`, alert.id);
+      notifyBrowser(title, `Detected ${alert.repeatCount ?? 2} times`, alert.id);
     });
 
     s.on('message:delivered', ({ driverId }) => void qc.invalidateQueries({ queryKey: ['messages', driverId] }));

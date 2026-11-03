@@ -94,15 +94,19 @@ describe('repeated detections are grouped into one alert', () => {
     expect(await Alert.countDocuments()).toBe(2);
   });
 
-  test('outside the 10-minute window a new alert is created', async () => {
+  test('later the same day it is still the same alert; the next day starts a new one', async () => {
     const parent = await registerParent(stack.app);
     const driver = await createDriver(parent.user.id);
     const t0 = Date.now();
     jest.spyOn(Date, 'now').mockReturnValue(t0);
     const a = await ingest(driver._id, DROWSY_SIGNALS).expect(200);
+    // 11 minutes later (outside the old 10-minute grouping): one alert per day now.
     jest.spyOn(Date, 'now').mockReturnValue(t0 + 11 * 60 * 1000);
     const b = await ingest(driver._id, DROWSY_SIGNALS).expect(200);
-    expect(b.body.alertId).not.toBe(a.body.alertId);
+    expect(b.body.alertId).toBe(a.body.alertId);
+    jest.spyOn(Date, 'now').mockReturnValue(t0 + 24 * 60 * 60 * 1000);
+    const c = await ingest(driver._id, DROWSY_SIGNALS).expect(200);
+    expect(c.body.alertId).not.toBe(a.body.alertId);
   });
 });
 

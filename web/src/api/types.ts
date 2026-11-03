@@ -139,6 +139,8 @@ export interface Alert {
   delayedS?: number | null;
   /** Text message sent to the parent's phone (drowsy / microsleep). */
   sms?: { to: string; at: string } | null;
+  /** Live events only: listed, but no notification (the driver's one for today already went out). */
+  silent?: boolean;
   acknowledged: boolean;
   acknowledgedAt?: string;
   acknowledgedBy?: AckSource;
