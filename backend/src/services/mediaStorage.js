@@ -72,10 +72,62 @@ async function removeAlertSnapshots(driverId) {
   await fs.rm(path.join(UPLOAD_DIR, 'alerts', driverId), { recursive: true, force: true });
 }
 
+const ALERT_PREFIX = 'guardian-drive/alerts/';
+
+/** Delete one alert's snapshot (Cloudinary, or backend/uploads in local dev). Never throws. */
+async function removeAlertSnapshot(driverId, alertId) {
+  if (isCloudinaryConfigured()) {
+    await cloudinary.uploader
+      .destroy(`${ALERT_PREFIX}${driverId}/${alertId}`, {
+        resource_type: 'image',
+        invalidate: true,
+      })
+      .catch(() => {});
+    return;
+  }
+  for (const ext of ['jpg', 'png']) {
+    await fs.rm(path.join(UPLOAD_DIR, 'alerts', String(driverId), `${alertId}.${ext}`), {
+      force: true,
+    });
+  }
+}
+
+/** Every stored alert snapshot as { driverId, alertId } (for the orphan clean-up). */
+async function listAlertSnapshots() {
+  const out = [];
+  if (isCloudinaryConfigured()) {
+    let cursor;
+    do {
+      const page = await cloudinary.api.resources({
+        type: 'upload',
+        resource_type: 'image',
+        prefix: ALERT_PREFIX,
+        max_results: 500,
+        ...(cursor && { next_cursor: cursor }),
+      });
+      for (const r of page.resources || []) {
+        const [driverId, alertId] = r.public_id.slice(ALERT_PREFIX.length).split('/');
+        if (driverId && alertId) out.push({ driverId, alertId });
+      }
+      cursor = page.next_cursor;
+    } while (cursor);
+    return out;
+  }
+  const root = path.join(UPLOAD_DIR, 'alerts');
+  const drivers = await fs.readdir(root).catch(() => []);
+  for (const driverId of drivers) {
+    const files = await fs.readdir(path.join(root, driverId)).catch(() => []);
+    for (const f of files) out.push({ driverId, alertId: f.replace(/\.(jpg|png)$/, '') });
+  }
+  return out;
+}
+
 module.exports = {
   storeReferencePhoto,
   removeReferencePhoto,
   storeAlertSnapshot,
   removeAlertSnapshots,
+  removeAlertSnapshot,
+  listAlertSnapshots,
   UPLOAD_DIR,
 };

@@ -5,6 +5,8 @@ const Alert = require('../models/Alert');
 const Driver = require('../models/Driver');
 const HttpError = require('../utils/httpError');
 const alertDispatcher = require('../services/alertDispatcher');
+const snapshotCleanup = require('../services/snapshotCleanup');
+const logger = require('../config/logger');
 const { startOfLocalDay, isExpired } = require('../utils/alertDay');
 
 const objectId = z.string().regex(/^[a-f0-9]{24}$/i);
@@ -123,11 +125,16 @@ async function remove(req, res) {
     filter.acknowledged = false;
     filter.createdAt = { $lt: startOfLocalDay() };
   }
-  const found = (await Alert.find(filter).select('_id').lean()).map((a) => a._id.toString());
+  const docs = await Alert.find(filter).select('_id driverId snapshotUrl').lean();
+  const found = docs.map((a) => a._id.toString());
   if (req.params.id && !found.length) throw new HttpError(404, 'Alert not found');
   if (found.length) {
     await Alert.updateMany({ _id: { $in: found } }, { removedAt: new Date() });
     alertDispatcher.dispatchRemoved(req.user.parentId, found);
+    // The photos go too (the hidden record is kept for the false-alarm verifier). Not awaited.
+    snapshotCleanup
+      .forgetPhotos(docs)
+      .catch((err) => logger.warn({ err: err.message }, 'alert photo delete failed'));
   }
   res.json({ removed: found.length, alertIds: found });
 }

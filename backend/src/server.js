@@ -11,6 +11,7 @@ const Driver = require('./models/Driver');
 const modelRegistry = require('./services/modelRegistry');
 const trainingRunner = require('./services/trainingRunner');
 const sensorRollup = require('./services/sensorRollup');
+const snapshotCleanup = require('./services/snapshotCleanup');
 const { ensureViews } = require('./config/dbViews');
 
 /** Drivers created before name uniqueness existed get their nameKey (duplicates are reported). */
@@ -53,6 +54,8 @@ async function start() {
   const tuningTask = scheduleAdaptiveTuning();
   // Per-minute summaries of the readings (history screen, reports): once a minute.
   const rollupTask = sensorRollup.schedule();
+  // Alert photos whose alert is gone (e.g. deleted in the database): at start and daily.
+  const photoCleanupTask = snapshotCleanup.schedule();
   if (env.fpVerifier) {
     loadFpVerifier();
     // An admin-promoted verifier (stored in MongoDB) replaces the bundled file.
@@ -75,6 +78,7 @@ async function start() {
     logger.info({ signal }, 'shutting down');
     tuningTask.stop();
     rollupTask.stop();
+    photoCleanupTask.stop();
     server.close();
     await disconnectDb();
     process.exit(0);
