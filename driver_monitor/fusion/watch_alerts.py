@@ -12,9 +12,12 @@ Two paths, so the driver is warned even with no internet:
    repeated yawning. > 0.7 → HIGH, > 0.4 → MILD, named by the strongest rule.
 
 Levels follow the BLE Alert Level characteristic: 0 none, 1 mild, 2 high.
-A level is repeated at most every `repeat_s`. It steps down as soon as its reason has been gone
-for `calm_s` (HIGH → MILD if a milder reason is still there, else 0 = stop), so a driver who is
-awake again is back to normal within a few seconds.
+A level is repeated at most every `repeat_s`, but while the eyes *stay* closed past the microsleep
+limit it repeats every `closed_repeat_s` (beep, vibration and a "wake up" line each time) until they
+open: one sentence and then silence is no use to a driver who has actually fallen asleep (field test
+2026-11-03: a 15 s closure got one sentence, the next sound came only when the eyes opened).
+It steps down as soon as its reason has been gone for `calm_s` (HIGH → MILD if a milder reason is
+still there, else 0 = stop), so a driver who is awake again is back to normal within a few seconds.
 """
 
 from __future__ import annotations
@@ -30,6 +33,7 @@ NONE, MILD, HIGH = 0, 1, 2
 class WatchAlerter:
     send: Callable[[int], None]
     repeat_s: float = 15.0
+    closed_repeat_s: float = 3.0
     calm_s: float = 3.0
     offline_after_s: float = 5.0
     drowsy_duration_s: float = 2.0
@@ -113,7 +117,12 @@ class WatchAlerter:
             self._fire(held, now)  # step down: DROWSY → WARNING → normal
         elif level > NONE and level == self._active:
             last = self._last_sent.get(level)
-            if last is None or now - last >= self.repeat_s:
+            still_closed = level == HIGH and closed_for_s >= self.drowsy_duration_s
+            every = self.closed_repeat_s if still_closed else self.repeat_s
+            if still_closed:
+                reason = f"eyes closed {closed_for_s:.1f}s"
+                self.reason_now = reason
+            if last is None or now - last >= every:
                 self._fire(level, now)
                 self.last_reason = reason
         return self._active

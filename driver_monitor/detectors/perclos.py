@@ -4,11 +4,12 @@
 so there is no absolute EAR threshold here. The backend still applies each driver's personal
 thresholds to the raw EAR/PERCLOS it receives.
 
-Closed = below `closure_ratio` (50 %) of the open-eye EAR; open again above 62 %. Field traces
+Closed = below `closure_ratio` (50 %) of the open-eye EAR; open again above 55 %. Field traces
 (2026-11-03): fully closed eyes read 0.04-0.44 of the baseline, while narrowed eyes, rapid blinking
 and the open eye squinting while the other is shut read 0.55-0.78. Replaying the recorded traces,
-50 % / 62 % flagged none of those and covered 40 of 41 s of real closures (70 % / 80 % and 60 % / 68 %
-raised false microsleeps). It also matches the standard PERCLOS definition (P80: closed when the
+50 % / 55 % flagged none of those and caught all 6 real closures in 6 recorded sessions (70 % / 80 %,
+60 % / 68 % and 50 % / 62 % raised false microsleeps: a deliberate squint that can still see reads
+0.45-0.68, fully closed eyes 0.05-0.40). It also matches the standard PERCLOS definition (P80: closed when the
 eye is >= 80 % closed).
 
 Narrow eyes: the open/closed gap is small, so one noisy frame used to flip "closed" back to
@@ -34,7 +35,7 @@ class PerclosTracker:
         baseline_window_s: float = 120.0,
         baseline_percentile: float = 90.0,
         min_baseline_samples: int = 15,
-        reopen_margin: float = 0.12,
+        reopen_margin: float = 0.05,
         open_grace_s: float = 0.3,
         min_coverage_s: float = 3.0,
         drop_before_loss_s: float = 0.6,

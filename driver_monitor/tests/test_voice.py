@@ -72,3 +72,49 @@ def test_one_blink_after_recovery_does_not_restart_the_fatigue_voice() -> None:
     assert said[-1] == "Please keep your eyes on the road."
     g.on_alert(HIGH, "eyes closed 2.2s", 55.0)  # and a drowsy alarm always does
     assert "pull over" in said[-1]
+
+
+def test_eyes_still_closed_repeats_wake_up_every_3_s_until_they_open() -> None:
+    """Field test 2026-11-03: a 15 s eye closure got one sentence, then silence until the eyes
+    opened. The car must keep calling while the eyes stay shut."""
+    from fusion.watch_alerts import WatchAlerter
+
+    g, said = guide()
+    beeps: list[float] = []
+    now = {"t": 0.0}
+    alerter = WatchAlerter(send=lambda lv: None)
+
+    def send(level: int) -> None:
+        beeps.append(now["t"])
+        g.on_alert(level, alerter.reason_now, now["t"])
+
+    alerter.send = send
+    t = 0.0
+    while t < 15.0:  # eyes shut from t=0; microsleep limit 2 s
+        now["t"] = t
+        alerter.on_frame(closed_for_s=t, perclos=0.0, now=t)
+        t += 0.1
+    assert said[0] == "Your eyes have been closing. Please pull over safely and rest."
+    wake = [s for s in said if s == "Wake up! Open your eyes!"]
+    assert 3 <= len(wake) <= 5  # every ~3 s after the first sentence (2 s .. 15 s)
+    assert len(beeps) >= 4  # each repeat also beeps / vibrates
+    gaps = [b - a for a, b in zip(beeps, beeps[1:], strict=False)]
+    assert all(2.9 <= g_ <= 3.2 for g_ in gaps)
+    for _ in range(40):  # eyes open: the calls stop, then "thank you"
+        now["t"] = t
+        alerter.on_frame(closed_for_s=0.0, perclos=0.1, now=t)
+        t += 0.1
+    assert said[-1].startswith("Thank you")
+    assert len([s for s in said if s == "Wake up! Open your eyes!"]) == len(wake)
+
+
+def test_other_alarms_keep_the_calm_15_s_rhythm() -> None:
+    from fusion.watch_alerts import WatchAlerter
+
+    sent: list[float] = []
+    alerter = WatchAlerter(send=lambda lv: sent.append(lv))
+    t = 0.0
+    while t < 20.0:  # looking away for a long time: HIGH "eyes off the road", eyes open
+        alerter.on_frame(closed_for_s=0.0, perclos=0.0, now=t, away_for_s=5.0 + t)
+        t += 0.1
+    assert len(sent) == 2  # at once, then once after 15 s

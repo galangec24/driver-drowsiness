@@ -35,6 +35,9 @@ from ui.lang import NAMES, detect, is_latin
 NONE, MILD, HIGH = 0, 1, 2
 
 
+WAKE_UP = "Wake up! Open your eyes!"
+
+
 def message_for(level: int, reason: str) -> str:
     """The sentence for an alarm level and its reason (WatchAlerter.reason_now)."""
     r = (reason or "").lower()
@@ -93,10 +96,16 @@ class VoiceGuide:
         """Call when the in-car alarm level changes (WatchAlerter send callback)."""
         previous, self._level = self._level, level
         if level == NONE:
-            if previous >= MILD and self._say("Thank you. Stay alert and drive safely.", now):
+            # After a drowsy alarm the "awake again" confirmation comes at once (no 8 s gap).
+            thanks = "Thank you. Stay alert and drive safely."
+            if previous >= MILD and self._say(thanks, now, urgent=previous >= HIGH):
                 self._recovered_at = now
             return
         r = (reason or "").lower()
+        if level >= HIGH and previous >= HIGH and r.startswith("eyes closed"):
+            # The alarm repeating because the eyes are still shut: short, loud, every time.
+            self._say(WAKE_UP, now, urgent=True, repeat_ok=True)
+            return
         fatigue_only = level == MILD and not ("eyes off the road" in r or "restless" in r)
         if fatigue_only and now - self._recovered_at < self.settle_s:
             return
@@ -220,9 +229,7 @@ class Speaker:
                     log.warning(f"voice ({self.name}) failed: {exc}")
 
 
-def speak_message(
-    speaker: Callable[[str], None], intro: str, text: str, lang: str | None = None
-) -> str:
+def speak_message(speaker: Callable[[str], None], intro: str, text: str, lang: str | None = None) -> str:
     """Read a parent's message aloud in its own language when the car has a voice for it.
 
     - A voice for the language is installed: the intro in English, then the message in that voice.
@@ -296,7 +303,10 @@ _SAPI_LIST = (
 
 
 def _sapi_languages() -> set[str]:
-    cultures = [c.lower() for c in _run_lines(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", _SAPI_LIST])]
+    cultures = [
+        c.lower()
+        for c in _run_lines(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", _SAPI_LIST])
+    ]
     return {lang for lang, pre in _SAPI_CULTURE.items() if any(c.startswith(pre) for c in cultures)}
 
 

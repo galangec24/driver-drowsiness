@@ -155,7 +155,11 @@ describe('fusionEngine — narrow eyes (live open-eye baseline from the camera)'
       defaultDriver,
     );
     expect(closed.components.visionScore).toBeGreaterThan(0.4);
-    expect(resolveThresholds(defaultDriver, { earBaseline: 0.1 }).earThreshold).toBe(0.12);
+    // Very narrow eyes (open EAR 0.15): the cut-off follows them (75 %), not a fixed 0.12.
+    expect(resolveThresholds(defaultDriver, { earBaseline: 0.15 }).earThreshold).toBeCloseTo(
+      0.1125,
+    );
+    expect(resolveThresholds(defaultDriver, { earBaseline: 0.05 }).earThreshold).toBe(0.08);
     expect(resolveThresholds(defaultDriver, { earBaseline: 0.9 }).earThreshold).toBe(0.35);
     expect(resolveThresholds(defaultDriver, {}).earThreshold).toBe(DEFAULT_THRESHOLDS.earThreshold);
   });

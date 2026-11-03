@@ -53,3 +53,26 @@ def test_keeps_the_last_three_intervals_and_only_a_few_frames_each() -> None:
     assert len(p._history) == 3
     p.reset()
     assert p.best() is None
+
+
+def test_alert_photo_is_cropped_to_the_face_and_enlarged() -> None:
+    from transport.evidence import alert_photo
+
+    frame = face(4)  # 480 x 640
+    out = alert_photo(frame, (270, 130, 100, 110))  # a small face, like the dashboard camera's
+    assert out.shape[1] == 560  # enlarged for the phone
+    assert abs(out.shape[0] / out.shape[1] - 0.75) < 0.02  # 4:3
+    # Head and shoulders, not the whole room: the crop is about 2.8 face widths across.
+    whole = alert_photo(frame)
+    assert whole.shape[1] == 560 and whole.shape[0] == 420
+
+
+def test_alert_photo_crop_stays_inside_the_frame_and_balances_contrast() -> None:
+    from transport.evidence import alert_photo
+
+    washed_out = np.full((480, 640, 3), 200, np.uint8)
+    washed_out[150:300, 560:640] = 225  # a low-contrast face at the very edge
+    out = alert_photo(washed_out, (560, 150, 80, 150))
+    assert out.shape == (420, 560, 3)  # shifted inside the frame, not padded or squeezed
+    gray = cv2.cvtColor(out, cv2.COLOR_BGR2GRAY)
+    assert int(gray.max()) - int(gray.min()) > 25  # contrast stretched (was 25)

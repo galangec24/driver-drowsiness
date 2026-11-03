@@ -39,7 +39,7 @@ from fusion.watch_alerts import WatchAlerter
 from sensors.heart_rate import BreathingState, HeartRateState, pick_heart
 from transport.calls import start_calls
 from transport.driver_identity import DriverIdentity
-from transport.evidence import EvidencePicker
+from transport.evidence import EvidencePicker, alert_photo
 from transport.gps import LocationSource, NoLocation, make_location_source
 from transport.ingest_client import IngestClient, build_payload, encode_snapshot
 from transport.model_sync import eye_model_path, fetch_device_config, local_eye_version, save_eye_model
@@ -228,6 +228,16 @@ class Monitor:
     def evidence_frame(self) -> np.ndarray | None:
         """Sharp, eyes-closed frame of the last ~3 readings (None if no face was seen)."""
         return self.evidence.best()
+
+    def alert_photo(self, frame: np.ndarray, closed_eyes: bool = True) -> np.ndarray:
+        """The parent's alert photo, cropped to head and shoulders and contrast-balanced
+        (transport/evidence.py). Fatigue alerts: the sharp eyes-closed frame; others (eyes off the
+        road, unknown driver) and when none was kept: this frame."""
+        found = self.evidence.best_with_face() if closed_eyes else None
+        if found is not None:
+            return alert_photo(*found)
+        f = self.last.face if self.last else None
+        return alert_photo(frame, (f.x, f.y, f.width, f.height) if f else None)
 
     def make_payload(self, t: float) -> dict[str, Any]:
         """Build one interval's payload and schedule the next POST."""
@@ -693,12 +703,12 @@ def run(
                     if r.get("alertTriggered") and r.get("alertId") and cfg.send_snapshots and client:
                         # Fatigue alerts: the moment the eyes were most closed. Others (eyes off the
                         # road, unknown driver): now. `frame` is still clean here (no overlay yet).
-                        evidence = monitor.evidence_frame() if r.get("classification") != "alert" else None
+                        fatigue = r.get("classification") != "alert"
                         snap_pool.submit(
                             client.post_snapshot,
                             monitor.driver_id,
                             r["alertId"],
-                            encode_snapshot(evidence if evidence is not None else frame),
+                            encode_snapshot(monitor.alert_photo(frame, closed_eyes=fatigue)),
                         )
                         log.info(f"alert {r['alertId']}: snapshot uploading")
                 except _Stored:
@@ -724,8 +734,7 @@ def run(
                         and alerter.level >= 2
                         and now - last_offline_snap > 30
                     ):
-                        evidence = monitor.evidence_frame()
-                        snap = encode_snapshot(evidence if evidence is not None else frame)
+                        snap = encode_snapshot(monitor.alert_photo(frame))
                         last_offline_snap = now
                     if inflight is None:
                         inflight = pool.submit(sender.send, payload, snap)

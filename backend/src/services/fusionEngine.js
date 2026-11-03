@@ -56,8 +56,10 @@ function num(v) {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
 }
 
-// EAR cut-off from the camera's live open-eye baseline (same rule as the hourly tuner).
-const LIVE_EAR = Object.freeze({ closureRatio: 0.75, min: 0.12, max: 0.35 });
+// EAR cut-off from the camera's live open-eye baseline (same rule as the hourly tuner). The floor is
+// low enough for narrow eyes (open-eye EAR ~0.15, e.g. monolids): the cut-off stays at 75 % of
+// their own open eyes instead of being raised to a fixed 0.12 (80 %).
+const LIVE_EAR = Object.freeze({ closureRatio: 0.75, min: 0.08, max: 0.35 });
 
 /**
  * @param {object} driver

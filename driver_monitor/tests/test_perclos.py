@@ -72,8 +72,8 @@ def test_narrow_eyes_noisy_frame_does_not_restart_closure() -> None:
     # closed (~0.07) with one noisy frame that looks open (0.13)
     t = feed(tr, [0.07] * 8 + [0.13] + [0.07] * 15, start=t)
     assert tr.closed_for(t) == pytest.approx(t - start, abs=0.15)
-    # hysteresis: 0.105 (58 %) is not open again for a ~0.18 eye, so the closure goes on
-    t = feed(tr, [0.105] * 3 + [0.07] * 3, start=t)
+    # hysteresis: 0.095 (53 %) is not open again for a ~0.18 eye, so the closure goes on
+    t = feed(tr, [0.095] * 3 + [0.07] * 3, start=t)
     assert tr.closed_for(t) >= 2.4
     t = feed(tr, [0.17] * 5, start=t)  # really open
     assert tr.closed_for(t) == 0

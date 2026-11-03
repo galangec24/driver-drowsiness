@@ -110,3 +110,26 @@ def test_squinting_open_eye_with_the_other_shut_stays_awake() -> None:
         t += 0.1
         longest = max(longest, p.closed_for(t))
     assert longest == 0.0
+
+
+def test_a_deliberate_squint_after_a_dip_is_not_a_microsleep() -> None:
+    """Field trace 8: narrowed eyes that can still see read 0.45-0.68 of the open level, dipping
+    once; with "open again" at 62 % they stayed "closed" for 2-3 s (false microsleep)."""
+    p, t = calibrated()
+    t = feed(p, [0.30 * 0.45], t)  # a dip below 50 %
+    longest = 0.0
+    for r in [0.58, 0.62, 0.56, 0.60, 0.64, 0.57] * 8:  # squinting, above 55 %
+        p.update(0.30 * r, t)
+        t += 0.1
+        longest = max(longest, p.closed_for(t))
+    assert longest < 0.5
+
+
+def test_fully_closed_eyes_still_count_with_the_closer_open_line() -> None:
+    p, t = calibrated()
+    longest = 0.0
+    for r in [0.08, 0.06, 0.10, 0.07, 0.52, 0.09, 0.05] * 6:  # closed, one noisy 52 % frame
+        p.update(0.30 * r, t)
+        t += 0.1
+        longest = max(longest, p.closed_for(t))
+    assert longest >= 4.0

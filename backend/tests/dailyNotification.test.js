@@ -108,6 +108,23 @@ describe('one notification per driver per day', () => {
     expect(alert.notifiedAt).toBeInstanceOf(Date);
   });
 
+  test('a microsleep again within 10 minutes is quiet; later it notifies again', async () => {
+    const { driver } = await setup();
+    const first = await ingest(driver, MICROSLEEP);
+    expect(notifications()).toBe(1);
+    later();
+    await ingest(driver, MICROSLEEP); // same episode: grouped, no second notification
+    expect(notifications()).toBe(1);
+    await Alert.updateOne(
+      { _id: first.alertId },
+      { notifiedAt: new Date(Date.now() - 11 * 60 * 1000) },
+    );
+    later();
+    const third = await ingest(driver, MICROSLEEP);
+    expect(third.alertId).toBe(first.alertId); // still the same alert, "detected again ×3"
+    expect(notifications()).toBe(2); // but the parent is told again
+  });
+
   test('each driver has their own daily notification', async () => {
     const parent = await registerParent(stack.app);
     const a = await createDriver(parent.user.id, {}, 'Ana');

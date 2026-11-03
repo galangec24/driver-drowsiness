@@ -232,6 +232,9 @@ function verifyCandidate(window, driver) {
 
 // Microsleep (actually falling asleep) always notifies; anything else at most once per driver per day.
 const ALWAYS_NOTIFY = new Set(['microsleep']);
+// A microsleep detected again on an alert that notified this long ago notifies again: several in
+// one episode give one notification, a new one later in the day is never silent.
+const MICROSLEEP_RENOTIFY_MS = 10 * 60 * 1000;
 
 /** May this alert notify the parent? (Called inside the driver's alert queue: no races.) */
 async function mayNotify(driver, type, timestamp) {
@@ -316,7 +319,10 @@ async function writeAlert(
     if (escalated) open.type = type;
     if (location) open.location = location;
     open.readAt = undefined; // the notification resurfaces as unread
-    const notify = escalated && (await mayNotify(driver, type, timestamp));
+    const again =
+      type === 'microsleep' &&
+      (!open.notifiedAt || Date.now() - open.notifiedAt.getTime() >= MICROSLEEP_RENOTIFY_MS);
+    const notify = (escalated || again) && (await mayNotify(driver, type, timestamp));
     if (notify) open.notifiedAt = new Date();
     await open.save();
     const pub = open.toPublic({ driverName: driver.name });
