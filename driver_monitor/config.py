@@ -103,7 +103,7 @@ def load_config(require_backend: bool = True) -> Config:
         camera_index=env_int("CAMERA_INDEX", 0),
         post_interval_ms=env_int("POST_INTERVAL_MS", 1000),
         log_level=env_str("LOG_LEVEL", "INFO"),
-        perclos_closure_ratio=env_float("PERCLOS_CLOSURE_RATIO", 0.7),
+        perclos_closure_ratio=env_float("PERCLOS_CLOSURE_RATIO", 0.6),
         show_window=env_str("SHOW_WINDOW", "1") != "0",
         eye_state=env_str("EYE_STATE", "shadow").lower(),
         gps_source=env_str("GPS_SOURCE", "auto").lower(),

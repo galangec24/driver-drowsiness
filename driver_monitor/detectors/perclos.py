@@ -4,6 +4,11 @@
 so there is no absolute EAR threshold here. The backend still applies each driver's personal
 thresholds to the raw EAR/PERCLOS it receives.
 
+Closed = below `closure_ratio` (60 %) of the open-eye EAR; open again above 68 %. Field trace
+(2026-11-03, narrow eyes): fully closed read 0.04-0.41 of the baseline, deliberately narrowed eyes
+0.66-0.78, so the old 70 % / 80 % pair counted narrowed eyes as a microsleep. 60 % is also closer to
+the standard PERCLOS definition (P80: the eye counts as closed when it is >= 80 % closed).
+
 Narrow eyes: the open/closed gap is small, so one noisy frame used to flip "closed" back to
 "open" and restart the microsleep timer. Closure now has hysteresis (re-opening needs a clearly
 higher EAR) and short "open" blips (< `open_grace_s`) don't end a closure.
@@ -23,11 +28,11 @@ class PerclosTracker:
     def __init__(
         self,
         window_s: float = 30.0,
-        closure_ratio: float = 0.7,
+        closure_ratio: float = 0.6,
         baseline_window_s: float = 120.0,
         baseline_percentile: float = 90.0,
         min_baseline_samples: int = 15,
-        reopen_margin: float = 0.1,
+        reopen_margin: float = 0.08,
         open_grace_s: float = 0.3,
         min_coverage_s: float = 3.0,
         drop_before_loss_s: float = 0.6,

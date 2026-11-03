@@ -9,6 +9,7 @@ every POST_INTERVAL_MS (never per frame). Ctrl+C or 'q' exits cleanly.
 from __future__ import annotations
 
 import argparse
+import csv
 import signal
 import sys
 import time
@@ -23,7 +24,7 @@ import numpy as np
 import config
 from detectors.blink import BlinkDetector
 from detectors.distraction import DistractionDetector
-from detectors.ear import average_ear
+from detectors.ear import LEFT_EYE, RIGHT_EYE, average_ear
 from detectors.eye_state import EyeStateModel, crop_eye
 from detectors.face_detector import FaceBox
 from detectors.head_nod import NodDetector
@@ -134,13 +135,13 @@ class Monitor:
             result.pose = estimate_head_pose(pose_points(result.landmarks), w, h)
             result.mar = mouth_aspect_ratio(result.landmarks)
             self.distraction.update(result.pose, t)
-            # Face half out of the picture, just back in view, or turned far aside: EAR is not
-            # meaningful there (it reads as "closed"), so it must not count as drowsiness.
-            f = result.face
-            in_frame = (
-                f is not None and f.x > 2 and f.y > 2 and f.x + f.width < w - 2 and f.y + f.height < h - 2
+            # Eyes at the edge of the picture, face just back in view, or turned far aside: EAR is
+            # not meaningful there (it reads as "closed"), so it must not count as drowsiness. Only
+            # the eyes have to be in view: leaning on a hand or sitting close puts the chin or
+            # forehead out of the picture, and that must not hide a real eye closure.
+            result.eyes_reliable = eyes_in_frame(result.landmarks, w, h) and self.distraction.eyes_reliable(
+                result.pose, t
             )
-            result.eyes_reliable = in_frame and self.distraction.eyes_reliable(result.pose, t)
             result.perclos = self.perclos.update(result.ear, t, closed, reliable=result.eyes_reliable)
             calibrated = self.perclos.baseline is not None or closed is not None
             self.blink.update(self.perclos.raw_closed if result.eyes_reliable and calibrated else None, t)
@@ -343,6 +344,69 @@ def open_source(cfg: config.Config, video: Path | None) -> tuple[cv2.VideoCaptur
     return cap, cap.get(cv2.CAP_PROP_FPS) or 30.0
 
 
+def eyes_in_frame(landmarks: Points, w: int, h: int, margin: float = 0.02) -> bool:
+    """Every eye landmark at least `margin` (share of the image size) inside the picture."""
+    mx, my = w * margin, h * margin
+    return all(
+        mx <= landmarks[i][0] <= w - mx and my <= landmarks[i][1] <= h - my for i in (*RIGHT_EYE, *LEFT_EYE)
+    )
+
+
+TRACE_FIELDS = [
+    "t",
+    "face",
+    "face_score",
+    "in_frame",
+    "ear",
+    "baseline",
+    "ear_ratio",
+    "raw_closed",
+    "closed",
+    "closed_for",
+    "perclos",
+    "reliable",
+    "pitch",
+    "yaw",
+    "roll",
+    "neutral_pitch",
+    "neutral_yaw",
+    "eye_closed_prob",
+    "fatigue",
+    "level",
+]
+
+
+def trace_row(t: float, result: FrameResult, monitor: Monitor, shape: tuple[int, ...]) -> dict[str, Any]:
+    """One analysed frame for `--trace` (tuning: why was this frame closed / ignored?)."""
+    h, w = shape[:2]
+    f, p = result.face, result.pose
+    base = monitor.perclos.baseline
+    neutral = monitor.distraction.neutral()
+    r = lambda v, d=3: None if v is None else round(float(v), d)  # noqa: E731
+    return {
+        "t": round(t, 3),
+        "face": int(f is not None),
+        "face_score": r(f.score if f else None),
+        "in_frame": int(bool(result.landmarks and eyes_in_frame(result.landmarks, w, h))),
+        "ear": r(result.ear),
+        "baseline": r(base),
+        "ear_ratio": r(result.ear / base if result.ear is not None and base else None),
+        "raw_closed": int(monitor.perclos.raw_closed),
+        "closed": int(monitor.perclos.is_closed),
+        "closed_for": r(monitor.perclos.closed_for(t), 2),
+        "perclos": r(result.perclos),
+        "reliable": int(result.eyes_reliable),
+        "pitch": r(p.pitch if p else None, 1),
+        "yaw": r(p.yaw if p else None, 1),
+        "roll": r(p.roll if p else None, 1),
+        "neutral_pitch": r(neutral[0] if neutral else None, 1),
+        "neutral_yaw": r(neutral[1] if neutral else None, 1),
+        "eye_closed_prob": r(result.eye_closed_prob),
+        "fatigue": r(monitor.fatigue.score),
+        "level": monitor.fatigue.level,
+    }
+
+
 def run(
     cfg: config.Config,
     duration_s: float | None = None,
@@ -352,6 +416,7 @@ def run(
     state: str = "unlabelled",
     post: bool = True,
     save_eyes: Path | None = None,
+    trace: Path | None = None,
 ) -> None:
     from detectors.face_detector import FaceDetector
     from detectors.landmarks import LandmarkExtractor
@@ -369,6 +434,11 @@ def run(
         log.info(f"{outbox.count()} readings from an earlier offline period will be sent first")
     recorder = SessionRecorder(record, label, state) if record else None
     cap, video_fps = open_source(cfg, video)
+    trace_file = open(trace, "w", newline="", encoding="utf-8") if trace else None  # noqa: SIM115
+    trace_writer = csv.DictWriter(trace_file, TRACE_FIELDS) if trace_file else None
+    if trace_writer is not None:
+        trace_writer.writeheader()
+    last_traced = None
     # Analyse ~10 frames/s regardless of the source frame rate (30 fps camera -> every 3rd frame).
     every = max(1, round(video_fps / 10)) if video_fps else config.ANALYZE_EVERY_N_FRAMES
     monitor = Monitor(
@@ -516,6 +586,9 @@ def run(
             t = frame_no / video_fps if video_fps else time.monotonic()
             result = monitor.process_frame(frame, t)
             monitor.keep_evidence(result, frame)
+            if trace_writer is not None and result is not last_traced:
+                trace_writer.writerow(trace_row(t, result, monitor, frame.shape))
+                last_traced = result
             now = time.monotonic()
             voice.tick(now, driving=result.face is not None)
             if not identity.automatic and voice.greeted is None and result.face is not None:
@@ -682,6 +755,8 @@ def run(
                     log.info(f"label -> {recorder.state} ({recorder.label})")
     finally:
         cap.release()
+        if trace_file is not None:
+            trace_file.close()
         cv2.destroyAllWindows()
         pool.shutdown(wait=False, cancel_futures=True)
         snap_pool.shutdown(wait=False, cancel_futures=True)
@@ -843,6 +918,7 @@ def main() -> None:
     parser.add_argument("--label", choices=sorted(LABELS), default=None, help="label for every recorded row")
     parser.add_argument("--offline", action="store_true", help="do not POST to the backend (record only)")
     parser.add_argument("--save-eyes", type=Path, default=None, help="save eye crops (training data)")
+    parser.add_argument("--trace", type=Path, default=None, help="per-frame diagnostics to this .csv")
     args = parser.parse_args()
     cfg = config.load_config(require_backend=not args.offline)
     if args.no_window:
@@ -856,6 +932,7 @@ def main() -> None:
         state=args.label or "unlabelled",
         post=not args.offline,
         save_eyes=args.save_eyes,
+        trace=args.trace,
     )
 
 
