@@ -38,6 +38,7 @@ from fusion.watch_alerts import WatchAlerter
 from sensors.heart_rate import BreathingState, HeartRateState, pick_heart
 from transport.calls import start_calls
 from transport.driver_identity import DriverIdentity
+from transport.evidence import EvidencePicker
 from transport.gps import LocationSource, NoLocation, make_location_source
 from transport.ingest_client import IngestClient, build_payload, encode_snapshot
 from transport.model_sync import eye_model_path, fetch_device_config, local_eye_version, save_eye_model
@@ -97,10 +98,9 @@ class Monitor:
     # Fuzzy-logic fatigue over all the eye / mouth / head signs (fusion/fuzzy.py)
     fuzzy: FatigueFuzzy = field(default_factory=FatigueFuzzy)
     fatigue: FuzzyResult = field(default_factory=lambda: FuzzyResult(0.0))
-    # The frame where the eyes were most closed, per reading interval (last 3): the parent's
-    # alert photo shows the moment of the closure, not the second after (eyes already open).
-    _evidence: tuple[float, np.ndarray] | None = None
-    _evidence_history: list[tuple[float, np.ndarray]] = field(default_factory=list)
+    # The alert photo: eyes closed (the moment of the closure, not the second after) and sharp
+    # (not the blurred middle of a head drop), from the last 3 reading intervals.
+    evidence: EvidencePicker = field(default_factory=EvidencePicker)
     distraction: DistractionDetector = field(default_factory=DistractionDetector)
     hearts: list[HeartRateState] = field(default_factory=list)  # BLE HR sources, priority order
     breathing: BreathingState | None = None  # dashboard radar
@@ -189,7 +189,7 @@ class Monitor:
         self.distraction = DistractionDetector()
         self.blink = BlinkDetector()
         self.fatigue = FuzzyResult(0.0)
-        self._evidence, self._evidence_history = None, []
+        self.evidence.reset()
         self.aggregator = IntervalAggregator()
         self.last_response = None
 
@@ -213,24 +213,21 @@ class Monitor:
         return t >= self._next_post
 
     def keep_evidence(self, result: FrameResult, frame: np.ndarray) -> None:
-        """Remember this frame if its eyes are the most closed of the interval (cheap: one copy
-        only when a new lowest reading appears)."""
+        """Offer this frame for the alert photo (cheap unless its eyes are among the interval's
+        most closed)."""
         if result.ear is None or not result.eyes_reliable:
             return
-        if self._evidence is None or result.ear < self._evidence[0]:
-            self._evidence = (result.ear, frame.copy())
+        f = result.face
+        self.evidence.offer(result.ear, frame, (f.x, f.y, f.width, f.height) if f else None)
 
     def evidence_frame(self) -> np.ndarray | None:
-        """Most-closed-eyes frame of the last ~3 readings (None if no face was seen)."""
-        candidates = self._evidence_history + ([self._evidence] if self._evidence else [])
-        return min(candidates, key=lambda e: e[0])[1] if candidates else None
+        """Sharp, eyes-closed frame of the last ~3 readings (None if no face was seen)."""
+        return self.evidence.best()
 
     def make_payload(self, t: float) -> dict[str, Any]:
         """Build one interval's payload and schedule the next POST."""
         self._next_post = t + self.interval_s
-        if self._evidence is not None:
-            self._evidence_history = [*self._evidence_history[-2:], self._evidence]
-        self._evidence = None
+        self.evidence.next_interval()
         ear, face_conf = self.aggregator.flush()
         extra: dict[str, Any] = {
             "yawnCount": self.yawn.count(t),

@@ -137,6 +137,8 @@ export interface Alert {
   snapshotUrl?: string | null;
   /** Recorded while the car had no internet and delivered this many seconds later. */
   delayedS?: number | null;
+  /** Text message sent to the parent's phone (drowsy / microsleep). */
+  sms?: { to: string; at: string } | null;
   acknowledged: boolean;
   acknowledgedAt?: string;
   acknowledgedBy?: AckSource;

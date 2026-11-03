@@ -42,6 +42,11 @@ export function AlertDetailModal({ alert, onClose }: { alert: Alert; onClose: ()
               {ALERT_LABEL[alert.type]} · {alert.driverName || 'Driver'}
             </h2>
             <p className="text-sm text-ink-muted">{formatTime(alert.createdAt)}</p>
+            {alert.sms && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-ink-muted" data-testid="alert-sms">
+                <Icon name="phone" size={12} /> Texted to {alert.sms.to}
+              </p>
+            )}
           </div>
           <button
             type="button"

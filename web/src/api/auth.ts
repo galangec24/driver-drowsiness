@@ -28,8 +28,14 @@ export async function register(
   name: string,
   email: string,
   password: string,
+  phone = '',
 ): Promise<AuthResponse | VerificationRequired> {
-  const { data } = await api.post<AuthResponse | VerificationRequired>('/auth/register', { name, email, password });
+  const { data } = await api.post<AuthResponse | VerificationRequired>('/auth/register', {
+    name,
+    email,
+    password,
+    ...(phone && { phone }),
+  });
   return data;
 }
 

@@ -10,11 +10,27 @@ const { verifyGoogleIdToken } = require('../services/googleAuth');
 const AuthHandoff = require('../models/AuthHandoff');
 const logger = require('../config/logger');
 const { LANGUAGES } = require('../config/languages');
+const { normalizePhone } = require('../services/sms');
+
+/**
+ * Mobile number for drowsiness texts (services/smsAlerts.js). Optional; '' removes it. Stored as
+ * +63… (numbers without a country code are Philippine).
+ */
+const phoneField = z
+  .string()
+  .trim()
+  .max(30)
+  .refine(
+    (v) => v === '' || normalizePhone(v),
+    'Enter a mobile number like 0917 123 4567 or +63 917 123 4567',
+  )
+  .transform((v) => (v === '' ? '' : normalizePhone(v)));
 
 const registerSchema = z.object({
   name: z.string().trim().min(1).max(80),
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(8).max(128),
+  phone: phoneField.optional(),
 });
 
 const loginSchema = z.object({
@@ -67,7 +83,7 @@ async function applyAdminRole(user) {
 }
 
 async function register(req, res) {
-  const { name, email, password } = req.body;
+  const { name, email, password, phone } = req.body;
   const verify = env.emailVerification;
   const existing = await User.findOne({ email }).select('+emailOtp');
   // An account whose e-mail was never verified was never usable (nobody could sign in to it), so
@@ -81,11 +97,18 @@ async function register(req, res) {
   if (existing) {
     existing.name = name;
     existing.passwordHash = passwordHash;
+    if (phone) existing.phone = phone;
     await existing.save();
     user = existing;
   } else {
     user = await applyAdminRole(
-      await User.create({ name, email, passwordHash, ...(verify && { emailVerified: false }) }),
+      await User.create({
+        name,
+        email,
+        passwordHash,
+        ...(phone && { phone }),
+        ...(verify && { emailVerified: false }),
+      }),
     );
   }
   if (!verify) {
@@ -306,12 +329,7 @@ const MAX_AVATAR_BYTES = 300 * 1024;
 const profileSchema = z
   .object({
     name: z.string().trim().min(1, 'Enter your name').max(80).optional(),
-    phone: z
-      .string()
-      .trim()
-      .max(30)
-      .regex(/^[+\d\s()-]*$/, 'Use digits, spaces, +, - or ( ) only')
-      .optional(),
+    phone: phoneField.optional(),
     language: z.enum(LANGUAGES).optional(),
     // data:image/jpeg;base64,... (resized by the app), or null to remove the photo
     avatar: z

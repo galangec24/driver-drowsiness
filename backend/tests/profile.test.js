@@ -24,7 +24,7 @@ describe('own profile', () => {
       .expect(200);
     expect(res.body.user).toMatchObject({
       name: 'Maria G.',
-      phone: '+63 917 123 4567',
+      phone: '+639171234567', // saved in the standard form texts are sent to
       language: 'fil',
     });
     expect(res.body.user.avatarUrl).toMatch(/^\/api\/auth\/avatar\/\w+\?v=\d+$/);

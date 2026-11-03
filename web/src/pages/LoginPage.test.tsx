@@ -22,6 +22,42 @@ describe('validateAuthForm', () => {
   });
 });
 
+describe('mobile number at sign-up', () => {
+  test('optional, but must be a mobile number when given', () => {
+    const base = { name: 'Pat', email: 'a@b.co', password: 'supersecret1' };
+    expect(validateAuthForm('register', { ...base, phone: '' })).toEqual({});
+    expect(validateAuthForm('register', { ...base, phone: '0917 123 4567' })).toEqual({});
+    expect(validateAuthForm('register', { ...base, phone: '+63 917 123 4567' })).toEqual({});
+    expect(validateAuthForm('register', { ...base, phone: '12345' })).toEqual({
+      phone: 'Enter a mobile number like 0917 123 4567 or +63 917 123 4567',
+    });
+  });
+
+  test('is sent with the account, and the (?) explains why it matters', async () => {
+    const register = vi.spyOn(authApi, 'register').mockResolvedValue({
+      verificationRequired: true,
+      email: 'pat@example.com',
+      retryAfterS: 60,
+    });
+    renderWithProviders(<LoginPage />, { route: '/login' });
+    await userEvent.click(screen.getByRole('tab', { name: 'Create account' }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Why we ask for your mobile number' }));
+    const dialog = await screen.findByTestId('phone-info-dialog');
+    expect(dialog).toHaveTextContent(/even when you're offline/);
+    expect(dialog).toHaveTextContent(/drowsy/);
+    await userEvent.click(screen.getByRole('button', { name: 'Got it' }));
+    await waitFor(() => expect(screen.queryByTestId('phone-info-dialog')).not.toBeInTheDocument());
+
+    await userEvent.type(screen.getByLabelText('Your name'), 'Pat');
+    await userEvent.type(screen.getByLabelText('Mobile number (optional)'), '0917 123 4567');
+    await userEvent.type(screen.getByLabelText('Email'), 'pat@example.com');
+    await userEvent.type(screen.getByLabelText('Password'), 'supersecret1');
+    await userEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    expect(register).toHaveBeenCalledWith('Pat', 'pat@example.com', 'supersecret1', '0917 123 4567');
+  });
+});
+
 describe('LoginPage', () => {
   test('shows field errors and does not call the API when invalid', async () => {
     const spy = vi.spyOn(authApi, 'login');

@@ -31,7 +31,12 @@ beforeEach(() => {
 
 describe('own profile', () => {
   test('name, phone and preferred language are saved; the e-mail stays', async () => {
-    vi.mocked(authApi.updateProfile).mockResolvedValue({ ...USER, name: 'Maria G.', phone: '0917', language: 'fil' });
+    vi.mocked(authApi.updateProfile).mockResolvedValue({
+      ...USER,
+      name: 'Maria G.',
+      phone: '+639171234567',
+      language: 'fil',
+    });
     renderWithProviders(<ProfileCard />);
     const save = screen.getByRole('button', { name: 'Save changes' });
     expect(save).toBeDisabled(); // nothing changed yet
@@ -39,13 +44,13 @@ describe('own profile', () => {
 
     await userEvent.clear(screen.getByLabelText('Name'));
     await userEvent.type(screen.getByLabelText('Name'), 'Maria G.');
-    await userEvent.type(screen.getByLabelText('Phone (optional)'), '0917');
+    await userEvent.type(screen.getByLabelText('Mobile number (for drowsiness texts)'), '0917 123 4567');
     await userEvent.selectOptions(screen.getByLabelText('Preferred language for messages'), 'fil');
     await userEvent.click(save);
     await waitFor(() =>
       expect(vi.mocked(authApi.updateProfile).mock.calls[0]![0]).toEqual({
         name: 'Maria G.',
-        phone: '0917',
+        phone: '0917 123 4567',
         language: 'fil',
       }),
     );

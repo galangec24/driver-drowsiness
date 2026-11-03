@@ -12,6 +12,7 @@ import 'package:guardian_drive/widgets/driver_card.dart';
 import 'package:guardian_drive/widgets/glass_card.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:guardian_drive/widgets/phone_info_dialog.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
   theme: buildTheme(),
@@ -221,6 +222,19 @@ void main() {
         ),
         {'name': 'Enter your name', 'password': 'Use at least 8 characters'},
       );
+      // Mobile number: optional, but must be a mobile number when given.
+      Map<String, String> withPhone(String phone) => validateAuthForm(
+        register: true,
+        name: 'Pat',
+        email: 'a@b.co',
+        password: 'supersecret1',
+        phone: phone,
+      );
+      expect(withPhone(''), isEmpty);
+      expect(withPhone('0917 123 4567'), isEmpty);
+      expect(withPhone('+63 917 123 4567'), isEmpty);
+      expect(withPhone('12345'), {'phone': phoneHint});
+      expect(normalizePhone('0917 123 4567'), '+639171234567');
     });
 
     testWidgets('LoginScreen shows field errors instead of submitting', (

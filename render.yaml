@@ -39,6 +39,13 @@ services:
       # Your e-mail → admin console (model training / promotion) at your next sign-in
       - key: ADMIN_EMAILS
         sync: false
+      # Text messages to parents when a driver is drowsy (docs/SMS.md). semaphore | twilio
+      - key: SMS_PROVIDER
+        sync: false
+      - key: SEMAPHORE_API_KEY
+        sync: false
+      - key: SEMAPHORE_SENDER
+        sync: false
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY

@@ -49,6 +49,19 @@ const env = {
     from: process.env.EMAIL_FROM || '',
     fromName: process.env.EMAIL_FROM_NAME || 'Guardian Drive',
   },
+  // Text messages to parents when a driver is drowsy (services/sms.js). SMS_PROVIDER=semaphore
+  // (Philippines, semaphore.co) | twilio | console (log only) | unset (off).
+  sms: {
+    provider: (process.env.SMS_PROVIDER || '').toLowerCase(),
+    semaphoreApiKey: process.env.SEMAPHORE_API_KEY || '',
+    semaphoreSender: process.env.SEMAPHORE_SENDER || '',
+    twilioSid: process.env.TWILIO_ACCOUNT_SID || '',
+    twilioToken: process.env.TWILIO_AUTH_TOKEN || '',
+    twilioFrom: process.env.TWILIO_FROM || '',
+    // Cost guards: texts per parent per day, and in total per day.
+    perParentDaily: Number(process.env.SMS_PER_PARENT_DAILY) || 10,
+    dailyLimit: Number(process.env.SMS_DAILY_LIMIT) || 100,
+  },
   // Never send more than this many e-mails per day (Brevo free plan: 300/day).
   emailDailyLimit: Number(process.env.EMAIL_DAILY_LIMIT) || 250,
   // "Continue with Google": OAuth client id(s) from Google Cloud Console (comma-separated; the

@@ -16,6 +16,7 @@ import '../widgets/mesh_background.dart';
 import '../widgets/orbit_loader.dart';
 import '../widgets/otp_view.dart';
 import '../widgets/tilt_3d.dart';
+import '../widgets/phone_info_dialog.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -28,6 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _phone = TextEditingController();
   late final TextEditingController _server;
   bool _register = false;
   bool _loading = false;
@@ -52,6 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
     _name.dispose();
     _email.dispose();
     _password.dispose();
+    _phone.dispose();
     _server.dispose();
     super.dispose();
   }
@@ -63,6 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
       name: _name.text,
       email: _email.text,
       password: _password.text,
+      phone: _phone.text,
     );
     setState(() {
       _errors = errors;
@@ -76,7 +80,12 @@ class _LoginScreenState extends State<LoginScreen> {
         await auth.setServerUrl(_server.text);
       }
       if (_register) {
-        await auth.register(_name.text, _email.text, _password.text);
+        await auth.register(
+          _name.text,
+          _email.text,
+          _password.text,
+          phone: _phone.text,
+        );
       } else {
         await auth.login(_email.text, _password.text);
       }
@@ -112,6 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
     TextInputType? type,
     List<String>? autofill,
     Widget? suffix,
+    String? helper,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -132,6 +142,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 : AppColors.muted,
           ),
           suffixIcon: suffix,
+          helperText: helper,
+          helperMaxLines: 2,
         ),
         onSubmitted: (_) => _submit(),
       ),
@@ -232,13 +244,46 @@ class _LoginScreenState extends State<LoginScreen> {
                                           AnimatedSize(
                                             duration: AppMotion.page,
                                             child: _register
-                                                ? _field(
-                                                    'name',
-                                                    'Your name',
-                                                    _name,
-                                                    icon: Icons.person_rounded,
-                                                    autofill: const [
-                                                      AutofillHints.name,
+                                                ? Column(
+                                                    children: [
+                                                      _field(
+                                                        'name',
+                                                        'Your name',
+                                                        _name,
+                                                        icon: Icons
+                                                            .person_rounded,
+                                                        autofill: const [
+                                                          AutofillHints.name,
+                                                        ],
+                                                      ),
+                                                      _field(
+                                                        'phone',
+                                                        'Mobile number (optional)',
+                                                        _phone,
+                                                        icon:
+                                                            Icons.phone_rounded,
+                                                        type:
+                                                            TextInputType.phone,
+                                                        autofill: const [
+                                                          AutofillHints
+                                                              .telephoneNumber,
+                                                        ],
+                                                        helper: 'We text you if a driver gets drowsy, even when you’re offline.',
+                                                        suffix: IconButton(
+                                                          key: const ValueKey(
+                                                            'phone-info',
+                                                          ),
+                                                          tooltip: 'Why we ask for your mobile number',
+                                                          icon: const Icon(
+                                                            Icons
+                                                                .help_outline_rounded,
+                                                          ),
+                                                          onPressed: () =>
+                                                              showPhoneInfo(
+                                                                context,
+                                                              ),
+                                                        ),
+                                                      ),
                                                     ],
                                                   )
                                                 : const SizedBox(

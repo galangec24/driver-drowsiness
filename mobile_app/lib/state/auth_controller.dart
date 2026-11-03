@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/phone_info_dialog.dart';
 
 class AuthController extends ChangeNotifier {
   AuthController(this._api, this._storage) {
@@ -67,8 +68,18 @@ class AuthController extends ChangeNotifier {
     await _setSession(r.token, r.user);
   }
 
-  Future<void> register(String name, String email, String password) async {
-    final r = await _api.register(name.trim(), email.trim(), password);
+  Future<void> register(
+    String name,
+    String email,
+    String password, {
+    String phone = '',
+  }) async {
+    final r = await _api.register(
+      name.trim(),
+      email.trim(),
+      password,
+      phone: phone.trim(),
+    );
     await _setSession(r.token, r.user);
   }
 
@@ -118,9 +129,13 @@ Map<String, String> validateAuthForm({
   required String name,
   required String email,
   required String password,
+  String phone = '',
 }) {
   final errors = <String, String>{};
   if (register && name.trim().isEmpty) errors['name'] = 'Enter your name';
+  if (register && phone.trim().isNotEmpty && normalizePhone(phone) == null) {
+    errors['phone'] = phoneHint;
+  }
   if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email.trim())) {
     errors['email'] = 'Enter a valid email';
   }

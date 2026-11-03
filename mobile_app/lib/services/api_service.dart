@@ -161,11 +161,17 @@ class ApiService {
   Future<({String token, AppUser user})> register(
     String name,
     String email,
-    String password,
-  ) => _call(() async {
+    String password, {
+    String phone = '',
+  }) => _call(() async {
     final r = await _dio.post<Map<String, dynamic>>(
       '/auth/register',
-      data: {'name': name, 'email': email, 'password': password},
+      data: {
+        'name': name,
+        'email': email,
+        'password': password,
+        if (phone.isNotEmpty) 'phone': phone,
+      },
     );
     if (r.data!['verificationRequired'] == true) {
       throw VerificationRequired(

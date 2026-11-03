@@ -90,6 +90,8 @@ the Windows app, with the car's location on a 3D map.
   and unknown-driver alerts, each with its confidence, sensor snapshot and location.
 - **3D live map.** The car's position with buildings, distance from you, and directions.
 - **Call the car.** One button; the in-car device answers hands-free (WebRTC audio).
+- **Text messages when a driver is drowsy.** Sent to the parent's mobile number (asked at sign-up,
+  with a (?) explaining why), so they are told even when offline or with the app closed.
 - **Notifications.** Separate Unread / Read lists; alerts can be removed. Alerts must be acknowledged on the
   day they happen; after that they stay "Unacknowledged" and can only be removed.
 - **Surveys and app rating.** Admins create surveys (or import Word / PDF / Excel), results appear as
@@ -383,6 +385,7 @@ Manual test scenarios: [docs/TESTING.md](docs/TESTING.md), [docs/NIGHT_VISION_TE
 | [docs/WEARABLE.md](docs/WEARABLE.md) | Radar and wrist unit: parts, wiring, firmware |
 | [docs/GOOGLE_SIGNIN.md](docs/GOOGLE_SIGNIN.md) | Google sign-in setup |
 | [docs/EMAIL.md](docs/EMAIL.md) | E-mail verification codes (Brevo) |
+| [docs/SMS.md](docs/SMS.md) | Text messages to parents when a driver is drowsy (Semaphore / Twilio) |
 | [docs/ADMIN.md](docs/ADMIN.md) | Admin console and the training worker |
 | [docs/TESTING.md](docs/TESTING.md) | Test plan |
 | [ml/README.md](ml/README.md) | False-positive verifier |

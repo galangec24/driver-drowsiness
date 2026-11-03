@@ -7,6 +7,7 @@ const alertDispatcher = require('./alertDispatcher');
 const statusStore = require('./statusStore');
 const signalWindow = require('./signalWindow');
 const driverCache = require('./driverCache');
+const smsAlerts = require('./smsAlerts');
 const fpVerifier = require('./fpVerifier');
 const { computeFeatures, MIN_TICKS } = require('./fpFeatures');
 const { startOfLocalDay } = require('../utils/alertDay');
@@ -285,6 +286,8 @@ async function writeAlert(
     await open.save();
     const pub = open.toPublic({ driverName: driver.name });
     alertDispatcher.dispatchAlertRepeated(pub, escalated);
+    // A warning that became drowsy: text the parent now (once per alert; not awaited).
+    if (escalated) smsAlerts.notifyAlert(open, driver);
     return pub;
   }
 
@@ -301,6 +304,7 @@ async function writeAlert(
   });
   const pub = alert.toPublic({ driverName: driver.name });
   alertDispatcher.dispatchNewAlert(pub);
+  smsAlerts.notifyAlert(alert, driver); // drowsy → text the parent's phone (not awaited)
   return pub;
 }
 

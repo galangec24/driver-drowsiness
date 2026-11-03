@@ -9,6 +9,7 @@ import '../models/user.dart';
 import '../services/api_service.dart';
 import '../state/auth_controller.dart';
 import '../state/data_controller.dart';
+import 'phone_info_dialog.dart';
 
 /// The user's round photo, or their initials.
 class UserAvatar extends StatelessWidget {
@@ -208,9 +209,17 @@ class _ProfileSheetState extends State<ProfileSheet> {
               controller: _phone,
               maxLength: 30,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Phone (optional)',
+              decoration: InputDecoration(
+                labelText: 'Mobile number (for drowsiness texts)',
                 counterText: '',
+                helperText: 'We text this number if a driver gets drowsy, even when you’re offline.',
+                helperMaxLines: 2,
+                suffixIcon: IconButton(
+                  key: const ValueKey('profile-phone-info'),
+                  tooltip: 'Why we ask for your mobile number',
+                  icon: const Icon(Icons.help_outline_rounded),
+                  onPressed: () => showPhoneInfo(context),
+                ),
               ),
             ),
             const SizedBox(height: 10),

@@ -10,6 +10,8 @@ import { DepthButton } from '../ui/DepthButton';
 import { Icon } from '../ui/Icon';
 import { UserAvatar } from '../ui/UserAvatar';
 import { useToast } from '../ui/Toast';
+import { PhoneInfoDialog } from '../auth/PhoneInfoDialog';
+import { normalizePhone, PHONE_HINT } from '../../lib/phone';
 
 /** Square, centre-cropped 256 px JPEG: small enough to upload quickly (~20 KB). */
 export function squareAvatar(img: HTMLImageElement, size = 256): string {
@@ -34,6 +36,8 @@ export function ProfileCard() {
   const [name, setName] = useState(user?.name ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [language, setLanguage] = useState(user?.language ?? 'auto');
+  const [phoneInfo, setPhoneInfo] = useState(false);
+  const phoneError = phone.trim() && !normalizePhone(phone) ? PHONE_HINT : '';
 
   useEffect(() => {
     if (window.location.hash === '#profile') {
@@ -125,7 +129,7 @@ export function ProfileCard() {
         className="grid gap-3 sm:grid-cols-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!name.trim()) return;
+          if (!name.trim() || phoneError) return;
           save.mutate({ name: name.trim(), phone: phone.trim(), language });
         }}
       >
@@ -133,17 +137,35 @@ export function ProfileCard() {
           Name
           <input className={field} value={name} maxLength={80} onChange={(e) => setName(e.target.value)} required />
         </label>
-        <label className="flex flex-col gap-1 text-xs text-ink-muted">
-          Phone (optional)
+        <div className="flex flex-col gap-1 text-xs text-ink-muted">
+          <span className="flex items-center gap-1">
+            <label htmlFor="profile-phone">Mobile number (for drowsiness texts)</label>
+            <button
+              type="button"
+              onClick={() => setPhoneInfo(true)}
+              aria-label="Why we ask for your mobile number"
+              className="rounded p-0.5 text-ink-muted hover:text-white"
+            >
+              <Icon name="help" size={14} />
+            </button>
+          </span>
           <input
+            id="profile-phone"
             className={field}
             value={phone}
             maxLength={30}
             inputMode="tel"
-            placeholder="+63 917 123 4567"
+            placeholder="0917 123 4567"
+            aria-invalid={Boolean(phoneError)}
             onChange={(e) => setPhone(e.target.value)}
           />
-        </label>
+          {phoneError ? (
+            <span className="text-red-300">{phoneError}</span>
+          ) : (
+            <span>We text this number if a driver gets drowsy, even when you're offline.</span>
+          )}
+        </div>
+        {phoneInfo && <PhoneInfoDialog onClose={() => setPhoneInfo(false)} />}
         <label className="flex flex-col gap-1 text-xs text-ink-muted">
           E-mail (used to sign in)
           <input className={`${field} opacity-70`} value={user?.email ?? ''} readOnly />

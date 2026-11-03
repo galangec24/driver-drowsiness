@@ -11,7 +11,7 @@ import numpy as np
 import requests
 
 SNAPSHOT_MAX_WIDTH = 640
-SNAPSHOT_JPEG_QUALITY = 75
+SNAPSHOT_JPEG_QUALITY = 90  # the parent's alert photo: keep detail (~60-120 KB)
 
 
 def build_payload(

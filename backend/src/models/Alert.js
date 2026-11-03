@@ -65,6 +65,16 @@ const alertSchema = new mongoose.Schema(
       by: { type: String, enum: ['apk', 'web', 'unknown'] },
       at: Date,
     },
+    // Text message to the parent's phone (drowsy / microsleep only; services/smsAlerts.js).
+    sms: {
+      type: {
+        status: { type: String, enum: ['sending', 'sent', 'failed', 'no_phone', 'limit'] },
+        to: String, // masked, e.g. +63•••••4567
+        at: Date,
+        error: String,
+      },
+      default: undefined,
+    },
     // Verifier evidence at alert time (server-side only; exported for retraining).
     verifier: { type: verifierSchema, select: false, default: undefined },
   },
@@ -99,6 +109,8 @@ alertSchema.methods.toPublic = function toPublic(extra = {}) {
     lastDetectedAt: this.lastDetectedAt || this.createdAt,
     readAt: this.readAt || null,
     falseAlarm: this.feedback ? (this.feedback.falseAlarm ?? null) : null,
+    // "Texted to +63•••••4567" in the alert details.
+    sms: this.sms && this.sms.status === 'sent' ? { to: this.sms.to, at: this.sms.at } : null,
     createdAt: this.createdAt,
     ...extra,
   };

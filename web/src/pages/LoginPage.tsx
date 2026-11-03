@@ -19,15 +19,18 @@ import { ParallaxScene } from '../components/ui/ParallaxScene';
 import { TiltCard, TiltLayer } from '../components/ui/TiltCard';
 import { Copyright } from '../components/legal/Copyright';
 import { AnimatedBackground } from '../components/layout/AnimatedBackground';
+import { PhoneInfoDialog } from '../components/auth/PhoneInfoDialog';
+import { normalizePhone, PHONE_HINT } from '../lib/phone';
 
 type Mode = 'login' | 'register';
 
 export function validateAuthForm(
   mode: Mode,
-  v: { name: string; email: string; password: string },
+  v: { name: string; email: string; password: string; phone?: string },
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   if (mode === 'register' && !v.name.trim()) errors.name = 'Enter your name';
+  if (mode === 'register' && v.phone?.trim() && !normalizePhone(v.phone)) errors.phone = PHONE_HINT;
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email.trim())) errors.email = 'Enter a valid email';
   if (mode === 'register' ? v.password.length < 8 : !v.password) {
     errors.password = mode === 'register' ? 'Use at least 8 characters' : 'Enter your password';
@@ -46,7 +49,8 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mode, setMode] = useState<Mode>('login');
-  const [values, setValues] = useState({ name: '', email: '', password: '' });
+  const [values, setValues] = useState({ name: '', email: '', password: '', phone: '' });
+  const [phoneInfo, setPhoneInfo] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -93,7 +97,7 @@ export function LoginPage() {
       const res =
         mode === 'login'
           ? await login(values.email.trim(), values.password)
-          : await register(values.name.trim(), values.email.trim(), values.password);
+          : await register(values.name.trim(), values.email.trim(), values.password, values.phone.trim());
       if ('verificationRequired' in res) {
         setPending({ email: res.email, retryAfterS: res.retryAfterS, emailSent: res.emailSent });
         return;
@@ -110,6 +114,7 @@ export function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
+      {phoneInfo && <PhoneInfoDialog onClose={() => setPhoneInfo(false)} />}
       <AnimatedBackground />
       <ParallaxScene />
       <div className="relative grid w-full max-w-5xl items-center gap-10 lg:grid-cols-2">
@@ -237,6 +242,32 @@ export function LoginPage() {
                             onChange={set('name')}
                             error={errors.name}
                           />
+                        </TiltLayer>
+                        <TiltLayer depth={24} className="mt-4">
+                          <FloatingInput
+                            label="Mobile number (optional)"
+                            type="tel"
+                            inputMode="tel"
+                            autoComplete="tel"
+                            icon={<Icon name="phone" size={18} />}
+                            value={values.phone}
+                            onChange={set('phone')}
+                            error={errors.phone}
+                            trailing={
+                              <button
+                                type="button"
+                                onClick={() => setPhoneInfo(true)}
+                                aria-label="Why we ask for your mobile number"
+                                data-testid="phone-info"
+                                className="rounded-lg p-2 text-ink-muted transition-colors hover:bg-white/10 hover:text-white"
+                              >
+                                <Icon name="help" size={18} />
+                              </button>
+                            }
+                          />
+                          <p className="mt-1 px-1 text-xs text-ink-muted">
+                            We text you if a driver gets drowsy, even when you're offline.
+                          </p>
                         </TiltLayer>
                       </motion.div>
                     )}
