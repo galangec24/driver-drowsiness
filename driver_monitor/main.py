@@ -102,6 +102,9 @@ class Monitor:
     # The alert photo: eyes closed (the moment of the closure, not the second after) and sharp
     # (not the blurred middle of a head drop), from the last 3 reading intervals.
     evidence: EvidencePicker = field(default_factory=EvidencePicker)
+    # Longest continuous eye closure in the current reading interval (seconds): the server lets a
+    # camera-confirmed microsleep through without the false-alarm verifier.
+    _max_closed_s: float = 0.0
     distraction: DistractionDetector = field(default_factory=DistractionDetector)
     hearts: list[HeartRateState] = field(default_factory=list)  # BLE HR sources, priority order
     breathing: BreathingState | None = None  # dashboard radar
@@ -159,6 +162,7 @@ class Monitor:
         self.yawn.update(result.mar, t)
         result.yawning = self.yawn.yawning
         face = result.landmarks is not None
+        self._max_closed_s = max(self._max_closed_s, self.perclos.closed_for(t))
         self.fatigue = self.fuzzy.evaluate(
             perclos=self.perclos.effective(t) if face else None,
             closure_s=self.perclos.closed_for(t) if face else None,
@@ -236,7 +240,9 @@ class Monitor:
             "distractionCount": self.distraction.count(t),
             "longBlinkCount": self.blink.long_blinks(t),
             "fuzzyScore": self.fatigue.score,
+            "closedForS": round(self._max_closed_s, 1),
         }
+        self._max_closed_s = 0.0
         if self.fatigue.level > 0 and self.fatigue.reason:
             # Shown to the family on the alert: "Fatigue signs: repeated yawning (3+ in 10 min)"
             extra["fatigueReason"] = f"{self.fatigue.category}: {self.fatigue.reason}"[:120]

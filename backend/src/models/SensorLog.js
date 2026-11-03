@@ -20,6 +20,7 @@ const sensorLogSchema = new mongoose.Schema(
       blinkRate: Number,
       longBlinkCount: Number,
       fuzzyScore: Number,
+      closedForS: Number,
       fatigueReason: String,
       mar: Number,
       breathingRate: Number,

@@ -121,6 +121,26 @@ def test_closing_eyes_raises_perclos() -> None:
     assert m.make_payload(t)["signals"]["ear"] < 0.2
 
 
+def test_payload_reports_the_longest_closure_of_the_interval() -> None:
+    """closedForS lets the server pass a camera-confirmed microsleep without the verifier."""
+    m, lm = make_monitor()
+    t = 0.0
+    for frame in mock_camera(60):  # 2 s open: baseline
+        m.process_frame(frame, t)
+        t += 1 / 30
+    assert m.make_payload(t)["signals"]["closedForS"] == 0.0
+    lm.opening = 2.0  # eyes shut for 2.5 s
+    for frame in mock_camera(75):
+        m.process_frame(frame, t)
+        t += 1 / 30
+    lm.opening = 12.0  # open again before the reading is sent
+    for frame in mock_camera(15):
+        m.process_frame(frame, t)
+        t += 1 / 30
+    assert m.make_payload(t)["signals"]["closedForS"] >= 2.0  # the closure is not lost
+    assert m.make_payload(t)["signals"]["closedForS"] == 0.0  # reset for the next interval
+
+
 def test_no_face_omits_ear_and_perclos() -> None:
     m, _ = make_monitor(FakeDetector(present=False))
     for i, frame in enumerate(mock_camera(30)):

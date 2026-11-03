@@ -58,6 +58,8 @@ const ingestSchema = z
         blinkRate: finite.min(0).max(300).optional(),
         longBlinkCount: z.number().int().min(0).max(200).optional(),
         fuzzyScore: finite.min(0).max(1).optional(),
+        // Longest continuous eye closure the camera saw since its last reading (seconds).
+        closedForS: finite.min(0).max(600).optional(),
         // The camera's explanation, e.g. "repeated yawning (3+ in 10 min)".
         fatigueReason: z.string().max(120).optional(),
         mar: finite.min(0).max(5).optional(),

@@ -142,6 +142,22 @@ function alertTypeFor(classification, signals, driver, components = {}) {
   return deepClosure ? 'microsleep' : 'drowsy';
 }
 
+/**
+ * The camera itself saw the eyes closed continuously for at least the driver's microsleep limit
+ * (drowsyDurationMs, 2 s by default). That is a direct observation, so the alert skips the
+ * false-alarm verifier: trained on simulated drives, it rates a short closure after normal driving
+ * as a glance or squint (field test 2026-11-03: a real 3 s microsleep scored 0.03 vs 0.96).
+ * Monitors from before `closedForS` are recognised by their fuzzy rule's label.
+ */
+function cameraMicrosleep(signals, driver) {
+  const limitS = resolveThresholds(driver, signals).drowsyDurationMs / 1000;
+  if (typeof signals.closedForS === 'number') return signals.closedForS >= limitS;
+  return (
+    typeof signals.fatigueReason === 'string' &&
+    /eyes closed too long|microsleep/i.test(signals.fatigueReason)
+  );
+}
+
 /** Observed types: true when the count grew since the last alert (and tracks it shrinking). */
 function hasNewEvidence(driverId, signals) {
   const fresh = {};
@@ -187,6 +203,7 @@ function extraSignals(signals) {
     'blinkRate',
     'longBlinkCount',
     'fuzzyScore',
+    'closedForS',
     'fatigueReason',
     'mar',
     'breathingRate',
@@ -271,6 +288,7 @@ async function writeAlert(
     ...(typeof signals.blinkRate === 'number' && { blinkRate: signals.blinkRate }),
     ...(typeof signals.longBlinkCount === 'number' && { longBlinkCount: signals.longBlinkCount }),
     ...(typeof signals.fuzzyScore === 'number' && { fuzzyScore: signals.fuzzyScore }),
+    ...(typeof signals.closedForS === 'number' && { closedForS: signals.closedForS }),
     ...(typeof signals.fatigueReason === 'string' &&
       signals.fatigueReason && { fatigueReason: signals.fatigueReason }),
     ...(typeof signals.breathingRate === 'number' && { breathingRate: signals.breathingRate }),
@@ -359,11 +377,15 @@ async function processIngest(driver, payload) {
   });
 
   // Candidate alert type + verifier verdict (pure computation; side effects follow in order).
-  const type = alertTypeFor(classification, signals, driver, components);
+  const microsleep = cameraMicrosleep(signals, driver);
+  const type = microsleep
+    ? 'microsleep'
+    : alertTypeFor(classification, signals, driver, components);
   const fresh = queued ? null : hasNewEvidence(driverId, signals);
-  // The verifier models eye/heart-rate confounders; a yawn count is a direct, debounced
-  // observation, so yawning alerts don't go through it.
-  const verdict = type && !OBSERVED_TYPES.has(type) ? verifyCandidate(window, driver) : null;
+  // The verifier models eye/heart-rate confounders; a yawn count and a camera-confirmed microsleep
+  // are direct observations, so they don't go through it.
+  const verdict =
+    type && !OBSERVED_TYPES.has(type) && !microsleep ? verifyCandidate(window, driver) : null;
 
   // 5. SensorLog — always, even for 'alert'
   const logPromise = SensorLog.create({
@@ -386,7 +408,7 @@ async function processIngest(driver, payload) {
   let alertId = null;
   const alertPromises = [];
   const observed = OBSERVED_TYPES.has(type);
-  const allowed = observed ? !fresh || fresh[type] : verdict && verdict.allow;
+  const allowed = microsleep || (observed ? !fresh || fresh[type] : verdict && verdict.allow);
   if (type && allowed && !inCooldown(driverId, type, now)) {
     lastAlertAt.set(`${driverId}:${type}`, now);
     if (observed && fresh) {

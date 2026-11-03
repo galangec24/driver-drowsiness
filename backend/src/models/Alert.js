@@ -38,6 +38,7 @@ const alertSchema = new mongoose.Schema(
       blinkRate: Number,
       longBlinkCount: Number,
       fuzzyScore: Number,
+      closedForS: Number, // eyes closed this long (camera-confirmed microsleep)
       // Why the camera judged fatigue, e.g. "repeated yawning (3+ in 10 min)".
       fatigueReason: String,
       breathingRate: Number,
