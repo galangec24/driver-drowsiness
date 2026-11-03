@@ -4,6 +4,8 @@ picture while the eyes were in plain view."""
 
 from __future__ import annotations
 
+import pytest
+
 from detectors.ear import LEFT_EYE, RIGHT_EYE
 from detectors.perclos import PerclosTracker
 from main import eyes_in_frame
@@ -37,10 +39,10 @@ def test_fully_closed_eyes_start_the_microsleep_timer() -> None:
 
 
 def test_a_brief_dip_does_not_keep_narrowed_eyes_closed() -> None:
-    """The old 70 % / 80 % pair: one dip below 70 % and narrowed eyes at 72-78 % stayed "closed"."""
+    """The old pairs: one dip and squinting eyes at 66-78 % stayed "closed" (field trace 4: 68 %)."""
     p, t = calibrated()
-    t = feed(p, [0.30 * 0.55], t)  # one dip below the 60 % line
-    t = feed(p, [0.30 * 0.74] * 30, t)  # narrowed, clearly above the 68 % reopen line
+    t = feed(p, [0.30 * 0.45], t)  # one dip below the 50 % line
+    t = feed(p, [0.30 * 0.66] * 30, t)  # squinting, above the 62 % reopen line
     assert p.closed_for(t) == 0.0
 
 
@@ -59,3 +61,52 @@ def test_eyes_in_view_count_even_with_the_chin_out_of_the_picture() -> None:
 def test_eyes_at_the_edge_of_the_picture_do_not_count() -> None:
     assert not eyes_in_frame(face_points((320, 476)), 640, 480)
     assert not eyes_in_frame(face_points((3, 200)), 640, 480)
+
+
+# Field test 2026-11-03 (second round): blinking a lot (irritated eyes) and one eye shut.
+
+
+def test_one_eye_open_is_not_closed_eyes() -> None:
+    from detectors.ear import open_eye_ear
+
+    pts = [(0.0, 0.0)] * 478
+    open_eye = [(0, 0), (10, -3), (20, -3), (30, 0), (20, 3), (10, 3)]  # EAR 0.2
+    shut_eye = [(0, 0), (10, -0.3), (20, -0.3), (30, 0), (20, 0.3), (10, 0.3)]  # EAR 0.02
+    for i, p in zip(RIGHT_EYE, open_eye, strict=True):
+        pts[i] = (100 + p[0], 100 + p[1])
+    for i, p in zip(LEFT_EYE, shut_eye, strict=True):
+        pts[i] = (200 + p[0], 100 + p[1])
+    assert open_eye_ear(pts) == pytest.approx(0.2)
+
+
+def test_rapid_blinking_is_not_a_microsleep_or_eyes_closed() -> None:
+    """Blinking about twice a second, seen at ~4 frames/s (this laptop): closed, open, closed..."""
+    p, t = calibrated()
+    longest = 0.0
+    for i in range(60):  # 15 s
+        p.update(0.30 * (0.15 if i % 2 == 0 else 0.95), t)
+        t += 0.25
+        longest = max(longest, p.closed_for(t))
+    assert longest < 0.5  # every open frame ends the "closure": no microsleep timer
+    assert p.value < 0.1  # quick blinks are not "eyes closed much of the time"
+    assert p.effective(t) < 0.1
+
+
+def test_slow_closures_still_count_toward_perclos() -> None:
+    p, t = calibrated()
+    for _ in range(10):  # 1 s closed, 2 s open, repeated: heavy, slow blinks
+        t = feed(p, [0.30 * 0.2] * 10, t)
+        t = feed(p, [0.30] * 20, t)
+    assert p.value > 0.25
+
+
+def test_squinting_open_eye_with_the_other_shut_stays_awake() -> None:
+    """Field trace 4 / "Latest Capture": one eye shut, the open one squinting at 0.59-0.70."""
+    p, t = calibrated()
+    squint = [0.30 * r for r in [0.59, 0.66, 0.70, 0.62, 0.68, 0.64, 0.61, 0.67] * 10]
+    longest = 0.0
+    for e in squint:
+        p.update(e, t)
+        t += 0.1
+        longest = max(longest, p.closed_for(t))
+    assert longest == 0.0

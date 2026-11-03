@@ -24,7 +24,7 @@ import numpy as np
 import config
 from detectors.blink import BlinkDetector
 from detectors.distraction import DistractionDetector
-from detectors.ear import LEFT_EYE, RIGHT_EYE, average_ear
+from detectors.ear import LEFT_EYE, RIGHT_EYE, open_eye_ear
 from detectors.eye_state import EyeStateModel, crop_eye
 from detectors.face_detector import FaceBox
 from detectors.head_nod import NodDetector
@@ -126,7 +126,7 @@ class Monitor:
         if result.face is not None:
             result.landmarks = self.landmarker.extract(rgb)
         if result.landmarks:
-            result.ear = average_ear(result.landmarks)
+            result.ear = open_eye_ear(result.landmarks)  # one open eye = awake
             closed = None
             if self.eye_model is not None:
                 result.eye_closed_prob = self.eye_closed_prob(bgr, result.landmarks)

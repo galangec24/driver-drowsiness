@@ -35,3 +35,12 @@ def average_ear(landmarks: Sequence[Point]) -> float:
     right = [landmarks[i] for i in RIGHT_EYE]
     left = [landmarks[i] for i in LEFT_EYE]
     return (eye_aspect_ratio(right) + eye_aspect_ratio(left)) / 2.0
+
+
+def open_eye_ear(landmarks: Sequence[Point]) -> float:
+    """EAR of the *more open* eye. Drowsiness closes both eyes, so one open eye means awake: a
+    wink, one eye shut against dust or sun, or a far eye foreshortened by a head turn must not read
+    as "eyes closed" (the mean of both did: one eye shut = half closed)."""
+    right = [landmarks[i] for i in RIGHT_EYE]
+    left = [landmarks[i] for i in LEFT_EYE]
+    return max(eye_aspect_ratio(right), eye_aspect_ratio(left))

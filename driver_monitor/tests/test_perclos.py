@@ -37,8 +37,8 @@ def test_fraction_closed_after_calibration() -> None:
 def test_relative_to_driver_baseline() -> None:
     """The same absolute EAR is 'closed' for a wide-eyed driver but 'open' for a narrow-eyed one."""
     wide, narrow = PerclosTracker(), PerclosTracker()
-    feed(wide, [0.34] * 50 + [0.20] * 50)
-    feed(narrow, [0.21] * 50 + [0.20] * 50)
+    feed(wide, [0.34] * 50 + [0.15] * 50)  # 44 % of a 0.34 eye: closed
+    feed(narrow, [0.21] * 50 + [0.15] * 50)  # 71 % of a 0.21 eye: open
     assert wide.value > 0.3
     assert narrow.value == pytest.approx(0.0)
 
@@ -69,11 +69,11 @@ def test_narrow_eyes_noisy_frame_does_not_restart_closure() -> None:
     tr = PerclosTracker()
     t = feed(tr, [0.17, 0.18, 0.16] * 30)  # narrow open eyes, ~0.17
     start = t
-    # closed (~0.09) with one noisy frame that looks just above the cut-off (0.125)
-    t = feed(tr, [0.09] * 8 + [0.13] + [0.09] * 15, start=t)
+    # closed (~0.07) with one noisy frame that looks open (0.13)
+    t = feed(tr, [0.07] * 8 + [0.13] + [0.07] * 15, start=t)
     assert tr.closed_for(t) == pytest.approx(t - start, abs=0.15)
-    # hysteresis: 0.13 is not "clearly open" for a 0.17 eye, so the closure goes on
-    t = feed(tr, [0.13] * 3 + [0.09] * 3, start=t)
+    # hysteresis: 0.105 (58 %) is not open again for a ~0.18 eye, so the closure goes on
+    t = feed(tr, [0.105] * 3 + [0.07] * 3, start=t)
     assert tr.closed_for(t) >= 2.4
     t = feed(tr, [0.17] * 5, start=t)  # really open
     assert tr.closed_for(t) == 0

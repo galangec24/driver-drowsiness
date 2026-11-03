@@ -67,5 +67,5 @@ def test_trained_model_loads_and_outputs_probabilities():
 def test_perclos_uses_model_decision_when_given():
     tr = PerclosTracker(min_baseline_samples=5)
     for i in range(40):  # EAR looks fully open, but the image model says closed half the time
-        tr.update(0.30, i * 0.1, closed=(i % 2 == 0))
+        tr.update(0.30, i * 0.1, closed=((i // 5) % 2 == 0))  # 0.5 s closed, 0.5 s open
     assert tr.value == pytest.approx(0.5)

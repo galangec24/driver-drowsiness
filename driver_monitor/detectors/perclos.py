@@ -4,10 +4,12 @@
 so there is no absolute EAR threshold here. The backend still applies each driver's personal
 thresholds to the raw EAR/PERCLOS it receives.
 
-Closed = below `closure_ratio` (60 %) of the open-eye EAR; open again above 68 %. Field trace
-(2026-11-03, narrow eyes): fully closed read 0.04-0.41 of the baseline, deliberately narrowed eyes
-0.66-0.78, so the old 70 % / 80 % pair counted narrowed eyes as a microsleep. 60 % is also closer to
-the standard PERCLOS definition (P80: the eye counts as closed when it is >= 80 % closed).
+Closed = below `closure_ratio` (50 %) of the open-eye EAR; open again above 62 %. Field traces
+(2026-11-03): fully closed eyes read 0.04-0.44 of the baseline, while narrowed eyes, rapid blinking
+and the open eye squinting while the other is shut read 0.55-0.78. Replaying the recorded traces,
+50 % / 62 % flagged none of those and covered 40 of 41 s of real closures (70 % / 80 % and 60 % / 68 %
+raised false microsleeps). It also matches the standard PERCLOS definition (P80: closed when the
+eye is >= 80 % closed).
 
 Narrow eyes: the open/closed gap is small, so one noisy frame used to flip "closed" back to
 "open" and restart the microsleep timer. Closure now has hysteresis (re-opening needs a clearly
@@ -28,14 +30,17 @@ class PerclosTracker:
     def __init__(
         self,
         window_s: float = 30.0,
-        closure_ratio: float = 0.6,
+        closure_ratio: float = 0.5,
         baseline_window_s: float = 120.0,
         baseline_percentile: float = 90.0,
         min_baseline_samples: int = 15,
-        reopen_margin: float = 0.08,
+        reopen_margin: float = 0.12,
         open_grace_s: float = 0.3,
         min_coverage_s: float = 3.0,
         drop_before_loss_s: float = 0.6,
+        clearly_open_ratio: float = 0.75,
+        blink_max_s: float = 0.4,
+        frame_s: float = 0.1,
     ) -> None:
         if not 0 < closure_ratio < 1:
             raise ValueError("closure_ratio must be between 0 and 1")
@@ -48,6 +53,16 @@ class PerclosTracker:
         self.open_grace_s = open_grace_s
         self.min_coverage_s = min_coverage_s
         self.drop_before_loss_s = drop_before_loss_s
+        # A clearly open reading ends a closure at once: the grace above is for borderline
+        # (landmark-noise) readings only. Otherwise the one open frame between quick blinks, at a
+        # few frames per second, glued rapid blinking into one long "microsleep".
+        self.clearly_open_ratio = clearly_open_ratio
+        # Closures shorter than this are ordinary blinks: they don't count toward PERCLOS (a
+        # driver blinking a lot because of dust is not "eyes closed much of the time"). Slow blinks
+        # are counted separately (detectors/blink.py).
+        self.blink_max_s = blink_max_s
+        self.frame_s = frame_s
+        self._last_closed_t: float | None = None
         self._open_since: float | None = None
         self._is_closed = False
         self._lost = False
@@ -93,15 +108,28 @@ class PerclosTracker:
         if closed:
             self._open_since = None
             self._closed_since = t if self._closed_since is None else self._closed_since
+            self._last_closed_t = t
         elif self._closed_since is not None:
-            # A brief "open" reading inside a closure (landmark noise) doesn't end it.
+            # A brief borderline "open" reading inside a closure (landmark noise) doesn't end it;
+            # a clearly open eye does.
             self._open_since = t if self._open_since is None else self._open_since
-            if t - self._open_since >= self.open_grace_s:
-                self._closed_since, self._open_since = None, None
+            clearly_open = base is not None and ear >= base * self.clearly_open_ratio
+            if clearly_open or t - self._open_since >= self.open_grace_s:
+                self._end_closure(t)
         self._closed.append((t, closed))
         while self._closed and t - self._closed[0][0] > self.window_s:
             self._closed.popleft()
         return self.value
+
+    def _end_closure(self, t: float) -> None:
+        """The eyes are open again. A closure as short as a blink is taken back out of PERCLOS."""
+        start, last = self._closed_since, self._last_closed_t
+        self._closed_since, self._open_since = None, None
+        if start is None or last is None:
+            return
+        duration = (last - start) + min(t - last, self.frame_s)
+        if duration < self.blink_max_s:
+            self._closed = deque((ts, False if ts >= start else c) for ts, c in self._closed)
 
     @property
     def raw_closed(self) -> bool:

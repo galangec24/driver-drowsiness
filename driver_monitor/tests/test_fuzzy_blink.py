@@ -238,8 +238,8 @@ def test_perclos_for_alarms_recovers_when_eyes_stay_open() -> None:
 
     p = PerclosTracker()
     t = 0.0
-    for i in range(300):  # 30 s: eyes closed half the time
-        p.update(0.3 if i < 50 or i % 2 else 0.05, t)
+    for i in range(300):  # 30 s: eyes closed half the time (1 s closed, 1 s open)
+        p.update(0.3 if i < 50 or (i // 10) % 2 else 0.05, t)
         t += 0.1
     assert p.value > 0.35 and p.effective(t) > 0.35
     for _ in range(110):  # 11 s eyes open
@@ -277,10 +277,10 @@ def test_blink_length_ignores_the_narrow_eye_hysteresis() -> None:
     from detectors.perclos import PerclosTracker
 
     p = PerclosTracker()
-    t = feed_ear(p, [0.30] * 60)  # open baseline ~0.30, closed below 0.18 (60 %)
+    t = feed_ear(p, [0.30] * 60)  # open baseline ~0.30, closed below 0.15 (50 %)
     p.update(0.12, t)  # closed
     assert p.raw_closed and p.is_closed
-    p.update(0.19, t + 0.1)  # reopening: above the plain threshold, below "clearly open" (0.204)
+    p.update(0.17, t + 0.1)  # reopening: above the plain threshold, below "clearly open" (0.186)
     assert p.is_closed  # hysteresis still says closed (for microsleep timing)
     assert not p.raw_closed  # but the blink already ended (for blink timing)
 
