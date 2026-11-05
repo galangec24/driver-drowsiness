@@ -6,6 +6,11 @@ photos taken when each driver was registered in the app). Readings are sent for 
 driver only. When the seat has been empty for a while, the driver may have changed, so the next
 face is identified again. A fixed DRIVER_ID turns all of this off (one-driver car / testing).
 
+While the seat is empty (gas station, takeout) the car keeps the last driver as `away_driver`
+for `away_max_s`, so the parent sees "Away from the car" instead of "Offline". A face that stays
+unrecognised in the driver's seat for `unknown_after_s` is reported once per episode
+(`should_report_unknown`): someone who isn't a registered driver is driving the family car.
+
 Pure state machine (no camera, no network) so it can be unit-tested.
 """
 
@@ -22,6 +27,8 @@ class DriverIdentity:
     absent_reset_s: float = 20.0  # seat empty this long -> the driver may have changed
     recheck_s: float = 300.0  # while driving: confirm the driver every 5 minutes
     error_retry_s: float = 10.0
+    unknown_after_s: float = 30.0
+    away_max_s: float = 30 * 60.0
 
     driver_id: str = ""
     name: str = ""
@@ -33,6 +40,9 @@ class DriverIdentity:
     _next_try: float = 0.0
     _absent_since: float | None = None
     _pending: bool = False
+    last_driver_id: str = ""  # who was driving before the seat became empty
+    _unknown_since: float | None = None
+    _unknown_reported: bool = False
 
     def __post_init__(self) -> None:
         if self.fixed_id:
@@ -53,7 +63,10 @@ class DriverIdentity:
         if self._absent_since is None:
             self._absent_since = t
             return False
+        if t - self._absent_since >= self.absent_reset_s:
+            self._unknown_since, self._unknown_reported = None, False
         if self.driver_id and t - self._absent_since >= self.absent_reset_s:
+            self.last_driver_id = self.driver_id
             self.driver_id, self.name, self.confidence = "", "", 0.0
             self.status, self.detail = "identifying", ""
             self._next_try = 0.0
@@ -78,6 +91,8 @@ class DriverIdentity:
             self.passengers = tuple(str(p.get("name") or "") for p in res.get("passengers") or [])
             self.status, self.detail = "identified", ""
             self._next_try = t + self.recheck_s
+            self.last_driver_id = self.driver_id
+            self._unknown_since, self._unknown_reported = None, False
             return changed
         if self.driver_id:
             # A routine re-check that didn't get a clear look (bad angle, hand over the face):
@@ -88,6 +103,11 @@ class DriverIdentity:
         self.status = (
             "ambiguous" if reason == "ambiguous" else "unknown" if reason == "unknown" else "identifying"
         )
+        if self.status == "unknown":
+            if self._unknown_since is None:
+                self._unknown_since = t
+        elif reason != "no_face":
+            self._unknown_since = None
         candidates = res.get("candidates") or []
         self.detail = " / ".join(str(c) for c in candidates)
         self._next_try = t + self.retry_s
@@ -99,6 +119,28 @@ class DriverIdentity:
             self.status = "error"
         self.detail = message[:120]
         self._next_try = t + self.error_retry_s
+
+    def away_driver(self, t: float) -> str:
+        """The driver whose car this is while the seat is empty ('' when someone is in it, or after
+        `away_max_s`): the parent sees "Away from the car"."""
+        if not self.automatic or self.driver_id or self._absent_since is None:
+            return ""
+        if t - self._absent_since > self.away_max_s:
+            return ""
+        return self.last_driver_id
+
+    def should_report_unknown(self, face_visible: bool, t: float) -> bool:
+        """An unrecognised face has been in the driver's seat for `unknown_after_s`."""
+        return (
+            self.automatic
+            and face_visible
+            and not self._unknown_reported
+            and self._unknown_since is not None
+            and t - self._unknown_since >= self.unknown_after_s
+        )
+
+    def reported_unknown(self) -> None:
+        self._unknown_reported = True
 
     def label(self) -> str:
         """One line for the preview window."""

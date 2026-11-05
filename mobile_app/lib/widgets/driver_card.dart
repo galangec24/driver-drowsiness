@@ -28,7 +28,9 @@ class DriverCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final offline = status == DriverStatus.offline;
+    // Offline, or out of the car: no live readings to show.
+    final offline =
+        status == DriverStatus.offline || status == DriverStatus.away;
     final score = live?.fusionScore ?? 0;
     final barColor = score > 0.7
         ? AppColors.danger

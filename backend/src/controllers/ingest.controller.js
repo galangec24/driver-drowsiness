@@ -16,6 +16,7 @@ const { analyzeAllFaces } = require('../services/faceEnrollment');
 const faceQueue = require('../services/faceQueue');
 const { pickDriver } = require('../services/driverIdentifier');
 const { loadFaceModels, isReady } = require('../config/faceApi');
+const statusStore = require('../services/statusStore');
 
 const objectId = z.string().regex(/^[a-f0-9]{24}$/i, 'must be a 24-char hex ObjectId');
 const finite = z.number().finite();
@@ -240,6 +241,58 @@ async function eyeStateModel(_req, res) {
   res.json({ version: release._id.toString(), model: release.artifact });
 }
 
+const awaySchema = z.object({ driverId: objectId });
+
+/** POST /api/ingest/away {driverId}: the seat is empty (gas station, takeout). */
+async function away(req, res) {
+  const driver = await driverCache.get(req.body.driverId);
+  if (!driver) throw new HttpError(404, 'Driver not found');
+  ingestService.markAway(driver);
+  res.json({ status: 'away' });
+}
+
+const unknownDriverSchema = z.object({
+  family: z.string().trim().toLowerCase().email(),
+  image: z.string().min(100, 'image must be base64 JPEG/PNG data'),
+  lastDriverId: objectId.optional(),
+});
+
+/**
+ * POST /api/ingest/unknown-driver {family, image, lastDriverId?}: someone who isn't one of this
+ * family's registered drivers has been at the wheel for a while. The alert goes on the car's usual
+ * driver: the one who drove last, else the family's most recently active driver.
+ */
+async function unknownDriver(req, res) {
+  const parent = await User.findOne({ email: req.body.family }).select('_id');
+  if (!parent) throw new HttpError(404, 'No Guardian Drive account uses that FAMILY_EMAIL');
+  const drivers = await Driver.find({ parentId: parent._id }).select('name parentId');
+  if (!drivers.length) throw new HttpError(409, 'This family has no drivers yet');
+  const seen = (d) => {
+    const s = statusStore.get(d._id.toString());
+    return s && s.lastUpdate ? new Date(s.lastUpdate).getTime() : 0;
+  };
+  const driver =
+    drivers.find((d) => d._id.toString() === req.body.lastDriverId) ||
+    [...drivers].sort((a, b) => seen(b) - seen(a))[0];
+  const buffer = base64ToBuffer(req.body.image);
+  if (buffer.length > SNAPSHOT_MAX_BYTES) throw new HttpError(413, 'Image exceeds 1.5 MB');
+  const format = sniff(buffer);
+  if (!format) throw new HttpError(415, 'Unsupported image format (use JPEG or PNG)');
+
+  const pub = await ingestService.reportUnknownDriver(driver);
+  if (!pub) {
+    res.json({ alertId: null, driverId: driver._id.toString(), reason: 'cooldown' });
+    return;
+  }
+  const alert = await Alert.findById(pub.id);
+  alert.snapshotUrl = await storeAlertSnapshot(driver._id.toString(), pub.id, buffer, format);
+  await alert.save();
+  alertDispatcher.dispatchAlertUpdated(alert.parentId.toString(), pub.id, {
+    snapshotUrl: alert.snapshotUrl,
+  });
+  res.status(201).json({ alertId: pub.id, driverId: driver._id.toString() });
+}
+
 function markStart(req, _res, next) {
   req.ingestStartedAt = process.hrtime.bigint();
   next();
@@ -255,4 +308,8 @@ module.exports = {
   identify,
   thresholds,
   eyeStateModel,
+  away,
+  awaySchema,
+  unknownDriver,
+  unknownDriverSchema,
 };

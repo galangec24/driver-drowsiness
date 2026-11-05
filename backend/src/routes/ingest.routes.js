@@ -21,6 +21,16 @@ router.post('/snapshot', validate(ctrl.snapshotSchema), requireApiKey, asyncHand
 // Which of the family's drivers is in front of the camera (same API key).
 router.post('/identify', validate(ctrl.identifySchema), requireApiKey, asyncHandler(ctrl.identify));
 
+// The seat is empty: "Away from the car" for the parent (same API key).
+router.post('/away', validate(ctrl.awaySchema), requireApiKey, asyncHandler(ctrl.away));
+// Someone who isn't a registered driver is at the wheel (same API key).
+router.post(
+  '/unknown-driver',
+  validate(ctrl.unknownDriverSchema),
+  requireApiKey,
+  asyncHandler(ctrl.unknownDriver),
+);
+
 // Personal thresholds for on-device checks (same API key).
 router.get('/drivers/:id/thresholds', requireApiKey, asyncHandler(ctrl.thresholds));
 // Admin-promoted eye open/closed model for the in-car monitor.

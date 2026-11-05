@@ -40,7 +40,8 @@ export interface GeoLocation {
 }
 
 export type Classification = 'alert' | 'warning' | 'drowsy';
-export type DriverStatus = Classification | 'offline';
+/** away: the driver is out of the car (seat empty, e.g. at a gas station); the car still reports. */
+export type DriverStatus = Classification | 'away' | 'offline';
 
 export interface Driver {
   id: string;

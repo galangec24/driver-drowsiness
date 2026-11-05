@@ -5,6 +5,7 @@ const styles: Record<DriverStatus, string> = {
   alert: 'bg-accent-ok/15 text-emerald-300 border-accent-ok/40',
   warning: 'bg-accent-warn/15 text-amber-300 border-accent-warn/40',
   drowsy: 'bg-accent-danger/20 text-red-300 border-accent-danger/50 shadow-glow-danger',
+  away: 'bg-sky-400/10 text-sky-200 border-sky-300/30',
   offline: 'bg-white/5 text-ink-muted border-white/10',
 };
 
@@ -12,6 +13,7 @@ const dots: Record<DriverStatus, string> = {
   alert: 'bg-accent-ok',
   warning: 'bg-accent-warn',
   drowsy: 'bg-accent-danger animate-ping',
+  away: 'bg-sky-300',
   offline: 'bg-slate-500',
 };
 

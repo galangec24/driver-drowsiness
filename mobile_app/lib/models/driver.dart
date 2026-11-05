@@ -98,11 +98,13 @@ class Thresholds {
   );
 }
 
-/// 'alert' | 'warning' | 'drowsy' | 'offline'
+/// 'alert' | 'warning' | 'drowsy' | 'away' | 'offline'. away: the driver is out of the car (seat
+/// empty, e.g. at a gas station) and the car still reports.
 enum DriverStatus {
   alert('Alert'),
   warning('Warning'),
   drowsy('Drowsy'),
+  away('Away from the car'),
   offline('Offline');
 
   const DriverStatus(this.label);

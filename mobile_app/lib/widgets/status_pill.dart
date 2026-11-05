@@ -14,6 +14,7 @@ class StatusPill extends StatelessWidget {
       DriverStatus.alert => AppColors.ok,
       DriverStatus.warning => AppColors.warn,
       DriverStatus.drowsy => AppColors.danger,
+      DriverStatus.away => const Color(0xFF7DD3FC),
       DriverStatus.offline => const Color(0xFF64748B),
     };
     return Container(

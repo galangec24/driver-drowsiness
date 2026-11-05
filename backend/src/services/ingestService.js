@@ -184,9 +184,12 @@ function alertConfidence(type, fusionScore, components, signals, t) {
 function inCooldown(driverId, type, now) {
   const last = lastAlertAt.get(`${driverId}:${type}`);
   const cooldown =
-    { yawning: YAWN_COOLDOWN_MS, nodding: NOD_COOLDOWN_MS, distraction: DISTRACTION_COOLDOWN_MS }[
-      type
-    ] ?? env.alertCooldownMs;
+    {
+      yawning: YAWN_COOLDOWN_MS,
+      nodding: NOD_COOLDOWN_MS,
+      distraction: DISTRACTION_COOLDOWN_MS,
+      face_match: UNKNOWN_DRIVER_COOLDOWN_MS,
+    }[type] ?? env.alertCooldownMs;
   // abs: readings sent late (store-and-forward) can be older than the last live alert.
   return last !== undefined && Math.abs(now - last) < cooldown;
 }
@@ -230,11 +233,14 @@ function verifyCandidate(window, driver) {
   return { allow: score >= threshold, score, threshold, modelVersion: model.version };
 }
 
-// Microsleep (actually falling asleep) always notifies; anything else at most once per driver per day.
-const ALWAYS_NOTIFY = new Set(['microsleep']);
-// A microsleep detected again on an alert that notified this long ago notifies again: several in
-// one episode give one notification, a new one later in the day is never silent.
+// Microsleep (actually falling asleep) and an unrecognised driver at the wheel always notify;
+// anything else at most once per driver per day.
+const ALWAYS_NOTIFY = new Set(['microsleep', 'face_match']);
+// Detected again on an alert that notified this long ago: notifies again. Several in one episode
+// give one notification; a new one later in the day is never silent.
 const MICROSLEEP_RENOTIFY_MS = 10 * 60 * 1000;
+// An unrecognised driver is reported at most this often per car.
+const UNKNOWN_DRIVER_COOLDOWN_MS = 10 * 60 * 1000;
 
 /** May this alert notify the parent? (Called inside the driver's alert queue: no races.) */
 async function mayNotify(driver, type, timestamp) {
@@ -320,7 +326,7 @@ async function writeAlert(
     if (location) open.location = location;
     open.readAt = undefined; // the notification resurfaces as unread
     const again =
-      type === 'microsleep' &&
+      ALWAYS_NOTIFY.has(type) &&
       (!open.notifiedAt || Date.now() - open.notifiedAt.getTime() >= MICROSLEEP_RENOTIFY_MS);
     const notify = (escalated || again) && (await mayNotify(driver, type, timestamp));
     if (notify) open.notifiedAt = new Date();
@@ -495,4 +501,44 @@ async function processIngest(driver, payload) {
   return { classification, fusionScore, alertTriggered: alertId !== null, alertId };
 }
 
-module.exports = { processIngest, alertTypeFor, resetCooldowns, resolveTimestamp };
+/**
+ * The in-car device saw someone who isn't a registered driver at the wheel of this family's car for
+ * a while: an "Unrecognized driver" alert on the car's usual driver (always notifies; at most every
+ * 10 minutes per car). Returns the public alert, or null while in cooldown.
+ */
+async function reportUnknownDriver(driver, now = Date.now()) {
+  const driverId = driver._id.toString();
+  if (inCooldown(driverId, 'face_match', now)) return null;
+  lastAlertAt.set(`${driverId}:face_match`, now);
+  const prev = statusStore.get(driverId);
+  const loc = prev && prev.location;
+  const location = loc && now - new Date(loc.at).getTime() <= LOCATION_FRESH_MS ? loc : null;
+  return createAlert(driver, 'face_match', 1, {}, new Date(now), null, location, undefined);
+}
+
+/** The driver is out of the car (seat empty): "Away from the car" on the parent's dashboard. */
+function markAway(driver, now = Date.now()) {
+  const driverId = driver._id.toString();
+  const prev = statusStore.get(driverId) || {};
+  const status = {
+    ...prev,
+    driverId,
+    status: 'away',
+    lastUpdate: new Date(now).toISOString(),
+    fusionScore: 0,
+    signals: {},
+    location: prev.location || null,
+  };
+  statusStore.set(driverId, status);
+  alertDispatcher.dispatchDriverStatus(driver.parentId.toString(), status);
+  return status;
+}
+
+module.exports = {
+  processIngest,
+  alertTypeFor,
+  resetCooldowns,
+  resolveTimestamp,
+  reportUnknownDriver,
+  markAway,
+};

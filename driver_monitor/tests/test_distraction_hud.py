@@ -117,3 +117,53 @@ def test_eye_readings_are_unreliable_right_after_the_face_returns():
     turned = HeadPose(pitch=-5, yaw=40, roll=0)
     det.update(turned, t)
     assert not det.eyes_reliable(turned, t)  # head turned far aside
+
+
+# The driver gets out at a gas station / for takeout (2026-11-03): not distraction.
+
+
+def test_getting_out_of_the_seat_is_not_looking_away():
+    det = DistractionDetector()
+    t = 0.0
+    for _ in range(100):  # 10 s at the wheel, face in the middle of the picture
+        det.update(HeadPose(pitch=-5, yaw=2, roll=0), t, (0.5, 0.5, False))
+        t += 0.1
+    for i in range(10):  # 1 s: the face moves across the frame to the door side and out
+        det.update(HeadPose(pitch=-5, yaw=20, roll=0), t, (0.5 + 0.05 * i, 0.5, i == 9))
+        t += 0.1
+    worst = 0.0
+    for _ in range(80):  # 8 s gone
+        worst = max(worst, det.update(None, t).away_for_s)
+        t += 0.1
+    assert worst == 0.0 and det.state.count == 0
+
+
+def test_turning_away_in_the_seat_is_still_looking_away():
+    det = DistractionDetector()
+    t = 0.0
+    for _ in range(100):
+        det.update(HeadPose(pitch=-5, yaw=2, roll=0), t, (0.5, 0.5, False))
+        t += 0.1
+    for _ in range(5):  # the head turns, but the face stays where it was in the picture
+        det.update(HeadPose(pitch=-5, yaw=35, roll=0), t, (0.52, 0.5, False))
+        t += 0.1
+    worst = 0.0
+    for _ in range(30):
+        worst = max(worst, det.update(None, t).away_for_s)
+        t += 0.1
+    assert worst >= det.away_s and det.state.count == 1
+
+
+def test_a_parked_car_never_raises_distraction():
+    det = DistractionDetector()
+    t = steady(det, 10)
+    det.parked = True  # GPS speed under 5 km/h
+    for _ in range(60):  # looking down at a phone for 6 s while stopped
+        s = det.update(HeadPose(pitch=-35, yaw=2, roll=0), t)
+        t += 0.1
+    assert s.away_for_s == 0 and s.count == 0
+    det.parked = False  # driving again: the same look down counts
+    for _ in range(30):
+        s = det.update(HeadPose(pitch=-35, yaw=2, roll=0), t)
+        t += 0.1
+    assert s.away_for_s >= det.away_s

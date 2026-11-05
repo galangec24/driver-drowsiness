@@ -14,6 +14,7 @@ export const STATUS_LABEL: Record<DriverStatus, string> = {
   alert: 'Alert',
   warning: 'Warning',
   drowsy: 'Drowsy',
+  away: 'Away from the car',
   offline: 'Offline',
 };
 

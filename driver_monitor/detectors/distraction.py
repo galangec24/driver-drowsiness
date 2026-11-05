@@ -11,6 +11,11 @@ minute), so a camera mounted off-centre doesn't count as "looking away".
 
 Each new episode is counted (5-minute window) and sent as `distractionCount`.
 
+Not distraction (field question 2026-11-03: the driver gets out at a gas station or for takeout):
+- the car is parked (`parked`: GPS speed under 5 km/h): nothing here alarms;
+- the face *left the picture* (it reached the edge, or moved across the frame just before it was
+  lost: getting out, reaching into the back) rather than turning away in the seat.
+
 `eyes_reliable()` also tells the eye-closure tracker when EAR can't be trusted: just after the face
 comes back into view (it is still turning back) and while the head is turned far to the side.
 """
@@ -45,6 +50,8 @@ class DistractionDetector:
         lost_face_grace_s: float = 3.0,
         settle_s: float = 1.5,
         eye_yaw_limit_deg: float = 25.0,
+        left_move: float = 0.2,
+        left_window_s: float = 1.5,
     ) -> None:
         self.yaw_limit_deg = yaw_limit_deg
         self.pitch_down_deg = pitch_down_deg
@@ -64,6 +71,14 @@ class DistractionDetector:
         self._episodes: deque[float] = deque()
         self._counted_away = False
         self.state = DistractionState(0.0, False, 0.0, 0)
+        # Where the face was in the picture (share of width / height, at the edge?), for telling
+        # "left the seat" from "turned away".
+        self.left_move = left_move
+        self.left_window_s = left_window_s
+        self._positions: deque[tuple[float, float, float, bool]] = deque()
+        self._left_seat = False
+        # Set by the monitor from the GPS: True while the car is stopped (speed < 5 km/h).
+        self.parked = False
 
     def neutral(self) -> tuple[float, float] | None:
         """(pitch, yaw) the driver usually holds, or None until ~3 s of samples."""
@@ -102,10 +117,31 @@ class DistractionDetector:
             and pose.pitch - neutral[0] >= -self.pitch_down_deg
         )
 
-    def update(self, pose: HeadPose | None, t: float) -> DistractionState:
+    def _left_picture(self) -> bool:
+        """The face was at the edge or moved across the frame just before it was lost."""
+        if not self._positions:
+            return False
+        if self._positions[-1][3]:
+            return True
+        xs = [p[1] for p in self._positions]
+        ys = [p[2] for p in self._positions]
+        return max(max(xs) - min(xs), max(ys) - min(ys)) >= self.left_move
+
+    def update(
+        self,
+        pose: HeadPose | None,
+        t: float,
+        face_pos: tuple[float, float, bool] | None = None,
+    ) -> DistractionState:
+        """face_pos: (centre x, centre y as a share of the frame, box touching the edge)."""
         neutral = self.neutral()
         away = False
+        if face_pos is not None:
+            self._positions.append((t, *face_pos))
+            while self._positions and t - self._positions[0][0] > self.left_window_s:
+                self._positions.popleft()
         if pose is not None:
+            self._left_seat = False
             if self._last_face_t is not None and t - self._last_face_t >= 1.0:
                 self._returned_at = t
             self._last_face_t = t
@@ -122,8 +158,15 @@ class DistractionDetector:
             self._last_face_t is not None
             and t - self._last_face_t <= self.lost_face_grace_s + self.away_long_s
         ):
-            # Face just disappeared (turned right away from the camera): still the driver's seat.
-            away = t - self._last_face_t > 0.5
+            # Face just disappeared: turned right away from the camera (distraction), unless it
+            # left the picture (getting out of the car), decided once when it is lost.
+            if not self._left_seat and self._positions and t - self._positions[-1][0] < 0.5:
+                self._left_seat = self._left_picture()
+            away = t - self._last_face_t > 0.5 and not self._left_seat
+        if pose is None and t - (self._last_face_t or t) > self.left_window_s:
+            self._positions.clear()  # an old position must not decide the next face loss
+        if self.parked:
+            away = False  # stopped: looking around or getting out is not distraction
 
         if away:
             if self._away_since is None:
@@ -138,7 +181,7 @@ class DistractionDetector:
             away_for = 0.0
 
         speed = self._speed(t)
-        restless = speed >= self.restless_speed
+        restless = speed >= self.restless_speed and not self.parked
         if restless and not self._restless_on:
             self._episodes.append(t)
         self._restless_on = restless

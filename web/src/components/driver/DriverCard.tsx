@@ -23,6 +23,8 @@ function effectiveStatus(driver: Driver, live: DriverLiveStatus | undefined, now
 export function DriverCard({ driver, live, pulsing }: DriverCardProps) {
   const now = useNow(5000);
   const status = effectiveStatus(driver, live, now);
+  // Offline, or out of the car: no live readings to show.
+  const noData = status === 'offline' || status === 'away';
   const s = live?.signals;
   const score = live?.fusionScore;
 
@@ -41,7 +43,7 @@ export function DriverCard({ driver, live, pulsing }: DriverCardProps) {
         <div className="mt-5">
           <div className="mb-1.5 flex justify-between text-xs text-ink-muted">
             <span>Drowsiness score</span>
-            <span className="font-semibold text-white">{status === 'offline' ? '—' : pct(score)}</span>
+            <span className="font-semibold text-white">{noData ? '—' : pct(score)}</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-black/30 shadow-inner">
             <div
@@ -53,7 +55,7 @@ export function DriverCard({ driver, live, pulsing }: DriverCardProps) {
                     ? 'bg-accent-warn'
                     : 'bg-accent-ok',
               ].join(' ')}
-              style={{ width: status === 'offline' ? '0%' : `${Math.round((score ?? 0) * 100)}%` }}
+              style={{ width: noData ? '0%' : `${Math.round((score ?? 0) * 100)}%` }}
             />
           </div>
         </div>
@@ -67,12 +69,12 @@ export function DriverCard({ driver, live, pulsing }: DriverCardProps) {
           ].map(([k, v]) => (
             <div key={k} className="glass-inset py-2">
               <dt className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">{k}</dt>
-              <dd className="text-sm font-bold text-white">{status === 'offline' ? '—' : v}</dd>
+              <dd className="text-sm font-bold text-white">{noData ? '—' : v}</dd>
             </div>
           ))}
         </dl>
 
-        {status !== 'offline' && live?.wearable && (
+        {!noData && live?.wearable && (
           <p className="mt-3 flex items-center gap-1.5 text-xs" data-testid="wearable-status">
             <Icon name="heart" size={13} className={live.wearable.connected ? 'text-pink-400' : 'text-ink-muted'} />
             {live.wearable.connected
@@ -82,7 +84,7 @@ export function DriverCard({ driver, live, pulsing }: DriverCardProps) {
               : 'Watch not connected'}
           </p>
         )}
-        {status !== 'offline' && live?.radar && (
+        {!noData && live?.radar && (
           <p className="mt-2 flex items-center gap-1.5 text-xs text-ink-muted" data-testid="radar-status">
             <Icon name="eye" size={13} className={live.radar.connected ? 'text-emerald-300' : 'text-ink-muted'} />
             {!live.radar.connected

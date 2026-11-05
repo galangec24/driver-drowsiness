@@ -98,6 +98,22 @@ class IngestClient:
         res.raise_for_status()
         return res.json()
 
+    def away(self, driver_id: str) -> dict[str, Any]:
+        """The seat is empty (driver out of the car): the parent sees "Away from the car"."""
+        res = self.session.post(f"{self.url}/away", json={"driverId": driver_id}, timeout=self.timeout_s)
+        res.raise_for_status()
+        return res.json()
+
+    def report_unknown(self, family_email: str, jpeg: bytes, last_driver_id: str = "") -> dict[str, Any]:
+        """An unrecognised face has been in the driver's seat for a while: alert the family."""
+        image = "data:image/jpeg;base64," + base64.b64encode(jpeg).decode("ascii")
+        body: dict[str, Any] = {"family": family_email, "image": image}
+        if last_driver_id:
+            body["lastDriverId"] = last_driver_id
+        res = self.session.post(f"{self.url}/unknown-driver", json=body, timeout=self.timeout_s * 2)
+        res.raise_for_status()
+        return res.json()
+
     def identify(self, family_email: str, jpeg: bytes) -> dict[str, Any]:
         """Which of the family's registered drivers is in this frame?
         {driverId, name, confidence} or {driverId: None, reason: no_face|unknown|ambiguous}."""

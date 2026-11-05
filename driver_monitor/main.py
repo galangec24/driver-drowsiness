@@ -137,7 +137,12 @@ class Monitor:
                     closed = result.eye_closed_prob >= self.eye_model.threshold
             result.pose = estimate_head_pose(pose_points(result.landmarks), w, h)
             result.mar = mouth_aspect_ratio(result.landmarks)
-            self.distraction.update(result.pose, t)
+            f = result.face
+            face_pos = None
+            if f is not None:
+                edge = f.x <= 2 or f.y <= 2 or f.x + f.width >= w - 2 or f.y + f.height >= h - 2
+                face_pos = ((f.x + f.width / 2) / w, (f.y + f.height / 2) / h, edge)
+            self.distraction.update(result.pose, t, face_pos)
             # Eyes at the edge of the picture, face just back in view, or turned far aside: EAR is
             # not meaningful there (it reads as "closed"), so it must not count as drowsiness. Only
             # the eyes have to be in view: leaning on a hand or sitting close puts the chin or
@@ -239,6 +244,14 @@ class Monitor:
         f = self.last.face if self.last else None
         return alert_photo(frame, (f.x, f.y, f.width, f.height) if f else None)
 
+    def _location_and_parked(self) -> dict[str, Any] | None:
+        """This reading's GPS fix; a known speed under 5 km/h means the car is parked (no
+        distraction alarms: looking around or getting out of a parked car is not distraction)."""
+        fix = self.location.current()
+        speed = fix.get("speed") if fix else None
+        self.distraction.parked = isinstance(speed, int | float) and speed < 5.0
+        return fix
+
     def make_payload(self, t: float) -> dict[str, Any]:
         """Build one interval's payload and schedule the next POST."""
         self._next_post = t + self.interval_s
@@ -273,7 +286,7 @@ class Monitor:
             ear,
             self.perclos.value if ear is not None else None,
             face_conf,
-            location=self.location.current(),
+            location=self._location_and_parked(),
             extra_signals=extra,
             wearable=self.wearable_status() if self.wearable_status else None,
             radar=self.radar_status() if self.radar_status else None,
@@ -560,6 +573,7 @@ def run(
     target = client.url if client else "no POST (offline)"
     identity = DriverIdentity(fixed_id=cfg.driver_id)
     identify_job: Future[dict[str, Any]] | None = None
+    next_away_ping = 0.0  # "Away from the car" while the seat is empty (every 15 s)
     if identity.automatic:
         log.info(f"Automatic driver recognition for {cfg.family_email or '?'} on {source} -> {target}")
     else:
@@ -649,6 +663,22 @@ def run(
                     identity.on_error(str(exc), now)
                     log.warning(f"identify failed: {exc}")
                 identify_job = None
+
+            # Seat empty (gas station, takeout): tell the family "Away from the car", not "Offline".
+            away_for = identity.away_driver(now)
+            if client is not None and away_for and not face_visible and now >= next_away_ping:
+                next_away_ping = now + 15.0
+                snap_pool.submit(client.away, away_for)
+            # Someone who isn't a registered driver has been in the driver's seat for 30 s.
+            if client is not None and cfg.family_email and identity.should_report_unknown(face_visible, now):
+                identity.reported_unknown()
+                log.warning("unrecognised driver for 30 s: alerting the family")
+                snap_pool.submit(
+                    client.report_unknown,
+                    cfg.family_email,
+                    encode_snapshot(monitor.alert_photo(frame, closed_eyes=False)),
+                    identity.last_driver_id,
+                )
 
             # Personal thresholds + admin-promoted device settings: at start, then every 5 minutes.
             if client is not None and monitor.driver_id:

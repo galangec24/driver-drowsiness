@@ -25,7 +25,7 @@ export function fleet(drivers: Driver[], live: Record<string, DriverLiveStatus>,
   });
 }
 
-const URGENCY: Record<DriverStatus, number> = { drowsy: 0, warning: 1, alert: 2, offline: 3 };
+const URGENCY: Record<DriverStatus, number> = { drowsy: 0, warning: 1, alert: 2, away: 3, offline: 4 };
 
 /** Drivers who need the parent right now (several can at once), most urgent first. */
 export function needsAttention(entries: FleetEntry[]): FleetEntry[] {

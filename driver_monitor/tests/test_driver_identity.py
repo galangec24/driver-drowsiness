@@ -89,3 +89,52 @@ def test_passengers_are_shown_but_not_monitored():
     )
     assert ident.driver_id == "d1"
     assert ident.label() == "Driver: Ana (90%)  + passenger Ben"
+
+
+# Driver out of the car (gas station, takeout) and someone unknown at the wheel (2026-11-03).
+
+GALANG = {"driverId": "a" * 24, "name": "Galang", "confidence": 0.7}
+UNKNOWN = {"driverId": None, "reason": "unknown"}
+
+
+def test_empty_seat_keeps_the_car_as_away_for_the_last_driver() -> None:
+    idt = DriverIdentity()
+    idt.on_result(GALANG, 0.0)
+    idt.on_face(True, 1.0)
+    assert idt.away_driver(1.0) == ""  # someone is driving
+    idt.on_face(False, 10.0)  # gets out
+    assert idt.away_driver(15.0) == ""  # still the current driver for the first 20 s
+    assert idt.on_face(False, 31.0)  # seat empty 21 s: driver cleared
+    assert idt.away_driver(31.0) == "a" * 24  # ... but the car is Galang's, "away"
+    assert idt.away_driver(10.0 + 31 * 60) == ""  # after 30 min: just offline
+    idt.on_face(True, 40.0)  # back in the seat: identified again, not "away"
+    assert idt.away_driver(40.0) == ""
+
+
+def test_an_unrecognised_face_for_30_s_is_reported_once() -> None:
+    idt = DriverIdentity()
+    t = 0.0
+    reports = 0
+    while t < 120.0:
+        idt.on_face(True, t)
+        if idt.should_identify(True, t):
+            idt.started()
+            idt.on_result(UNKNOWN, t)
+        if idt.should_report_unknown(True, t):
+            idt.reported_unknown()
+            reports += 1
+            first = t
+        t += 1.0
+    assert reports == 1 and 30.0 <= first <= 35.0
+
+
+def test_a_registered_driver_or_a_short_unknown_moment_is_not_reported() -> None:
+    idt = DriverIdentity()
+    idt.on_result(UNKNOWN, 0.0)  # a bad first look ...
+    idt.on_result(GALANG, 4.0)  # ... then recognised
+    assert not idt.should_report_unknown(True, 60.0)
+    idt2 = DriverIdentity()
+    idt2.on_result(UNKNOWN, 0.0)
+    idt2.on_face(False, 5.0)  # the stranger leaves after a few seconds
+    idt2.on_face(False, 30.0)
+    assert not idt2.should_report_unknown(False, 40.0)
