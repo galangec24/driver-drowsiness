@@ -46,6 +46,20 @@ const alertSchema = new mongoose.Schema(
     },
     // Where the car was when the alert fired (absent if the device sends no GPS).
     location: { type: locationSchema, default: undefined },
+    // First alert of a drive: how far / how long the driver had been driving since they were first
+    // detected (services/tripTracker.js).
+    trip: {
+      type: new mongoose.Schema(
+        {
+          startedAt: Date,
+          distanceKm: Number,
+          minutes: Number,
+          startLocation: { lat: Number, lng: Number },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
     // Camera frame of the driver at the trigger moment, uploaded by the in-car device.
     snapshotUrl: { type: String },
     // Recorded while the device had no internet and delivered this many seconds later.
@@ -101,6 +115,7 @@ alertSchema.methods.toPublic = function toPublic(extra = {}) {
     confidence: this.confidence,
     sensorSnapshot: this.sensorSnapshot,
     location: this.location || null,
+    trip: this.trip || null,
     snapshotUrl: this.snapshotUrl || null,
     delayedS: this.delayedS || null,
     acknowledged: this.acknowledged,

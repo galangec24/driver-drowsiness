@@ -8,6 +8,7 @@ const statusStore = require('./statusStore');
 const signalWindow = require('./signalWindow');
 const driverCache = require('./driverCache');
 const smsAlerts = require('./smsAlerts');
+const tripTracker = require('./tripTracker');
 const fpVerifier = require('./fpVerifier');
 const { computeFeatures, MIN_TICKS } = require('./fpFeatures');
 const { startOfLocalDay } = require('../utils/alertDay');
@@ -81,6 +82,7 @@ function resetCooldowns() {
   alertedCount.clear();
   locationSavedAt.clear();
   signalWindow.clear();
+  tripTracker.clear();
 }
 
 /** Payload location → stored shape (rounded; ~1 m precision is plenty). */
@@ -304,6 +306,9 @@ async function writeAlert(
     timestamp,
   };
   const conf = round(Math.min(1, Math.max(0, confidence)), 3);
+  // The first alert of this drive: how far / how long since the driver was first detected.
+  const trip =
+    type === 'face_match' ? null : await tripTracker.firstAlert(String(driver._id), timestamp.getTime());
 
   // Detected again today while the parent hasn't acknowledged: update that alert ("detected again
   // ×N") instead of a new one. Parents get at most one notification per driver per day; a
@@ -324,6 +329,7 @@ async function writeAlert(
     open.confidence = Math.max(open.confidence || 0, conf);
     if (escalated) open.type = type;
     if (location) open.location = location;
+    if (trip && !open.trip) open.trip = trip;
     open.readAt = undefined; // the notification resurfaces as unread
     const again =
       ALWAYS_NOTIFY.has(type) &&
@@ -348,6 +354,7 @@ async function writeAlert(
     sensorSnapshot,
     lastDetectedAt: timestamp,
     ...(location && { location }),
+    ...(trip && { trip }),
     ...(verifier && { verifier }),
     ...(delayedS && { delayedS }),
   });
@@ -375,6 +382,7 @@ async function processIngest(driver, payload) {
   const tickLocation = normalizeLocation(payload.location, timestamp);
   const location = queued ? tickLocation : currentLocation(driverId, tickLocation, now);
   if (tickLocation && !queued) persistLocation(driver, tickLocation, now);
+  tripTracker.update(driverId, now, tickLocation);
 
   // 4. Fusion
   const { fusionScore: raw, classification, components } = computeDrowsinessScore(signals, driver);

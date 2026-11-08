@@ -15,6 +15,8 @@ export interface DesktopBridge {
   openExternal: (url: string) => Promise<void>;
   appInfo?: () => Promise<{ version: string; update: DesktopUpdateState }>;
   checkForUpdates?: () => Promise<DesktopUpdateState>;
+  /** Restore and raise the app window (a clicked notification). */
+  focusWindow?: () => Promise<void>;
   installUpdate?: () => Promise<DesktopUpdateState>;
 }
 declare global {

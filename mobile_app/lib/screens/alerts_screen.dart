@@ -13,7 +13,10 @@ import '../widgets/page_header.dart';
 
 /// Chronological feed with driver / type / status filters and acknowledge.
 class AlertsScreen extends StatefulWidget {
-  const AlertsScreen({super.key});
+  const AlertsScreen({super.key, this.openAlertId});
+
+  /// Open this alert's details on arrival (a tapped notification).
+  final String? openAlertId;
 
   @override
   State<AlertsScreen> createState() => _AlertsScreenState();
@@ -37,6 +40,32 @@ class _AlertsScreenState extends State<AlertsScreen> {
   void initState() {
     super.initState();
     _load();
+    _openRequested();
+  }
+
+  @override
+  void didUpdateWidget(AlertsScreen old) {
+    super.didUpdateWidget(old);
+    if (widget.openAlertId != old.openAlertId) _openRequested();
+  }
+
+  /// A tapped notification: mark it read and show that alert.
+  void _openRequested() {
+    final id = widget.openAlertId;
+    if (id == null || id.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      try {
+        final alert = await context.read<DataController>().markRead(id);
+        if (mounted) await AlertDetailSheet.show(context, alert);
+      } on ApiException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not open the alert: ${e.message}')),
+          );
+        }
+      }
+    });
   }
 
   Future<void> _load() async {

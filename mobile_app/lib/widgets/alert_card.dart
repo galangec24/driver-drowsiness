@@ -229,6 +229,18 @@ class AlertCard extends StatelessWidget {
                                   ),
                                 ),
                               ),
+                            if (alert.trip != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  'First alert of the drive: ${alert.trip!.text}',
+                                  key: const ValueKey('alert-trip'),
+                                  style: const TextStyle(
+                                    color: Color(0xFFC7D2FE),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
                             if (alert.fatigueReason != null)
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),

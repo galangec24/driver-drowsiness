@@ -41,6 +41,16 @@ Future<void> main() async {
   auth.addListener(syncSession);
   syncSession();
 
+  final router = buildRouter(auth);
+  // Tapping an alert notification opens that alert.
+  notifications.onOpen = (id) => router.go('/alerts?open=$id');
+  final launchAlert = notifications.takeLaunchAlert();
+  if (launchAlert != null) {
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => router.go('/alerts?open=$launchAlert'),
+    );
+  }
+
   runApp(
     GuardianApp(
       storage: storage,
@@ -48,7 +58,7 @@ Future<void> main() async {
       data: data,
       fcm: fcm,
       notifications: notifications,
-      router: buildRouter(auth),
+      router: router,
     ),
   );
 }

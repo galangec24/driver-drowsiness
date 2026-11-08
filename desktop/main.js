@@ -104,6 +104,13 @@ async function checkForUpdates() {
 }
 
 // For the site's Settings page ("Windows app version … · Check for updates").
+// A clicked alert notification: bring the window back (minimised, hidden or behind others).
+ipcMain.handle('focus-window', () => {
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+});
 ipcMain.handle('app-info', () => ({ version: app.getVersion(), update: updateState }));
 ipcMain.handle('check-updates', () => checkForUpdates());
 ipcMain.handle('install-update', () => {

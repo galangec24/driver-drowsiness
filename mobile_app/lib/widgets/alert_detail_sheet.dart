@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../config/format.dart';
 import '../config/theme.dart';
@@ -112,6 +113,109 @@ class AlertDetailSheet extends StatelessWidget {
             height: 260,
             label: alert.driverName,
           ),
+          const SizedBox(height: 22),
+          const _Label('Locations'),
+          _Place(
+            'Drive started (driver first detected)',
+            lat: alert.trip?.startLat,
+            lng: alert.trip?.startLng,
+            note: alert.trip?.startedAt == null
+                ? null
+                : 'Started at ${clock(alert.trip!.startedAt!)}',
+          ),
+          _Place(
+            'Driver at the alert',
+            lat: alert.location?.lat,
+            lng: alert.location?.lng,
+            note: alert.trip?.text,
+          ),
+          _Place(
+            'You (parent)',
+            note: alert.location == null
+                ? 'No alert location recorded.'
+                : 'Opens Google Maps from where you are to where the alert happened, with the distance.',
+            action: alert.location == null
+                ? null
+                : (
+                    'How far am I?',
+                    Uri.parse(
+                      'https://www.google.com/maps/dir/?api=1&destination=${alert.location!.lat},${alert.location!.lng}',
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One place in "Locations": coordinates that open in Google Maps, a note, or an action.
+class _Place extends StatelessWidget {
+  const _Place(this.title, {this.lat, this.lng, this.note, this.action});
+
+  final String title;
+  final double? lat;
+  final double? lng;
+  final String? note;
+  final (String, Uri)? action;
+
+  Future<void> _open(Uri uri) =>
+      launchUrl(uri, mode: LaunchMode.externalApplication);
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPoint = lat != null && lng != null;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(color: AppColors.muted, fontSize: 12),
+          ),
+          if (hasPoint)
+            InkWell(
+              onTap: () => _open(
+                Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng'),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  '${lat!.toStringAsFixed(5)}, ${lng!.toStringAsFixed(5)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            )
+          else if (action == null)
+            const Text('Not recorded', style: TextStyle(color: AppColors.muted)),
+          if (note != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                note!,
+                style: const TextStyle(color: Color(0xFFC7D2FE), fontSize: 12),
+              ),
+            ),
+          if (action != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: OutlinedButton.icon(
+                onPressed: () => _open(action!.$2),
+                icon: const Icon(Icons.near_me_rounded, size: 16),
+                label: Text(action!.$1),
+              ),
+            ),
         ],
       ),
     );

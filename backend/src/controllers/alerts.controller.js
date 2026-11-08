@@ -102,7 +102,9 @@ async function markRead(req, res) {
   );
   if (!alert) throw new HttpError(404, 'Alert not found');
   alertDispatcher.dispatchRead(req.user.parentId, [alert._id.toString()], req.body.read);
-  res.json({ alert: alert.toPublic() });
+  // Opening a notification shows the alert itself: include the driver's name for the details.
+  const driver = await Driver.findById(alert.driverId).select('name').lean();
+  res.json({ alert: alert.toPublic({ driverName: driver ? driver.name : null }) });
 }
 
 async function markAllRead(req, res) {

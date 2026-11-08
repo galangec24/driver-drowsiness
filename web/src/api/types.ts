@@ -134,6 +134,8 @@ export interface Alert {
   sensorSnapshot: Signals & { timestamp?: string };
   /** Where the car was when the alert fired. */
   location?: GeoLocation | null;
+  /** First alert of a drive: how far / how long since the driver was first detected. */
+  trip?: AlertTrip | null;
   /** Camera frame of the driver at the trigger moment (relative /uploads/... or absolute). */
   snapshotUrl?: string | null;
   /** Recorded while the car had no internet and delivered this many seconds later. */
@@ -187,4 +189,12 @@ export interface PhotoReport {
   index: number;
   quality: number;
   issues: string[];
+}
+
+/** First alert of a drive: distance and time since the driver was first detected that drive. */
+export interface AlertTrip {
+  startedAt: string;
+  distanceKm: number;
+  minutes: number;
+  startLocation?: { lat: number; lng: number };
 }

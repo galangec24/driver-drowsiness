@@ -64,3 +64,11 @@ export function initials(name: string): string {
     .map((p) => p[0]?.toUpperCase() ?? '')
     .join('');
 }
+
+/** "12.4 km and 25 min after the drive started" (the first alert of a drive). */
+export function tripText(trip: { distanceKm: number; minutes: number }): string {
+  const km = trip.distanceKm < 0.1 ? 'Less than 0.1 km' : `${trip.distanceKm.toFixed(1)} km`;
+  const m = trip.minutes;
+  const time = m < 1 ? 'under a minute' : m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+  return `${km} and ${time} after the drive started`;
+}

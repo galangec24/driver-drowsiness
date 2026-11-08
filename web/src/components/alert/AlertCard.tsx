@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { Alert } from '../../api/types';
 import { assetUrl } from '../../api/client';
 import { AlertDetailModal } from './AlertDetailModal';
-import { ALERT_LABEL, formatTime, isSevere, num, pct, timeAgo } from '../../lib/format';
+import { ALERT_LABEL, formatTime, isSevere, num, pct, timeAgo, tripText } from '../../lib/format';
 import { DepthButton } from '../ui/DepthButton';
 import { Icon } from '../ui/Icon';
 
@@ -138,6 +138,15 @@ export function AlertCard({
                 title={`First detected ${formatTime(alert.createdAt)}`}
               >
                 Detected {repeats} times · last {timeAgo(happenedAt)}
+              </p>
+            )}
+            {alert.trip && (
+              <p
+                className="mt-1 text-sm text-indigo-100/90"
+                data-testid="alert-trip"
+                title={`Driver first detected ${formatTime(alert.trip.startedAt)}`}
+              >
+                First alert of the drive: {tripText(alert.trip)}
               </p>
             )}
             {alert.sensorSnapshot?.fatigueReason && (

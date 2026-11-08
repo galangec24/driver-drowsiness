@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { listAlerts, type AlertFilters, type AlertStatus } from '../api/alerts';
+import { listAlerts, markAlertRead, type AlertFilters, type AlertStatus } from '../api/alerts';
 import { listDrivers } from '../api/drivers';
 import { errorMessage } from '../api/client';
-import type { AlertType } from '../api/types';
+import type { Alert, AlertType } from '../api/types';
+import { AlertDetailModal } from '../components/alert/AlertDetailModal';
 import { usePollingFallback } from '../hooks/useRealtime';
 import { AlertFeed } from '../components/alert/AlertFeed';
 import { GlassCard } from '../components/ui/GlassCard';
@@ -48,12 +50,40 @@ export function AlertsPage() {
   const drivers = useQuery({ queryKey: ['drivers'], queryFn: listDrivers });
   const alerts = useQuery({ queryKey: ['alerts', filters], queryFn: () => listAlerts(filters), refetchInterval });
   const remove = useRemoveAlerts();
+
+  // ?open=<id>: a clicked notification. Mark it read and show its details.
+  const [params, setParams] = useSearchParams();
+  const openId = params.get('open');
+  const [opened, setOpened] = useState<Alert | null>(null);
+  const [openError, setOpenError] = useState('');
+  useEffect(() => {
+    if (!openId) return undefined;
+    let cancelled = false;
+    setOpenError('');
+    markAlertRead({ id: openId, read: true })
+      .then((a) => !cancelled && setOpened(a))
+      .catch((err) => !cancelled && setOpenError(errorMessage(err)));
+    return () => {
+      cancelled = true;
+    };
+  }, [openId]);
+  const closeOpened = () => {
+    setOpened(null);
+    params.delete('open');
+    setParams(params, { replace: true });
+  };
   const expiredCount = alerts.data?.expired ?? 0;
 
   return (
     <div className="flex flex-col gap-6">
+      {opened && <AlertDetailModal alert={opened} onClose={closeOpened} />}
       <header>
         <h1 className="page-title">Alerts</h1>
+        {openError && (
+          <p role="alert" className="mt-1 text-sm text-amber-300">
+            Could not open that alert: {openError}
+          </p>
+        )}
         <p className="text-sm text-ink-muted">
           {alerts.data ? `${alerts.data.unacknowledged} to acknowledge today.` : 'Chronological feed.'} Acknowledging
           here clears it on every device. Alerts can only be acknowledged on the day they happen; after that they are

@@ -238,9 +238,10 @@ class DataController extends ChangeNotifier {
     }
   }
 
-  Future<void> markRead(String id, {bool read = true}) async {
-    await api.markRead(id, read: read);
+  Future<DriverAlert> markRead(String id, {bool read = true}) async {
+    final alert = await api.markRead(id, read: read);
     _onRead([id], read);
+    return alert;
   }
 
   Future<void> markAllRead() async {

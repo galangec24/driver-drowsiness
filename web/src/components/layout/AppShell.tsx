@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { useLocation, useOutlet } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useLocation, useNavigate, useOutlet } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { SideRail } from './SideRail';
 import { BottomNav } from './BottomNav';
@@ -12,6 +13,7 @@ import { AccountMenu } from './AccountMenu';
 import { MenuDrawer } from './MenuDrawer';
 import { AnimatedBackground } from './AnimatedBackground';
 import { useNavCollapsed } from '../../lib/navState';
+import { OPEN_ALERT_EVENT } from '../../lib/notify';
 
 /**
  * Responsive shell: side rail ≥640 px (labels ≥1024 px), bottom nav < 640 px,
@@ -20,6 +22,16 @@ import { useNavCollapsed } from '../../lib/navState';
 export function AppShell() {
   const location = useLocation();
   const outlet = useOutlet();
+  const navigate = useNavigate();
+  // A clicked alert notification (lib/notify.ts): show that alert.
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      if (id) navigate(`/alerts?open=${encodeURIComponent(id)}`);
+    };
+    window.addEventListener(OPEN_ALERT_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_ALERT_EVENT, onOpen);
+  }, [navigate]);
   const refetchInterval = usePollingFallback();
   const { data } = useQuery({
     // The bell's own query (NotificationBell): one cache entry, so both badges always agree.

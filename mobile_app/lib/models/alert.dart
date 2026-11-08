@@ -48,6 +48,7 @@ class DriverAlert {
     this.fatigueReason,
     this.repeatCount = 1,
     this.lastDetectedAt,
+    this.trip,
   });
 
   factory DriverAlert.fromJson(Map<String, dynamic> j) {
@@ -81,6 +82,7 @@ class DriverAlert {
       repeatCount: (j['repeatCount'] as num?)?.toInt() ?? 1,
       lastDetectedAt: DateTime.tryParse((j['lastDetectedAt'] ?? '') as String)
           ?.toLocal(),
+      trip: AlertTrip.fromJson(j['trip']),
     );
   }
 
@@ -125,6 +127,9 @@ class DriverAlert {
   final int repeatCount;
   final DateTime? lastDetectedAt;
 
+  /// First alert of a drive: how far / how long since the driver was first detected.
+  final AlertTrip? trip;
+
   /// Still waiting for an acknowledgement today.
   bool get open => !acknowledged && !expired;
 
@@ -158,6 +163,7 @@ class DriverAlert {
     fatigueReason: fatigueReason,
     repeatCount: repeatCount,
     lastDetectedAt: lastDetectedAt,
+    trip: trip,
   );
 
   DriverAlert acknowledge(String by, {bool? falseAlarm}) => copyWith(
@@ -218,4 +224,51 @@ class AlertFilters {
       (acknowledged == null || a.acknowledged == acknowledged) &&
       (status == null || statusOf(a) == status) &&
       (read == null || a.read == read);
+}
+
+/// First alert of a drive: distance and time since the driver was first detected that drive.
+class AlertTrip {
+  const AlertTrip({
+    required this.distanceKm,
+    required this.minutes,
+    this.startedAt,
+    this.startLat,
+    this.startLng,
+  });
+
+  static AlertTrip? fromJson(Object? j) {
+    if (j is! Map) return null;
+    final km = (j['distanceKm'] as num?)?.toDouble();
+    final min = (j['minutes'] as num?)?.toInt();
+    if (km == null || min == null) return null;
+    final start = j['startLocation'] is Map ? j['startLocation'] as Map : null;
+    return AlertTrip(
+      distanceKm: km,
+      minutes: min,
+      startedAt: DateTime.tryParse((j['startedAt'] ?? '') as String)?.toLocal(),
+      startLat: (start?['lat'] as num?)?.toDouble(),
+      startLng: (start?['lng'] as num?)?.toDouble(),
+    );
+  }
+
+  final double distanceKm;
+  final int minutes;
+  final DateTime? startedAt;
+
+  /// Where the drive started (the driver was first detected), if the car had GPS then.
+  final double? startLat;
+  final double? startLng;
+
+  /// "12.4 km and 25 min after the drive started".
+  String get text {
+    final km = distanceKm < 0.1
+        ? 'Less than 0.1 km'
+        : '${distanceKm.toStringAsFixed(1)} km';
+    final time = minutes < 1
+        ? 'under a minute'
+        : minutes < 60
+        ? '$minutes min'
+        : '${minutes ~/ 60} h ${minutes % 60} min';
+    return '$km and $time after the drive started';
+  }
 }

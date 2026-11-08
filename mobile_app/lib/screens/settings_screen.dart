@@ -40,19 +40,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final h = await api.health();
       if (mounted) {
         setState(
-          () => _server =
-              'Online · v${h.version}${h.commit == null ? '' : ' (${h.commit})'}',
+          () => _server = 'Online${h.commit == null ? '' : ' (${h.commit})'}',
         );
       }
     } on ApiException {
       if (mounted) setState(() => _server = 'Not reachable');
     }
     final r = await UpdateService().latestRelease();
+    String installed = '';
+    try {
+      installed = (await PackageInfo.fromPlatform()).version;
+    } catch (_) {}
     if (mounted) {
       setState(
         () => _latest = r == null
             ? '—'
-            : '${r.version}${r.published == null ? '' : ' · ${timeAgo(r.published)}'}',
+            : '${r.version}${r.published == null ? '' : ' · ${timeAgo(r.published)}'}'
+                  '${installed.isEmpty ? '' : isNewerVersion(r.version, installed) ? ' · update available' : ' · up to date'}',
       );
     }
   }

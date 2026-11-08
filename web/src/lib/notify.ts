@@ -37,13 +37,24 @@ export function disableNotifications(): void {
   }
 }
 
+/** Asks the app (AppShell) to open an alert's details: a clicked notification. */
+export const OPEN_ALERT_EVENT = 'gd:open-alert';
+
+export function openAlert(alertId: string): void {
+  window.dispatchEvent(new CustomEvent(OPEN_ALERT_EVENT, { detail: alertId }));
+}
+
+/** `tag` is the alert id: clicking the notification brings the app forward and opens that alert. */
 export function notifyBrowser(title: string, body: string, tag: string): void {
   if (!notificationsEnabled() || document.visibilityState === 'visible') return;
   try {
     const n = new Notification(title, { body, tag, icon: '/icons/icon-192.png' });
     n.onclick = () => {
       window.focus();
-      window.location.assign('/alerts');
+      // The Windows app: restore and raise its window (minimised or behind other windows).
+      void window.guardianDesktop?.focusWindow?.();
+      n.close();
+      openAlert(tag);
     };
   } catch {
     // Some browsers only allow notifications from a service worker.

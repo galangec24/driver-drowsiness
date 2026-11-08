@@ -53,10 +53,10 @@ export function NotificationBell() {
     };
   }, [open]);
 
+  // Opens the alert itself (Alerts page marks it read and shows its details).
   const openAlert = (a: Alert) => {
-    if (!a.read) markRead.mutate({ id: a.id, read: true });
     setOpen(false);
-    navigate(`/drivers/${a.driverId}`);
+    navigate(`/alerts?open=${a.id}`);
   };
 
   return (

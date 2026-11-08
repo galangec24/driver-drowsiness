@@ -10,4 +10,5 @@ contextBridge.exposeInMainWorld('guardianDesktop', {
   appInfo: () => ipcRenderer.invoke('app-info'),
   checkForUpdates: () => ipcRenderer.invoke('check-updates'),
   installUpdate: () => ipcRenderer.invoke('install-update'),
+  focusWindow: () => ipcRenderer.invoke('focus-window'),
 });

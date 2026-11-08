@@ -5,6 +5,7 @@ import type { Alert } from '../../api/types';
 import { assetUrl } from '../../api/client';
 import { ALERT_LABEL, formatTime, num, pct } from '../../lib/format';
 import { LocationMap } from '../map/LocationMap';
+import { AlertLocations } from './AlertLocations';
 import { Icon } from '../ui/Icon';
 
 /** What happened, who was driving (camera snapshot) and where (map + directions). */
@@ -106,6 +107,7 @@ export function AlertDetailModal({ alert, onClose }: { alert: Alert; onClose: ()
             />
           </section>
         </div>
+        <AlertLocations alert={alert} />
       </motion.div>
     </motion.div>,
     document.body,

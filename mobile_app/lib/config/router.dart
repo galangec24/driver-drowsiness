@@ -70,7 +70,11 @@ GoRouter buildRouter(AuthController auth) => GoRouter(
         ),
         GoRoute(
           path: '/alerts',
-          pageBuilder: (_, s) => _page(s, const AlertsScreen()),
+          // ?open=<id>: show that alert (tapped notification).
+          pageBuilder: (_, s) => _page(
+            s,
+            AlertsScreen(openAlertId: s.uri.queryParameters['open']),
+          ),
         ),
         GoRoute(
           path: '/settings',

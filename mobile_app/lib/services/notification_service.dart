@@ -8,6 +8,18 @@ class NotificationService {
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _ready = false;
 
+  /// Tapping a notification opens its alert (set by main.dart once the router exists).
+  void Function(String alertId)? onOpen;
+
+  /// The app was started by tapping a notification: that alert, until [takeLaunchAlert].
+  String? _launchAlert;
+
+  String? takeLaunchAlert() {
+    final id = _launchAlert;
+    _launchAlert = null;
+    return id;
+  }
+
   static const _channel = AndroidNotificationDetails(
     'driver_alerts',
     'Driver alerts',
@@ -24,7 +36,16 @@ class NotificationService {
         settings: const InitializationSettings(
           android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         ),
+        onDidReceiveNotificationResponse: (r) {
+          final id = r.payload;
+          if (id != null && id.isNotEmpty) onOpen?.call(id);
+        },
       );
+      final launch = await _plugin.getNotificationAppLaunchDetails();
+      if (launch?.didNotificationLaunchApp ?? false) {
+        final id = launch!.notificationResponse?.payload;
+        if (id != null && id.isNotEmpty) _launchAlert = id;
+      }
       _ready = true;
     } catch (_) {
       _ready = false;
@@ -51,6 +72,7 @@ class NotificationService {
       title: '${alert.driverName ?? 'Driver'}: ${alert.type.label}',
       body: 'Confidence ${(alert.confidence * 100).round()}%',
       notificationDetails: const NotificationDetails(android: _channel),
+      payload: alert.id,
     );
   }
 }
