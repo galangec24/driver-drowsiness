@@ -64,6 +64,23 @@ export function unverifiedFromError(err: unknown): { email: string; retryAfterS:
   return { email: details.email, retryAfterS: details.retryAfterS ?? 60, emailSent: details.emailSent };
 }
 
+/** Login refused because an admin-issued temporary password must be replaced → the e-mail, else null. */
+export function passwordChangeFromError(err: unknown): string | null {
+  if (!axios.isAxiosError(err) || err.response?.status !== 403) return null;
+  const details = (err.response.data as { details?: { code?: string; email?: string } })?.details;
+  return details?.code === 'PASSWORD_CHANGE_REQUIRED' && details.email ? details.email : null;
+}
+
+/** First sign-in of an admin-created account: replace the temporary password, get the session. */
+export async function changeTemporaryPassword(
+  email: string,
+  password: string,
+  newPassword: string,
+): Promise<AuthResponse> {
+  const { data } = await api.post<AuthResponse>('/auth/change-temporary-password', { email, password, newPassword });
+  return data;
+}
+
 /** Public sign-in options from the server (e.g. whether "Continue with Google" is set up). */
 export async function authConfig(): Promise<{ googleClientId: string | null }> {
   const { data } = await api.get<{ googleClientId: string | null }>('/auth/config');

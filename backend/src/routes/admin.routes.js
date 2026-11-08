@@ -5,12 +5,19 @@ const validate = require('../utils/validate');
 const asyncHandler = require('../utils/asyncHandler');
 const { requireAuth } = require('../middleware/auth.middleware');
 const { requireAdmin } = require('../middleware/admin.middleware');
+const adminParents = require('../controllers/adminParents.controller');
 
 const router = Router();
 router.use(requireAuth, asyncHandler(requireAdmin));
 
 router.get('/overview', asyncHandler(ctrl.overview));
 router.get('/parents', asyncHandler(ctrl.parents));
+// Create a parent account with a temporary password (they must change it at first sign-in).
+router.post(
+  '/parents',
+  validate(adminParents.createParentSchema),
+  asyncHandler(adminParents.createParent),
+);
 router.get('/reports/daily', asyncHandler(ctrl.dailyReport));
 router.get('/health', asyncHandler(ctrl.health));
 router.get('/feedback', asyncHandler(feedback.adminList));

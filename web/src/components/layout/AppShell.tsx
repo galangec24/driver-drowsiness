@@ -14,6 +14,8 @@ import { MenuDrawer } from './MenuDrawer';
 import { AnimatedBackground } from './AnimatedBackground';
 import { useNavCollapsed } from '../../lib/navState';
 import { OPEN_ALERT_EVENT } from '../../lib/notify';
+import { me } from '../../api/auth';
+import { useAuth } from '../../store/auth';
 
 /**
  * Responsive shell: side rail ≥640 px (labels ≥1024 px), bottom nav < 640 px,
@@ -23,6 +25,14 @@ export function AppShell() {
   const location = useLocation();
   const outlet = useOutlet();
   const navigate = useNavigate();
+  const { updateUser } = useAuth();
+  // The stored account can be out of date (e.g. a feature switched on by an admin): refresh it once.
+  useEffect(() => {
+    me()
+      .then(updateUser)
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per session start
+  }, []);
   // A clicked alert notification (lib/notify.ts): show that alert.
   useEffect(() => {
     const onOpen = (e: Event) => {

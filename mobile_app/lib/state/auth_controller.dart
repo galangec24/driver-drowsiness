@@ -68,6 +68,20 @@ class AuthController extends ChangeNotifier {
     await _setSession(r.token, r.user);
   }
 
+  /// After PasswordChangeRequired: the temporary password + a new one signs the user in.
+  Future<void> changeTemporaryPassword(
+    String email,
+    String password,
+    String newPassword,
+  ) async {
+    final r = await _api.changeTemporaryPassword(
+      email.trim(),
+      password,
+      newPassword,
+    );
+    await _setSession(r.token, r.user);
+  }
+
   Future<void> register(
     String name,
     String email,

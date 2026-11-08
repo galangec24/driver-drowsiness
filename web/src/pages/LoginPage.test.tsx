@@ -153,6 +153,47 @@ describe('LoginPage e-mail verification', () => {
   });
 });
 
+describe('accounts an admin created', () => {
+  test('the temporary password leads to "Choose your password", which signs in', async () => {
+    const { AxiosError } = await import('axios');
+    const err = new AxiosError('403', 'ERR_BAD_REQUEST', undefined, undefined, {
+      status: 403,
+      statusText: 'Forbidden',
+      headers: {},
+      config: {} as never,
+      data: {
+        error: 'Choose a new password',
+        details: { code: 'PASSWORD_CHANGE_REQUIRED', email: 'ana@example.com' },
+      },
+    });
+    vi.spyOn(authApi, 'login').mockRejectedValue(err);
+    const change = vi.spyOn(authApi, 'changeTemporaryPassword').mockResolvedValue({
+      token: 'jwt-new',
+      user: { id: 'u1', name: 'Ana', email: 'ana@example.com', role: 'parent', createdAt: '' },
+    });
+    renderWithProviders(<LoginPage />, { route: '/login' });
+    await userEvent.type(screen.getByLabelText('Email'), 'ana@example.com');
+    await userEvent.type(screen.getByLabelText('Password'), 'TempPass99');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByTestId('new-password-form')).toBeInTheDocument();
+
+    // Same as the temporary one: refused before asking the server.
+    await userEvent.type(screen.getByLabelText('New password'), 'TempPass99');
+    await userEvent.type(screen.getByLabelText('Confirm new password'), 'TempPass99');
+    await userEvent.click(screen.getByRole('button', { name: /save password/i }));
+    expect(await screen.findByText(/different from the temporary one/)).toBeInTheDocument();
+    expect(change).not.toHaveBeenCalled();
+
+    await userEvent.clear(screen.getByLabelText('New password'));
+    await userEvent.clear(screen.getByLabelText('Confirm new password'));
+    await userEvent.type(screen.getByLabelText('New password'), 'mynewpass1');
+    await userEvent.type(screen.getByLabelText('Confirm new password'), 'mynewpass1');
+    await userEvent.click(screen.getByRole('button', { name: /save password/i }));
+    expect(change).toHaveBeenCalledWith('ana@example.com', 'TempPass99', 'mynewpass1');
+    await vi.waitFor(() => expect(localStorage.getItem('gd:token')).toBe('jwt-new'));
+  });
+});
+
 describe('Forgot password and Google', () => {
   test('forgot password e-mails a code, then a new password signs in', async () => {
     vi.spyOn(authApi, 'authConfig').mockResolvedValue({ googleClientId: null });

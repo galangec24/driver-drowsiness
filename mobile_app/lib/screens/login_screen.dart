@@ -91,11 +91,99 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } on VerificationRequired catch (v) {
       setState(() => _pending = v);
+    } on PasswordChangeRequired catch (p) {
+      if (mounted) await _chooseNewPassword(p.email, _password.text);
     } on ApiException catch (e) {
       setState(() => _formError = e.message);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// An admin created this account: choose your own password (no session until then).
+  Future<void> _chooseNewPassword(String email, String temporary) async {
+    final auth = context.read<AuthController>();
+    final first = TextEditingController();
+    final second = TextEditingController();
+    String? error;
+    var busy = false;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: const Text('Choose your password'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Your account was set up with a temporary password. Choose your own to continue.',
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('new-password'),
+                controller: first,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'New password'),
+              ),
+              TextField(
+                key: const ValueKey('confirm-password'),
+                controller: second,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Confirm new password',
+                ),
+              ),
+              if (error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    error!,
+                    style: const TextStyle(color: Colors.redAccent),
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: busy ? null : () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: busy
+                  ? null
+                  : () async {
+                      final p = first.text;
+                      final msg = p.length < 8
+                          ? 'Use at least 8 characters'
+                          : p == temporary
+                          ? 'Choose a password different from the temporary one'
+                          : p != second.text
+                          ? 'The passwords do not match'
+                          : null;
+                      if (msg != null) {
+                        setDialog(() => error = msg);
+                        return;
+                      }
+                      setDialog(() => busy = true);
+                      try {
+                        await auth.changeTemporaryPassword(email, temporary, p);
+                        if (ctx.mounted) Navigator.of(ctx).pop();
+                      } on ApiException catch (e) {
+                        setDialog(() {
+                          busy = false;
+                          error = e.message;
+                        });
+                      }
+                    },
+              child: const Text('Save and sign in'),
+            ),
+          ],
+        ),
+      ),
+    );
+    first.dispose();
+    second.dispose();
   }
 
   Widget _otp(VerificationRequired pending) {

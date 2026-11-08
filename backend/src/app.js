@@ -10,6 +10,7 @@ const { notFound, errorHandler } = require('./middleware/error.middleware');
 const authRoutes = require('./routes/auth.routes');
 const driversRoutes = require('./routes/drivers.routes');
 const ingestRoutes = require('./routes/ingest.routes');
+const monitorRoutes = require('./routes/monitor.routes');
 const alertsRoutes = require('./routes/alerts.routes');
 const pushRoutes = require('./routes/push.routes');
 const adminRoutes = require('./routes/admin.routes');
@@ -90,7 +91,8 @@ function createApp() {
     }),
   );
   app.use('/api', (req, res, next) => {
-    if (!maintenance() || req.path.startsWith('/ingest')) return next();
+    if (!maintenance() || req.path.startsWith('/ingest') || req.path.startsWith('/monitor/device'))
+      return next();
     return res.status(503).json({
       maintenance: true,
       error:
@@ -113,6 +115,7 @@ function createApp() {
   app.use('/api/auth', authRoutes);
   app.use('/api/drivers', driversRoutes);
   app.use('/api/ingest', ingestRoutes);
+  app.use('/api/monitor', monitorRoutes); // TESTING PHASE: phone-browser driver monitor
   app.use('/api/alerts', alertsRoutes);
   app.use('/api/push', pushRoutes);
   app.use('/api/admin', adminRoutes);

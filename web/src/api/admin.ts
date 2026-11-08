@@ -66,6 +66,10 @@ export interface ParentRow {
   email: string;
   role: string;
   emailVerified: boolean;
+  /** Created in the admin console (TESTING PHASE: gets the phone driver monitor). */
+  createdByAdmin?: boolean;
+  /** Still on the temporary password (has not signed in yet). */
+  mustChangePassword?: boolean;
   signIn: 'password' | 'google' | 'google+password';
   createdAt: string;
   drivers: ParentDriver[];
@@ -83,6 +87,15 @@ export interface ParentsResponse {
 
 export async function getParents(): Promise<ParentsResponse> {
   return (await api.get<ParentsResponse>('/admin/parents')).data;
+}
+
+/** Create a parent account; the temporary password is e-mailed and returned once (shown to the admin). */
+export async function createParent(body: {
+  name: string;
+  email: string;
+  phone?: string;
+}): Promise<{ temporaryPassword: string; emailSent: boolean; user: { id: string; email: string; name: string } }> {
+  return (await api.post('/admin/parents', body)).data;
 }
 
 export interface CatalogDataset {

@@ -7,6 +7,8 @@ import { Icon } from '../../components/ui/Icon';
 import { OrbitLoader } from '../../components/ui/OrbitLoader';
 import { formatTime } from '../../lib/format';
 import { Badge } from './shared';
+import { MonitorLinksCard } from '../../components/driver/MonitorLinksCard';
+import { CreateParentCard } from './CreateParentCard';
 
 const SIGN_IN: Record<ParentRow['signIn'], string> = {
   password: 'Password',
@@ -15,24 +17,38 @@ const SIGN_IN: Record<ParentRow['signIn'], string> = {
 };
 
 function DriverChips({ p }: { p: ParentRow }) {
+  // TESTING PHASE: the phone monitor link of one driver (MonitorLinksCard), opened from its chip.
+  const [monitorFor, setMonitorFor] = useState<string | null>(null);
   if (!p.drivers.length) return <p className="text-sm text-ink-muted">No drivers registered yet.</p>;
+  const selected = p.drivers.find((d) => d.id === monitorFor);
   return (
-    <ul className="flex flex-wrap gap-2">
-      {p.drivers.map((d) => (
-        <li
-          key={d.id}
-          className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-white"
-        >
-          <span
-            className={`h-2 w-2 rounded-full ${d.online ? 'bg-accent-ok shadow-[0_0_8px_#10b981]' : 'bg-white/25'}`}
-            title={d.online ? 'Online' : 'Offline'}
-          />
-          {d.name}
-          {d.relationship && <span className="text-xs text-ink-muted">· {d.relationship}</span>}
-          {!d.faceEnrolled && <Badge tone="warn">no face</Badge>}
-        </li>
-      ))}
-    </ul>
+    <div className="flex flex-col gap-3">
+      <ul className="flex flex-wrap gap-2">
+        {p.drivers.map((d) => (
+          <li
+            key={d.id}
+            className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-white"
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${d.online ? 'bg-accent-ok shadow-[0_0_8px_#10b981]' : 'bg-white/25'}`}
+              title={d.online ? 'Online' : 'Offline'}
+            />
+            {d.name}
+            {d.relationship && <span className="text-xs text-ink-muted">· {d.relationship}</span>}
+            {!d.faceEnrolled && <Badge tone="warn">no face</Badge>}
+            <button
+              type="button"
+              onClick={() => setMonitorFor((cur) => (cur === d.id ? null : d.id))}
+              className="ml-1 rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold text-accent-glow hover:bg-white/15"
+              aria-expanded={monitorFor === d.id}
+            >
+              Phone monitor
+            </button>
+          </li>
+        ))}
+      </ul>
+      {selected && <MonitorLinksCard driverId={selected.id} driverName={selected.name} familyName={p.name} />}
+    </div>
   );
 }
 
@@ -87,6 +103,8 @@ export function ParentsTab() {
         ))}
       </div>
 
+      <CreateParentCard />
+
       <label className="glass-inset flex h-12 items-center gap-3 px-4">
         <Icon name="user" size={18} />
         <input
@@ -119,6 +137,8 @@ export function ParentsTab() {
               {p.role === 'admin' && <Badge tone="info">admin</Badge>}
               <Badge>{SIGN_IN[p.signIn]}</Badge>
               {!p.emailVerified && <Badge tone="warn">unverified</Badge>}
+              {p.createdByAdmin && <Badge>created by admin</Badge>}
+              {p.mustChangePassword && <Badge tone="warn">not signed in yet</Badge>}
               {p.onlineDrivers > 0 && <Badge tone="ok">{p.onlineDrivers} online</Badge>}
               <Badge>{p.alerts7d} alerts · 7 days</Badge>
             </div>
@@ -155,6 +175,7 @@ export function ParentsTab() {
                       <span className="font-semibold text-white">{p.name}</span>
                       {p.role === 'admin' && <Badge tone="info">admin</Badge>}
                       {!p.emailVerified && <Badge tone="warn">unverified</Badge>}
+                      {p.createdByAdmin && <Badge>created by admin</Badge>}
                     </div>
                     <p className="text-xs text-ink-muted">{p.email}</p>
                   </td>

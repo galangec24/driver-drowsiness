@@ -2,7 +2,15 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { googleSignIn, login, register, unverifiedFromError, type AuthResponse } from '../api/auth';
+import {
+  googleSignIn,
+  login,
+  passwordChangeFromError,
+  register,
+  unverifiedFromError,
+  type AuthResponse,
+} from '../api/auth';
+import { NewPasswordForm } from '../components/auth/NewPasswordForm';
 import { OtpForm } from '../components/auth/OtpForm';
 import { ForgotPasswordForm } from '../components/auth/ForgotPasswordForm';
 import { GoogleButton } from '../components/auth/GoogleButton';
@@ -60,6 +68,8 @@ export function LoginPage() {
   const [farewell, setFarewell] = useState<string | null>(() => takeFarewell());
   // Waiting for the e-mailed 6-digit code (new account, or sign-in before verifying).
   const [pending, setPending] = useState<{ email: string; retryAfterS: number; emailSent?: boolean } | null>(null);
+  // An admin created this account: the temporary password worked, a new one is required.
+  const [mustChange, setMustChange] = useState<{ email: string; password: string } | null>(null);
 
   if (token) {
     const to = (location.state as { from?: string } | null)?.from ?? '/';
@@ -105,7 +115,9 @@ export function LoginPage() {
       finish(res);
     } catch (err) {
       const unverified = unverifiedFromError(err);
+      const changeFor = passwordChangeFromError(err);
       if (unverified) setPending(unverified);
+      else if (changeFor) setMustChange({ email: changeFor, password: values.password });
       else setFormError(errorMessage(err, 'Sign in failed'));
     } finally {
       setLoading(false);
@@ -165,6 +177,18 @@ export function LoginPage() {
                 browser deliver button presses to the form behind them, so "Send code" did nothing. */}
             {farewell !== null ? (
               <FarewellCard name={farewell} onSignInAgain={() => setFarewell(null)} />
+            ) : mustChange ? (
+              <div>
+                <NewPasswordForm
+                  email={mustChange.email}
+                  temporaryPassword={mustChange.password}
+                  onDone={finish}
+                  onBack={() => {
+                    setMustChange(null);
+                    setValues((v) => ({ ...v, password: '' }));
+                  }}
+                />
+              </div>
             ) : pending ? (
               <div>
                 <OtpForm

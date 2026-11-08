@@ -37,6 +37,8 @@ const env = {
   // False-positive verifier (src/ml/fp-verifier.json). FP_VERIFIER=off disables it;
   // FP_VERIFIER_THRESHOLD overrides the threshold chosen at training time.
   fpVerifier: (process.env.FP_VERIFIER || 'on').toLowerCase() !== 'off',
+  // TESTING PHASE: the phone-browser driver monitor (monitor links). DRIVER_MONITOR_WEB=off removes it.
+  driverMonitorWeb: (process.env.DRIVER_MONITOR_WEB || 'on').toLowerCase() !== 'off',
   fpVerifierThreshold:
     process.env.FP_VERIFIER_THRESHOLD !== undefined && process.env.FP_VERIFIER_THRESHOLD !== ''
       ? Number(process.env.FP_VERIFIER_THRESHOLD)

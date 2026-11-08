@@ -24,6 +24,12 @@ class VerificationRequired implements Exception {
   final int retryAfterS;
 }
 
+/// Sign-in with an admin-issued temporary password: the user must choose their own first.
+class PasswordChangeRequired implements Exception {
+  const PasswordChangeRequired(this.email);
+  final String email;
+}
+
 /// Registration refused: the face matches drivers already registered. The parent may confirm a
 /// different person with the same face (twins) and resubmit with `confirmLookalike`.
 class FaceMatchesDriver implements Exception {
@@ -79,6 +85,7 @@ class ApiService {
 
   Exception _wrap(Object e) {
     if (e is VerificationRequired) return e;
+    if (e is PasswordChangeRequired) return e;
     if (e is FaceMatchesDriver) return e;
     if (e is DioException) {
       final data = e.response?.data;
@@ -90,6 +97,11 @@ class ApiService {
           (details['email'] ?? '') as String,
           (details['retryAfterS'] as num?)?.toInt() ?? 60,
         );
+      }
+      if (e.response?.statusCode == 403 &&
+          details is Map &&
+          details['code'] == 'PASSWORD_CHANGE_REQUIRED') {
+        return PasswordChangeRequired((details['email'] ?? '') as String);
       }
       if (e.response?.statusCode == 409 &&
           details is Map &&
@@ -157,6 +169,22 @@ class ApiService {
           user: AppUser.fromJson(r.data!['user'] as Map<String, dynamic>),
         );
       });
+
+  /// First sign-in of an admin-created account: replace the temporary password.
+  Future<({String token, AppUser user})> changeTemporaryPassword(
+    String email,
+    String password,
+    String newPassword,
+  ) => _call(() async {
+    final r = await _dio.post<Map<String, dynamic>>(
+      '/auth/change-temporary-password',
+      data: {'email': email, 'password': password, 'newPassword': newPassword},
+    );
+    return (
+      token: r.data!['token'] as String,
+      user: AppUser.fromJson(r.data!['user'] as Map<String, dynamic>),
+    );
+  });
 
   Future<({String token, AppUser user})> register(
     String name,

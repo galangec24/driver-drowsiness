@@ -9,6 +9,10 @@ export interface User {
   language?: string;
   /** Relative to the API (/api/auth/avatar/...), or null without a photo. */
   avatarUrl?: string | null;
+  /** Created by an admin (admin console > Parents). */
+  createdByAdmin?: boolean;
+  /** TESTING PHASE: may create phone driver-monitor links (admins and admin-created parents). */
+  phoneMonitor?: boolean;
 }
 
 export interface Thresholds {

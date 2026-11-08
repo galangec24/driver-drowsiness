@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 const { locationSchema } = require('./Driver');
 
-const SOURCES = ['simulated', 'driver_monitor', 'mobile_app', 'hardware'];
+// web_monitor: the phone-browser driver monitor (testing phase, monitor links).
+const SOURCES = ['simulated', 'driver_monitor', 'mobile_app', 'hardware', 'web_monitor'];
 
 const sensorLogSchema = new mongoose.Schema(
   {

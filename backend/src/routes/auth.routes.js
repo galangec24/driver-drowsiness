@@ -21,6 +21,13 @@ router.post(
   asyncHandler(ctrl.register),
 );
 router.post('/login', signInLimit, validate(ctrl.loginSchema), asyncHandler(ctrl.login));
+// First sign-in of an account an admin created: replace the temporary password.
+router.post(
+  '/change-temporary-password',
+  signInLimit,
+  validate(ctrl.changeTemporarySchema),
+  asyncHandler(ctrl.changeTemporaryPassword),
+);
 router.post(
   '/verify-email',
   signInLimit,

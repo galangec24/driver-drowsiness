@@ -10,6 +10,8 @@ import { GlassCard } from '../components/ui/GlassCard';
 import { DepthButton } from '../components/ui/DepthButton';
 import { CallButton } from '../components/call/CallButton';
 import { MessagePanel } from '../components/driver/MessagePanel';
+import { MonitorLinksCard } from '../components/driver/MonitorLinksCard';
+import { useAuth } from '../store/auth';
 import { DeleteDriverDialog } from '../components/driver/DeleteDriverDialog';
 import { ReadingHistory } from '../components/driver/ReadingHistory';
 import { Avatar } from '../components/ui/Avatar';
@@ -26,6 +28,7 @@ import { loadImage, toJpegDataUrl } from '../lib/imageQuality';
 
 export function DriverDetailPage() {
   const { id = '' } = useParams();
+  const { user } = useAuth();
   const [search] = useSearchParams();
   const autoCall = search.get('call') === '1';
   const navigate = useNavigate();
@@ -204,6 +207,7 @@ export function DriverDetailPage() {
 
         <div className="flex flex-col gap-6">
           <MessagePanel driverId={d.id} driverName={d.name} />
+          {user?.phoneMonitor && <MonitorLinksCard driverId={d.id} driverName={d.name} />}
 
           <GlassCard interactive={false} data-testid="live-location">
             <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-white">

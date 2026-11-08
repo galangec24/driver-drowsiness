@@ -47,6 +47,12 @@ export const router = createBrowserRouter([
   { path: '/app-login', element: <AppLoginPage /> },
   // 3D map shown inside the Android app (coordinates only, no sign-in).
   { path: '/embed/map', element: <EmbedMapPage /> },
+  // TESTING PHASE: phone-browser driver monitor, opened from a parent's monitor link (no sign-in;
+  // the link is the key). Loaded on demand: the face model never weighs on the main app.
+  {
+    path: '/monitor/:token',
+    lazy: async () => ({ Component: (await import('./pages/MonitorPage')).MonitorPage }),
+  },
   {
     element: <RequireAuth />,
     children: [

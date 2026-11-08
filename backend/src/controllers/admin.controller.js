@@ -160,6 +160,8 @@ async function parents(_req, res) {
       id,
       name: u.name,
       email: u.email,
+      createdByAdmin: Boolean(u.createdByAdmin),
+      mustChangePassword: Boolean(u.mustChangePassword),
       role: u.role,
       emailVerified: u.emailVerified !== false,
       signIn: google && password ? 'google+password' : google ? 'google' : 'password',

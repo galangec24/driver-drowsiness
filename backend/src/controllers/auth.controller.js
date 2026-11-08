@@ -38,6 +38,12 @@ const loginSchema = z.object({
   password: z.string().min(1).max(128),
 });
 
+const changeTemporarySchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+  password: z.string().min(1).max(128),
+  newPassword: z.string().min(8, 'Use at least 8 characters').max(128),
+});
+
 const verifySchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   code: z
@@ -149,6 +155,36 @@ async function login(req, res) {
       emailSent: !sent.failed,
     });
   }
+  if (user.mustChangePassword) {
+    // An admin-issued temporary password: no session until the user picks their own.
+    throw new HttpError(403, 'Choose a new password to finish setting up your account.', {
+      code: 'PASSWORD_CHANGE_REQUIRED',
+      email,
+    });
+  }
+  await applyAdminRole(user);
+  res.json({ token: signToken(user), user: user.toPublic() });
+}
+
+/**
+ * POST /auth/change-temporary-password {email, password, newPassword}: an account an admin
+ * created signs in for the first time and replaces the temporary password (it must differ).
+ */
+async function changeTemporaryPassword(req, res) {
+  const { email, password, newPassword } = req.body;
+  const user = await User.findOne({ email }).select('+passwordHash');
+  const ok = user && user.passwordHash && (await bcrypt.compare(password, user.passwordHash));
+  if (!ok) throw new HttpError(401, 'Invalid email or password');
+  if (!user.mustChangePassword)
+    throw new HttpError(409, 'This account already has its own password');
+  if (newPassword === password) {
+    throw new HttpError(400, 'Choose a password different from the temporary one');
+  }
+  user.passwordHash = await bcrypt.hash(newPassword, 10);
+  user.mustChangePassword = false;
+  // The temporary password was e-mailed to this address, so the address is proven.
+  user.emailVerified = true;
+  await user.save();
   await applyAdminRole(user);
   res.json({ token: signToken(user), user: user.toPublic() });
 }
@@ -236,6 +272,7 @@ async function resetPassword(req, res) {
     throw new HttpError(status, message, { code: result });
   }
   user.passwordHash = await bcrypt.hash(password, 10);
+  user.mustChangePassword = false; // their own password now (replaces an admin-issued one)
   // The code arrived by e-mail, so the address is proven too.
   if (user.emailVerified === false) {
     user.emailVerified = true;
@@ -409,6 +446,8 @@ module.exports = {
   collectHandoff,
   registerSchema,
   loginSchema,
+  changeTemporarySchema,
+  changeTemporaryPassword,
   fcmTokenSchema,
   verifySchema,
   resendSchema,

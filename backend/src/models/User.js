@@ -62,6 +62,12 @@ const userSchema = new mongoose.Schema(
       default: undefined,
     },
     fcmToken: { type: String, select: false },
+    // Created by an admin (admin console > Parents > Create parent account). TESTING PHASE: these
+    // accounts get the phone driver monitor (monitor links) on their drivers.
+    createdByAdmin: { type: Boolean },
+    // Signed in with a temporary password the admin issued: no session until it is changed
+    // (POST /auth/change-temporary-password).
+    mustChangePassword: { type: Boolean },
   },
   { timestamps: { createdAt: true, updatedAt: false } },
 );
@@ -76,6 +82,9 @@ userSchema.methods.toPublic = function toPublic() {
     language: this.language || 'auto',
     avatarUrl: this.avatarV ? `/api/auth/avatar/${this._id}?v=${this.avatarV}` : null,
     emailVerified: this.emailVerified !== false,
+    createdByAdmin: Boolean(this.createdByAdmin),
+    // TESTING PHASE: may create phone-monitor links for their drivers.
+    phoneMonitor: this.role === 'admin' || Boolean(this.createdByAdmin),
     createdAt: this.createdAt,
   };
 };
