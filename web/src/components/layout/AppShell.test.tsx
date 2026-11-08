@@ -6,7 +6,7 @@ import { renderWithProviders } from '../../test/utils';
 
 vi.mock('../../api/alerts', async (orig) => ({
   ...(await orig<typeof import('../../api/alerts')>()),
-  listAlerts: vi.fn().mockResolvedValue({ alerts: [], unacknowledged: 3 }),
+  listAlerts: vi.fn().mockResolvedValue({ alerts: [], unacknowledged: 1, unread: 3 }),
 }));
 
 function renderShell() {
@@ -50,8 +50,9 @@ describe('AppShell responsive behaviour', () => {
     expect(hrefs(bottomLinks)).toEqual(hrefs(railLinks));
   });
 
-  test('shows unacknowledged alert badge', async () => {
+  test('the Alerts badge counts unread alerts, the same number as the bell', async () => {
     renderShell();
-    expect(await screen.findAllByText('3')).toHaveLength(2);
+    // Side rail, bottom nav and the bell all show the same number.
+    expect(await screen.findAllByText('3')).toHaveLength(3);
   });
 });

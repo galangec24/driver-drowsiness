@@ -36,4 +36,29 @@ describe('ServerWake', () => {
     });
     expect(screen.queryByText('Waking up the server…')).not.toBeInTheDocument();
   });
+
+  test('502/503 while Render wakes the server are retried, not shown as a failure', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('', { status: 502 }))
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValue(new Response('{}', { status: 200 }));
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(fetchMock);
+    render(<ServerWake />);
+    for (let i = 0; i < 4; i += 1) {
+      await act(async () => {
+        vi.advanceTimersByTime(3100);
+      });
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(screen.queryByText(/taking too long/i)).not.toBeInTheDocument();
+    // Answered: the wait counter stops (the overlay then fades out on animation frames).
+    const shown = screen.getByTestId('server-wake').textContent;
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(screen.queryByTestId('server-wake')?.textContent ?? shown).toBe(shown);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
 });

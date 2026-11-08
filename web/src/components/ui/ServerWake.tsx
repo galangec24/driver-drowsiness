@@ -6,14 +6,21 @@ import { DepthButton } from './DepthButton';
 
 /** Show the overlay only if the server hasn't answered after this long (a warm server answers in ~0.2 s). */
 const SHOW_AFTER_MS = 1500;
-const GIVE_UP_MS = 75_000;
+/** Keep trying this long in all before offering "Try again" (a cold start has taken 70 s+). */
+const GIVE_UP_MS = 150_000;
+/** One request may hang while the server boots; abandon it after this and ask again. */
+const REQUEST_TIMEOUT_MS = 20_000;
+const RETRY_EVERY_MS = 3000;
 
 type State = 'checking' | 'waking' | 'ready' | 'failed';
 
 /**
- * Render's free plan puts the API to sleep after ~15 idle minutes; the first request then takes up to
- * ~50 s. Instead of a frozen screen or "cannot reach the server", show a loader while it wakes up.
- * Offline (no network at all) is not treated as "waking": the app's offline mode takes over.
+ * Render's free plan puts the API to sleep after ~15 idle minutes (the backend now pings itself to
+ * stay awake, so this should be rare); the first request then takes up to ~70 s. Instead of a
+ * frozen screen or "cannot reach the server", show a loader while it wakes up.
+ * While waking, Render's proxy answers 502/503 or the request hangs: those are retried until the
+ * server really answers, instead of failing at once. Offline (no network at all) is not treated as
+ * "waking": the app's offline mode takes over.
  */
 export function ServerWake() {
   const [state, setState] = useState<State>('checking');
@@ -26,23 +33,40 @@ export function ServerWake() {
       setState('ready');
       return undefined;
     }
-    const ctrl = new AbortController();
+    let stopped = false;
+    let current: AbortController | null = null;
+    let retryTimer = 0;
     const started = Date.now();
     const showTimer = window.setTimeout(() => setState((s) => (s === 'checking' ? 'waking' : s)), SHOW_AFTER_MS);
     const tick = window.setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 1000);
-    const giveUp = window.setTimeout(() => ctrl.abort(), GIVE_UP_MS);
-    fetch(`${API_URL}/api/health`, { signal: ctrl.signal, cache: 'no-store' })
-      .then((r) => setState(r.ok ? 'ready' : 'failed'))
-      .catch(() => setState(ctrl.signal.aborted ? 'failed' : 'ready'))
-      .finally(() => {
-        window.clearTimeout(showTimer);
-        window.clearTimeout(giveUp);
-        window.clearInterval(tick);
-      });
-    return () => {
-      ctrl.abort();
+    const finish = (next: State) => {
+      stopped = true;
       window.clearTimeout(showTimer);
-      window.clearTimeout(giveUp);
+      window.clearInterval(tick);
+      setState(next);
+    };
+    const tryOnce = () => {
+      if (stopped) return;
+      const ctrl = new AbortController();
+      current = ctrl;
+      const timeout = window.setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+      fetch(`${API_URL}/api/health`, { signal: ctrl.signal, cache: 'no-store' })
+        .then((r) => (r.ok ? 'ready' : 'retry'))
+        .catch(() => (ctrl.signal.aborted || navigator.onLine ? 'retry' : 'ready'))
+        .then((outcome) => {
+          window.clearTimeout(timeout);
+          if (stopped) return;
+          if (outcome === 'ready') finish('ready');
+          else if (Date.now() - started >= GIVE_UP_MS) finish('failed');
+          else retryTimer = window.setTimeout(tryOnce, RETRY_EVERY_MS);
+        });
+    };
+    tryOnce();
+    return () => {
+      stopped = true;
+      current?.abort();
+      window.clearTimeout(showTimer);
+      window.clearTimeout(retryTimer);
       window.clearInterval(tick);
     };
   }, [attempt]);
@@ -62,7 +86,7 @@ export function ServerWake() {
             <>
               <OrbitLoader size={96} label="Waking up the server…" />
               <p className="max-w-sm text-sm text-ink-muted">
-                The free server sleeps when nobody uses it and takes up to a minute to start.
+                The free server sleeps when nobody uses it and can take a minute or two to start.
                 {elapsed > 0 && <span className="mt-1 block font-mono text-xs text-indigo-200">{elapsed}s</span>}
               </p>
             </>

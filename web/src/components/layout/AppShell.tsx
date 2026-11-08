@@ -22,11 +22,13 @@ export function AppShell() {
   const outlet = useOutlet();
   const refetchInterval = usePollingFallback();
   const { data } = useQuery({
-    queryKey: ['alerts', { status: 'open', limit: 50 }],
-    queryFn: () => listAlerts({ status: 'open', limit: 50 }),
+    // The bell's own query (NotificationBell): one cache entry, so both badges always agree.
+    queryKey: ['alerts', { read: false, limit: 30 }],
+    queryFn: () => listAlerts({ read: false, limit: 30 }),
     refetchInterval,
   });
-  const unacknowledged = data?.unacknowledged ?? 0;
+  // Unread alerts, like the bell (opening or acknowledging one clears it).
+  const unacknowledged = data?.unread ?? 0;
   const [collapsed] = useNavCollapsed();
 
   return (

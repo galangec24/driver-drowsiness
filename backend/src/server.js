@@ -13,6 +13,7 @@ const trainingRunner = require('./services/trainingRunner');
 const sensorRollup = require('./services/sensorRollup');
 const snapshotCleanup = require('./services/snapshotCleanup');
 const { ensureViews } = require('./config/dbViews');
+const keepAlive = require('./services/keepAlive');
 
 /** Drivers created before name uniqueness existed get their nameKey (duplicates are reported). */
 async function backfillDriverNameKeys() {
@@ -35,11 +36,14 @@ async function backfillDriverNameKeys() {
 async function start() {
   assertRequired();
   await connectDb(env.mongoUri);
-  await backfillDriverNameKeys().catch((err) =>
-    logger.warn({ err: err.message }, 'driver name backfill failed'),
-  );
-
-  await ensureViews().catch((err) => logger.warn({ err: err.message }, 'database views failed'));
+  // One-off database upkeep runs after the server is already answering (a faster wake-up on
+  // Render's free plan): none of it is needed to serve the first request.
+  const upkeep = async () => {
+    await backfillDriverNameKeys().catch((err) =>
+      logger.warn({ err: err.message }, 'driver name backfill failed'),
+    );
+    await ensureViews().catch((err) => logger.warn({ err: err.message }, 'database views failed'));
+  };
 
   const app = createApp();
   const server = http.createServer(app);
@@ -58,11 +62,11 @@ async function start() {
   const photoCleanupTask = snapshotCleanup.schedule();
   if (env.fpVerifier) {
     loadFpVerifier();
-    // An admin-promoted verifier (stored in MongoDB) replaces the bundled file.
-    await modelRegistry
+    // An admin-promoted verifier (stored in MongoDB) replaces the bundled file when it has loaded.
+    modelRegistry
       .loadActiveVerifier()
-      .catch((err) => logger.warn({ err: err.message }, 'could not load promoted verifier'));
-    modelRegistry.startVerifierSync();
+      .catch((err) => logger.warn({ err: err.message }, 'could not load promoted verifier'))
+      .finally(() => modelRegistry.startVerifierSync());
   }
   trainingRunner
     .recover()
@@ -72,13 +76,17 @@ async function start() {
 
   server.listen(env.port, '0.0.0.0', () => {
     logger.info(`Guardian Drive backend listening on http://0.0.0.0:${env.port}`);
+    upkeep();
   });
+  // Render free plan: stay awake so nobody waits for "Waking up the server" (services/keepAlive).
+  const keepAliveTask = keepAlive.schedule();
 
   const shutdown = async (signal) => {
     logger.info({ signal }, 'shutting down');
     tuningTask.stop();
     rollupTask.stop();
     photoCleanupTask.stop();
+    keepAliveTask.stop();
     server.close();
     await disconnectDb();
     process.exit(0);

@@ -122,7 +122,8 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
-    final unack = context.select<DataController, int>((d) => d.unacknowledged);
+    // Same number as the bell: unread alerts (opening or acknowledging one clears it).
+    final unack = context.select<DataController, int>((d) => d.unread);
     return Scaffold(
       extendBody: true,
       body: MeshBackground(
